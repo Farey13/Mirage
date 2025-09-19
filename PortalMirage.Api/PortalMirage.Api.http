@@ -1,0 +1,6 @@
+@PortalMirage.Api_HostAddress = http://localhost:5288
+
+GET {{PortalMirage.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
