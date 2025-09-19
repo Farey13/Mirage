@@ -9,7 +9,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="MahApps.Metro" Version="2.4.11" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\PatientInfo.Api.Sdk\PatientInfo.Api.Sdk.csproj" />
+    <ProjectReference Include="..\PortalMirage.Core\PortalMirage.Core.csproj" />
   </ItemGroup>
 
 </Project>
