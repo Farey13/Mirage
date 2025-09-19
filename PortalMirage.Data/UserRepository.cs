@@ -1,0 +1,27 @@
+﻿using Dapper;
+using PortalMirage.Core.Models;
+using PortalMirage.Data.Abstractions;
+
+namespace PortalMirage.Data;
+
+public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepository
+{
+    public async Task<User?> GetByUsernameAsync(string username)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = "SELECT UserID, Username, PasswordHash, FullName, IsActive, CreatedAt FROM Users WHERE Username = @Username";
+        return await connection.QuerySingleOrDefaultAsync<User>(sql, new { Username = username });
+    }
+
+    public async Task<User> CreateAsync(User user)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = """
+                           INSERT INTO Users (Username, PasswordHash, FullName, IsActive)
+                           OUTPUT INSERTED.UserID, INSERTED.Username, INSERTED.PasswordHash, INSERTED.FullName, INSERTED.IsActive, INSERTED.CreatedAt
+                           VALUES (@Username, @PasswordHash, @FullName, @IsActive);
+                           """;
+        var newUser = await connection.QuerySingleAsync<User>(sql, user);
+        return newUser;
+    }
+}
