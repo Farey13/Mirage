@@ -3,9 +3,6 @@ using Refit;
 
 namespace PatientInfo.Api.Sdk;
 
-
-
-
 /// <summary>
 /// Refit interface for interacting with the PatientInfo API.
 /// </summary>
