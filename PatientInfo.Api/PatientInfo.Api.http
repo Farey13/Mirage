@@ -1,0 +1,17 @@
+@PatientInfo.Api_HostAddress = http://localhost:5104
+
+POST {{PatientInfo.Api_HostAddress}}/api/PatientInfo/getbyhospitalnumber
+Accept: application/json
+Content-Type: application/json
+{
+  "value": 1111
+}
+###
+
+POST {{PatientInfo.Api_HostAddress}}/api/PatientInfo/getbynationalId
+Accept: application/json
+Content-Type: application/json
+{
+  "value": "A111111"
+}
+###
