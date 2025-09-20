@@ -70,6 +70,12 @@ builder.Services.AddSingleton<PortalMirage.Data.Abstractions.IDbConnectionFactor
 
 // 3. Add the Repositories (DAL)
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IUserRepository, PortalMirage.Data.UserRepository>();
+builder.Services.AddScoped<PortalMirage.Data.Abstractions.ICalibrationLogRepository, PortalMirage.Data.CalibrationLogRepository>();
+builder.Services.AddScoped<PortalMirage.Data.Abstractions.IKitValidationRepository, PortalMirage.Data.KitValidationRepository>();
+
+
+
+
 // ... (all your other repositories)
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IRoleRepository, PortalMirage.Data.RoleRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IUserRoleRepository, PortalMirage.Data.UserRoleRepository>();
@@ -79,6 +85,12 @@ builder.Services.AddScoped<PortalMirage.Data.Abstractions.IAuditLogRepository, P
 
 // 4. Add the Services (BLL)
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IUserService, PortalMirage.Business.UserService>();
+builder.Services.AddScoped<PortalMirage.Business.Abstractions.ICalibrationLogService, PortalMirage.Business.CalibrationLogService>();
+builder.Services.AddScoped<PortalMirage.Business.Abstractions.IKitValidationService, PortalMirage.Business.KitValidationService>();
+
+
+
+
 // ... (all your other services)
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IRoleService, PortalMirage.Business.RoleService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IUserRoleService, PortalMirage.Business.UserRoleService>();
