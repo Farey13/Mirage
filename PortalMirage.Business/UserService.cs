@@ -34,4 +34,27 @@ public class UserService(IUserRepository userRepository) : IUserService
 
         return createdUser;
     }
+
+    public async Task<User?> ValidateCredentialsAsync(string username, string password)
+    {
+        // 1. Find the user by their username
+        var user = await userRepository.GetByUsernameAsync(username);
+        if (user is null)
+        {
+            return null; // User not found
+        }
+
+        // 2. Verify the provided password against the stored hash
+        if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
+        {
+            return null; // Password does not match
+        }
+
+        // 3. If validation succeeds, return the user object
+        return user;
+    }
+    public async Task<IEnumerable<User>> GetAllUsersAsync()
+    {
+        return await userRepository.GetAllAsync();
+    }
 }
