@@ -24,4 +24,10 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
         var newUser = await connection.QuerySingleAsync<User>(sql, user);
         return newUser;
     }
+    public async Task<IEnumerable<User>> GetAllAsync()
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = "SELECT UserID, Username, FullName, IsActive, CreatedAt FROM Users";
+        return await connection.QueryAsync<User>(sql);
+    }
 }
