@@ -20,7 +20,13 @@ public class CalibrationLogRepository(IDbConnectionFactory connectionFactory) : 
     public async Task<IEnumerable<CalibrationLog>> GetByDateRangeAsync(DateTime startDate, DateTime endDate)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = "SELECT * FROM CalibrationLogs WHERE CalibrationDateTime BETWEEN @StartDate AND @EndDate ORDER BY CalibrationDateTime DESC";
-        return await connection.QueryAsync<CalibrationLog>(sql, new { StartDate = startDate, EndDate = endDate });
+
+        // This adjusts the end date to be the start of the *next* day, 
+        // ensuring we capture everything within the selected end date.
+        var inclusiveEndDate = endDate.Date.AddDays(1);
+
+        const string sql = "SELECT * FROM CalibrationLogs WHERE CalibrationDateTime >= @StartDate AND CalibrationDateTime < @InclusiveEndDate ORDER BY CalibrationDateTime DESC";
+
+        return await connection.QueryAsync<CalibrationLog>(sql, new { StartDate = startDate.Date, InclusiveEndDate = inclusiveEndDate });
     }
 }
