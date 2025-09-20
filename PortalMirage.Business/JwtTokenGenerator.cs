@@ -17,10 +17,9 @@ public class JwtTokenGenerator(IConfiguration configuration) : IJwtTokenGenerato
 
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.UserID.ToString()),
-            new Claim(JwtRegisteredClaimNames.Name, user.Username),
+            new Claim(ClaimTypes.NameIdentifier, user.UserID.ToString()),
+            new Claim(ClaimTypes.Name, user.Username),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            // You can add more claims here, like roles
         };
 
         var token = new JwtSecurityToken(
