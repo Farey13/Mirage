@@ -1,0 +1,51 @@
+﻿using Dapper;
+using PortalMirage.Core.Models;
+using PortalMirage.Data.Abstractions;
+
+namespace PortalMirage.Data;
+
+public class SampleStorageRepository(IDbConnectionFactory connectionFactory) : ISampleStorageRepository
+{
+    public async Task<SampleStorage> CreateAsync(SampleStorage sampleStorage)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = """
+                           INSERT INTO SampleStorage (PatientSampleID, StoredByUserID)
+                           OUTPUT INSERTED.*
+                           VALUES (@PatientSampleID, @StoredByUserID);
+                           """;
+        return await connection.QuerySingleAsync<SampleStorage>(sql, sampleStorage);
+    }
+
+    public async Task<IEnumerable<SampleStorage>> GetPendingByDateRangeAsync(DateTime startDate, DateTime endDate)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        var inclusiveEndDate = endDate.Date.AddDays(1);
+        const string sql = """
+                           SELECT * FROM SampleStorage 
+                           WHERE IsTestDone = 0 
+                           AND StorageDateTime >= @StartDate AND StorageDateTime < @InclusiveEndDate 
+                           ORDER BY StorageDateTime DESC
+                           """;
+        return await connection.QueryAsync<SampleStorage>(sql, new { StartDate = startDate.Date, InclusiveEndDate = inclusiveEndDate });
+    }
+
+    public async Task<SampleStorage?> GetByIdAsync(int storageId)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = "SELECT * FROM SampleStorage WHERE StorageID = @StorageId";
+        return await connection.QuerySingleOrDefaultAsync<SampleStorage>(sql, new { StorageId = storageId });
+    }
+
+    public async Task<bool> MarkAsDoneAsync(int storageId, int userId)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = """
+                           UPDATE SampleStorage 
+                           SET IsTestDone = 1, TestDoneByUserID = @UserId, TestDoneDateTime = GETDATE() 
+                           WHERE StorageID = @StorageId AND IsTestDone = 0;
+                           """;
+        var rowsAffected = await connection.ExecuteAsync(sql, new { StorageId = storageId, UserId = userId });
+        return rowsAffected > 0;
+    }
+}

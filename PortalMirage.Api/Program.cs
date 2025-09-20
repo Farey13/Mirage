@@ -72,7 +72,7 @@ builder.Services.AddSingleton<PortalMirage.Data.Abstractions.IDbConnectionFactor
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IUserRepository, PortalMirage.Data.UserRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.ICalibrationLogRepository, PortalMirage.Data.CalibrationLogRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IKitValidationRepository, PortalMirage.Data.KitValidationRepository>();
-
+builder.Services.AddScoped<PortalMirage.Data.Abstractions.ISampleStorageRepository, PortalMirage.Data.SampleStorageRepository>();
 
 
 
@@ -87,7 +87,7 @@ builder.Services.AddScoped<PortalMirage.Data.Abstractions.IAuditLogRepository, P
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IUserService, PortalMirage.Business.UserService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.ICalibrationLogService, PortalMirage.Business.CalibrationLogService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IKitValidationService, PortalMirage.Business.KitValidationService>();
-
+builder.Services.AddScoped<PortalMirage.Business.Abstractions.ISampleStorageService, PortalMirage.Business.SampleStorageService>();
 
 
 
