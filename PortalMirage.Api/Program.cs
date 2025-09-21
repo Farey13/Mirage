@@ -75,7 +75,7 @@ builder.Services.AddScoped<PortalMirage.Data.Abstractions.IKitValidationReposito
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.ISampleStorageRepository, PortalMirage.Data.SampleStorageRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IHandoverRepository, PortalMirage.Data.HandoverRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IMachineBreakdownRepository, PortalMirage.Data.MachineBreakdownRepository>();
-
+builder.Services.AddScoped<PortalMirage.Data.Abstractions.IMediaSterilityCheckRepository, PortalMirage.Data.MediaSterilityCheckRepository>();
 
 
 
@@ -93,7 +93,7 @@ builder.Services.AddScoped<PortalMirage.Business.Abstractions.IKitValidationServ
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.ISampleStorageService, PortalMirage.Business.SampleStorageService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IHandoverService, PortalMirage.Business.HandoverService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IMachineBreakdownService, PortalMirage.Business.MachineBreakdownService>();
-
+builder.Services.AddScoped<PortalMirage.Business.Abstractions.IMediaSterilityCheckService, PortalMirage.Business.MediaSterilityCheckService>();
 
 
 // ... (all your other services)
