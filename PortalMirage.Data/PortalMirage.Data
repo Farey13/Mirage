@@ -1,0 +1,27 @@
+﻿using Dapper;
+using PortalMirage.Core.Models;
+using PortalMirage.Data.Abstractions;
+using Task = PortalMirage.Core.Models.Task;
+
+namespace PortalMirage.Data;
+
+public class TaskRepository(IDbConnectionFactory connectionFactory) : ITaskRepository
+{
+    public async Task<IEnumerable<Task>> GetAllAsync()
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = "SELECT * FROM Tasks WHERE IsActive = 1";
+        return await connection.QueryAsync<Task>(sql);
+    }
+
+    public async Task<Task> CreateAsync(Task task)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = """
+                           INSERT INTO Tasks (TaskName, TaskCategory, ScheduleType, ScheduleValue, IsActive)
+                           OUTPUT INSERTED.*
+                           VALUES (@TaskName, @TaskCategory, @ScheduleType, @ScheduleValue, @IsActive);
+                           """;
+        return await connection.QuerySingleAsync<Task>(sql, task);
+    }
+}
