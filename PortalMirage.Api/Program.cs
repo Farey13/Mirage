@@ -73,7 +73,7 @@ builder.Services.AddScoped<PortalMirage.Data.Abstractions.IUserRepository, Porta
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.ICalibrationLogRepository, PortalMirage.Data.CalibrationLogRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IKitValidationRepository, PortalMirage.Data.KitValidationRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.ISampleStorageRepository, PortalMirage.Data.SampleStorageRepository>();
-
+builder.Services.AddScoped<PortalMirage.Data.Abstractions.IHandoverRepository, PortalMirage.Data.HandoverRepository>();
 
 
 // ... (all your other repositories)
@@ -88,7 +88,7 @@ builder.Services.AddScoped<PortalMirage.Business.Abstractions.IUserService, Port
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.ICalibrationLogService, PortalMirage.Business.CalibrationLogService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IKitValidationService, PortalMirage.Business.KitValidationService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.ISampleStorageService, PortalMirage.Business.SampleStorageService>();
-
+builder.Services.AddScoped<PortalMirage.Business.Abstractions.IHandoverService, PortalMirage.Business.HandoverService>();
 
 
 // ... (all your other services)
