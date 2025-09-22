@@ -2,6 +2,7 @@
 using Mirage.UI.Views;
 using System;
 using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Mirage.UI.ViewModels;
 
@@ -37,6 +38,15 @@ public partial class MainViewModel : ObservableObject
         {
             // Create an instance of the page and set it as the current view
             CurrentView = Activator.CreateInstance(value.DestinationViewModel);
+        }
+    }
+
+    [RelayCommand]
+    private void NavigateTo(Type destination)
+    {
+        if (destination is not null)
+        {
+            CurrentView = Activator.CreateInstance(destination);
         }
     }
 }
