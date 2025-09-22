@@ -4,10 +4,119 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Mirage.UI.Views"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:fa="http://schemas.fontawesome.io/icons/"
+             xmlns:views="clr-namespace:Mirage.UI.Views"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
-    <Grid>
-        <TextBlock Text="Logbooks Page" FontSize="48" FontWeight="Bold" 
-               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+             d:DesignHeight="600" d:DesignWidth="1000">
+
+    <UserControl.Resources>
+        <Style x:Key="LogbookTileButtonStyle" TargetType="Button" BasedOn="{StaticResource MahApps.Styles.Button.Flat}">
+            <Setter Property="Background" Value="#E0F2F7"/>
+            <Setter Property="Foreground" Value="#333333"/>
+            <Setter Property="BorderBrush" Value="#B2EBF2"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="2" Direction="270" Color="#CCCCCC" Opacity="0.6" BlurRadius="4"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#B3E5FC"/>
+                    <Setter Property="BorderBrush" Value="#81D4FA"/>
+                    <Setter Property="mah:ControlsHelper.ContentCharacterCasing" Value="Normal"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#81D4FA"/>
+                    <Setter Property="BorderBrush" Value="#4FC3F7"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Logbooks" FontSize="36" FontWeight="Light" Margin="0,0,0,20" Foreground="#333333"/>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <UniformGrid Columns="4" Rows="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+
+                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10">
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock Text="🔄" FontSize="48" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Repeat Sample" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="#333333"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10">
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock Text="🧪" FontSize="48" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Kit Validation" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="#333333"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10"
+                        Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
+                        CommandParameter="{x:Type views:CalibrationLogView}">
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock Text="🔬" FontSize="48" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Calibration Log" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="#333333"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10">
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock Text="🧊" FontSize="48" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Sample Storage" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="#333333"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10">
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock Text="🤝" FontSize="48" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Handover Book" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="#333333"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10">
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock Text="🔧" FontSize="48" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Machine Breakdown" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="#333333"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10">
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock Text="🧫" FontSize="48" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Media Sterility" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="#333333"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10">
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock Text="✅" FontSize="48" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Daily Task Log" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="#333333"/>
+                    </StackPanel>
+                </Button>
+
+            </UniformGrid>
+        </ScrollViewer>
     </Grid>
 </UserControl>
+
