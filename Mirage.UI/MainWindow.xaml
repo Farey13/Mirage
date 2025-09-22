@@ -20,7 +20,8 @@
         DisplayMode="CompactInline"
         IsPaneOpen="True"
         ItemsSource="{Binding MenuItems}"
-        OptionsItemsSource="{Binding OptionsMenuItems}">
+        OptionsItemsSource="{Binding OptionsMenuItems}"
+        SelectedItem="{Binding SelectedMenuItem}">
 
         <mah:HamburgerMenu.ItemTemplate>
             <DataTemplate>
@@ -49,12 +50,7 @@
         </mah:HamburgerMenu.OptionsItemTemplate>
 
         <mah:HamburgerMenu.Content>
-            <Grid>
-                <TextBlock Text="Welcome to Portal Mirage!" 
-                           FontSize="24"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"/>
-            </Grid>
+            <ContentControl Content="{Binding CurrentView}" />
         </mah:HamburgerMenu.Content>
     </mah:HamburgerMenu>
 </mah:MetroWindow>

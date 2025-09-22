@@ -1,3 +1,5 @@
-﻿namespace Mirage.UI.ViewModels;
+﻿using System;
 
-public record NavigationItem(string Icon, string Label);
+namespace Mirage.UI.ViewModels;
+
+public record NavigationItem(string Icon, string Label, Type DestinationViewModel);
