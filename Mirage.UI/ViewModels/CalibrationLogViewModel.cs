@@ -20,10 +20,10 @@ public partial class CalibrationLogViewModel : ObservableObject
 
     // Properties for the data entry form
     [ObservableProperty]
-    private string _selectedTestName = string.Empty;
+    private string? _selectedTestName;
 
     [ObservableProperty]
-    private string _selectedQcResult = string.Empty;
+    private string? _selectedQcResult;
 
     [ObservableProperty]
     private string? _reason;
@@ -105,11 +105,8 @@ public partial class CalibrationLogViewModel : ObservableObject
     [RelayCommand]
     private void Clear()
     {
-        SelectedTestName = string.Empty;
-        SelectedQcResult = string.Empty;
+        SelectedTestName = null;
+        SelectedQcResult = null;
         Reason = string.Empty;
-        // This resets the dropdowns to be unselected
-        OnPropertyChanged(nameof(SelectedTestName));
-        OnPropertyChanged(nameof(SelectedQcResult));
     }
 }
