@@ -57,14 +57,18 @@
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <UniformGrid Columns="4" Rows="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
 
-                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10">
+                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10"
+                        Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
+                        CommandParameter="{x:Type views:RepeatSampleView}">
                     <StackPanel Orientation="Vertical">
                         <TextBlock Text="🔄" FontSize="48" HorizontalAlignment="Center"/>
                         <TextBlock Text="Repeat Sample" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="#333333"/>
                     </StackPanel>
                 </Button>
 
-                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10">
+                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10"
+                        Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
+                        CommandParameter="{x:Type views:KitValidationView}">
                     <StackPanel Orientation="Vertical">
                         <TextBlock Text="🧪" FontSize="48" HorizontalAlignment="Center"/>
                         <TextBlock Text="Kit Validation" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="#333333"/>
@@ -80,41 +84,50 @@
                     </StackPanel>
                 </Button>
 
-                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10">
+                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10"
+                        Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
+                        CommandParameter="{x:Type views:SampleStorageView}">
                     <StackPanel Orientation="Vertical">
                         <TextBlock Text="🧊" FontSize="48" HorizontalAlignment="Center"/>
                         <TextBlock Text="Sample Storage" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="#333333"/>
                     </StackPanel>
                 </Button>
 
-                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10">
+                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10"
+                        Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
+                        CommandParameter="{x:Type views:HandoverView}">
                     <StackPanel Orientation="Vertical">
                         <TextBlock Text="🤝" FontSize="48" HorizontalAlignment="Center"/>
                         <TextBlock Text="Handover Book" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="#333333"/>
                     </StackPanel>
                 </Button>
 
-                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10">
+                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10"
+                        Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
+                        CommandParameter="{x:Type views:MachineBreakdownView}">
                     <StackPanel Orientation="Vertical">
                         <TextBlock Text="🔧" FontSize="48" HorizontalAlignment="Center"/>
                         <TextBlock Text="Machine Breakdown" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="#333333"/>
                     </StackPanel>
                 </Button>
 
-                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10">
+                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10"
+                        Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
+                        CommandParameter="{x:Type views:MediaSterilityView}">
                     <StackPanel Orientation="Vertical">
                         <TextBlock Text="🧫" FontSize="48" HorizontalAlignment="Center"/>
                         <TextBlock Text="Media Sterility" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="#333333"/>
                     </StackPanel>
                 </Button>
 
-                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10">
+                <Button Style="{StaticResource LogbookTileButtonStyle}" Margin="10"
+                        Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
+                        CommandParameter="{x:Type views:DailyTaskLogView}">
                     <StackPanel Orientation="Vertical">
                         <TextBlock Text="✅" FontSize="48" HorizontalAlignment="Center"/>
                         <TextBlock Text="Daily Task Log" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="#333333"/>
                     </StackPanel>
                 </Button>
-
             </UniformGrid>
         </ScrollViewer>
     </Grid>

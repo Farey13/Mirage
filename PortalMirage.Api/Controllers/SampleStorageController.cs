@@ -1,7 +1,7 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PortalMirage.Api.Dtos;
+using PortalMirage.Core.Dtos; // This is the new, correct location
 using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Models;
 

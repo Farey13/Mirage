@@ -47,6 +47,7 @@ public partial class MainViewModel : ObservableObject
         if (destination is not null)
         {
             CurrentView = Activator.CreateInstance(destination);
+            SelectedMenuItem = null; // Add this line to de-select the main menu
         }
     }
 }
