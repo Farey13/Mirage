@@ -19,7 +19,7 @@ public partial class KitValidationViewModel : ObservableObject
     [ObservableProperty] private string _kitName = string.Empty;
     [ObservableProperty] private string _kitLotNumber = string.Empty;
     [ObservableProperty] private DateTime? _kitExpiryDate = DateTime.Today.AddMonths(6);
-    [ObservableProperty] private string _selectedValidationStatus = string.Empty;
+    [ObservableProperty] private string? _selectedValidationStatus;
     [ObservableProperty] private string? _comments;
 
     [ObservableProperty] private DateTime _startDate = DateTime.Today;
@@ -73,9 +73,7 @@ public partial class KitValidationViewModel : ObservableObject
         KitName = string.Empty;
         KitLotNumber = string.Empty;
         KitExpiryDate = DateTime.Today.AddMonths(6);
-        SelectedValidationStatus = string.Empty;
+        SelectedValidationStatus = null;
         Comments = string.Empty;
-        // This resets the dropdown to be unselected
-        OnPropertyChanged(nameof(SelectedValidationStatus));
     }
 }
