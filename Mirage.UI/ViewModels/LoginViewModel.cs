@@ -5,6 +5,7 @@ using Refit;
 using System;
 using System.Threading.Tasks;
 using System.Windows;
+using PortalMirage.Core.Dtos;
 
 namespace Mirage.UI.ViewModels;
 
@@ -37,7 +38,8 @@ public partial class LoginViewModel : ObservableObject
             var apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
             var loginRequest = new LoginRequest(Username, password);
             var loginResponse = await apiClient.LoginAsync(loginRequest);
-
+            CalibrationLogViewModel.AuthToken = $"Bearer {loginResponse.Token}";
+            KitValidationViewModel.AuthToken = $"Bearer {loginResponse.Token}"; // Add this line
             // If we get here, login was successful!
             // We'll store the token and user info later.
 
