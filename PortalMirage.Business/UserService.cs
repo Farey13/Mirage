@@ -53,6 +53,10 @@ public class UserService(IUserRepository userRepository) : IUserService
         // 3. If validation succeeds, return the user object
         return user;
     }
+    public async Task<User?> GetUserByIdAsync(int userId)
+    {
+        return await userRepository.GetByIdAsync(userId);
+    }
     public async Task<IEnumerable<User>> GetAllUsersAsync()
     {
         return await userRepository.GetAllAsync();
