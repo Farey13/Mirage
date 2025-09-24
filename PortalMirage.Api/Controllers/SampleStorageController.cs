@@ -1,16 +1,17 @@
-﻿using System.Security.Claims;
+﻿using System.Linq;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PortalMirage.Core.Dtos; // This is the new, correct location
+using PortalMirage.Core.Dtos;
 using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Models;
 
 namespace PortalMirage.Api.Controllers
 {
     [ApiController]
-    [Route("api/samplestorage")] // Note the custom route name
+    [Route("api/samplestorage")]
     [Authorize]
-    public class SampleStorageController(ISampleStorageService sampleStorageService) : ControllerBase
+    public class SampleStorageController(ISampleStorageService sampleStorageService, IUserService userService) : ControllerBase
     {
         [HttpPost]
         public async Task<ActionResult<SampleStorageResponse>> Create([FromBody] CreateSampleStorageRequest request)
@@ -20,11 +21,13 @@ namespace PortalMirage.Api.Controllers
             var logToCreate = new SampleStorage
             {
                 PatientSampleID = request.PatientSampleID,
+                TestName = request.TestName,
                 StoredByUserID = userId
             };
 
             var newLog = await sampleStorageService.CreateAsync(logToCreate);
-            var response = MapToResponse(newLog);
+            var user = await userService.GetUserByIdAsync(userId);
+            var response = MapToResponse(newLog, user?.FullName ?? "Unknown");
             return Ok(response);
         }
 
@@ -32,7 +35,9 @@ namespace PortalMirage.Api.Controllers
         public async Task<ActionResult<IEnumerable<SampleStorageResponse>>> GetPending([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
         {
             var logs = await sampleStorageService.GetPendingByDateRangeAsync(startDate, endDate);
-            var response = logs.Select(MapToResponse);
+            var users = (await userService.GetAllUsersAsync()).ToDictionary(u => u.UserID);
+
+            var response = logs.Select(log => MapToResponse(log, users.TryGetValue(log.StoredByUserID, out var user) ? user.FullName : "Unknown"));
             return Ok(response);
         }
 
@@ -50,14 +55,15 @@ namespace PortalMirage.Api.Controllers
             return Ok("Sample marked as done.");
         }
 
-        // Helper method to map model to DTO
-        private static SampleStorageResponse MapToResponse(SampleStorage log)
+        private static SampleStorageResponse MapToResponse(SampleStorage log, string username)
         {
             return new SampleStorageResponse(
                 log.StorageID,
                 log.PatientSampleID,
+                log.TestName,
                 log.StorageDateTime,
                 log.StoredByUserID,
+                username,
                 log.IsTestDone,
                 log.TestDoneDateTime,
                 log.TestDoneByUserID);

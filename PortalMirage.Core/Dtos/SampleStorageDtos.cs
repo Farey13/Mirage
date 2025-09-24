@@ -1,5 +1,16 @@
 ﻿using System;
+
 namespace PortalMirage.Core.Dtos;
 
-public record CreateSampleStorageRequest(string PatientSampleID);
-public record SampleStorageResponse(int StorageID, string PatientSampleID, DateTime StorageDateTime, int StoredByUserID, bool IsTestDone, DateTime? TestDoneDateTime, int? TestDoneByUserID);
+public record CreateSampleStorageRequest(string PatientSampleID, string TestName);
+
+public record SampleStorageResponse(
+    int StorageID,
+    string PatientSampleID,
+    string TestName,
+    DateTime StorageDateTime,
+    int StoredByUserID,
+    string StoredByUsername,
+    bool IsTestDone,
+    DateTime? TestDoneDateTime,
+    int? TestDoneByUserID);

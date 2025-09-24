@@ -6,14 +6,15 @@ namespace PortalMirage.Data;
 
 public class SampleStorageRepository(IDbConnectionFactory connectionFactory) : ISampleStorageRepository
 {
+    // Replace the CreateAsync method with this new version
     public async Task<SampleStorage> CreateAsync(SampleStorage sampleStorage)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
         const string sql = """
-                           INSERT INTO SampleStorage (PatientSampleID, StoredByUserID)
-                           OUTPUT INSERTED.*
-                           VALUES (@PatientSampleID, @StoredByUserID);
-                           """;
+                       INSERT INTO SampleStorage (PatientSampleID, TestName, StoredByUserID)
+                       OUTPUT INSERTED.*
+                       VALUES (@PatientSampleID, @TestName, @StoredByUserID);
+                       """;
         return await connection.QuerySingleAsync<SampleStorage>(sql, sampleStorage);
     }
 
