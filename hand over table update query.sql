@@ -1,0 +1,9 @@
+﻿USE MirageDB;
+GO
+
+ALTER TABLE Handovers
+ADD Priority NVARCHAR(50) NOT NULL DEFAULT 'Normal';
+
+ALTER TABLE Handovers
+ADD Shift NVARCHAR(50) NOT NULL DEFAULT 'N/A';
+GO
