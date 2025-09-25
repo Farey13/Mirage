@@ -4,7 +4,9 @@ using PortalMirage.Data.Abstractions;
 
 namespace PortalMirage.Business;
 
-public class SampleStorageService(ISampleStorageRepository sampleStorageRepository) : ISampleStorageService
+public class SampleStorageService(
+    ISampleStorageRepository sampleStorageRepository,
+    IAuditLogService auditLogService) : ISampleStorageService
 {
     public async Task<SampleStorage> CreateAsync(SampleStorage sampleStorage)
     {
@@ -14,6 +16,11 @@ public class SampleStorageService(ISampleStorageRepository sampleStorageReposito
     public async Task<IEnumerable<SampleStorage>> GetPendingByDateRangeAsync(DateTime startDate, DateTime endDate)
     {
         return await sampleStorageRepository.GetPendingByDateRangeAsync(startDate, endDate);
+    }
+
+    public async Task<IEnumerable<SampleStorage>> GetCompletedByDateRangeAsync(DateTime startDate, DateTime endDate)
+    {
+        return await sampleStorageRepository.GetCompletedByDateRangeAsync(startDate, endDate);
     }
 
     public async Task<bool> MarkAsDoneAsync(int storageId, int userId)
@@ -33,5 +40,15 @@ public class SampleStorageService(ISampleStorageRepository sampleStorageReposito
 
         // 3. If it exists and is not done, then update it.
         return await sampleStorageRepository.MarkAsDoneAsync(storageId, userId);
+    }
+
+    public async Task<bool> DeactivateAsync(int storageId, int userId)
+    {
+        var success = await sampleStorageRepository.DeactivateAsync(storageId);
+        if (success)
+        {
+            await auditLogService.LogAsync(userId, "Delete", "SampleStorage", storageId.ToString());
+        }
+        return success;
     }
 }

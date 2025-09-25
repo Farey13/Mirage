@@ -9,7 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.0.0" />
+    <None Remove="Assets\logo 2023.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="MahApps.Metro" Version="2.4.10" />
     <PackageReference Include="Refit.HttpClientFactory" Version="8.0.0" />
   </ItemGroup>
@@ -17,6 +21,10 @@
   <ItemGroup>
     <ProjectReference Include="..\PatientInfo.Api.Sdk\PatientInfo.Api.Sdk.csproj" />
     <ProjectReference Include="..\PortalMirage.Core\PortalMirage.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\logo 2023.png" />
   </ItemGroup>
 
 </Project>

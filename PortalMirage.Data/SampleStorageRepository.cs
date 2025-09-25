@@ -24,10 +24,23 @@ public class SampleStorageRepository(IDbConnectionFactory connectionFactory) : I
         var inclusiveEndDate = endDate.Date.AddDays(1);
         const string sql = """
                            SELECT * FROM SampleStorage 
-                           WHERE IsTestDone = 0 
+                           WHERE IsTestDone = 0 AND IsActive = 1 
                            AND StorageDateTime >= @StartDate AND StorageDateTime < @InclusiveEndDate 
                            ORDER BY StorageDateTime DESC
                            """;
+        return await connection.QueryAsync<SampleStorage>(sql, new { StartDate = startDate.Date, InclusiveEndDate = inclusiveEndDate });
+    }
+
+    public async Task<IEnumerable<SampleStorage>> GetCompletedByDateRangeAsync(DateTime startDate, DateTime endDate)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        var inclusiveEndDate = endDate.Date.AddDays(1);
+        const string sql = """
+                       SELECT * FROM SampleStorage 
+                       WHERE IsTestDone = 1 AND IsActive = 1
+                       AND StorageDateTime >= @StartDate AND StorageDateTime < @InclusiveEndDate 
+                       ORDER BY StorageDateTime DESC
+                       """;
         return await connection.QueryAsync<SampleStorage>(sql, new { StartDate = startDate.Date, InclusiveEndDate = inclusiveEndDate });
     }
 
@@ -47,6 +60,14 @@ public class SampleStorageRepository(IDbConnectionFactory connectionFactory) : I
                            WHERE StorageID = @StorageId AND IsTestDone = 0;
                            """;
         var rowsAffected = await connection.ExecuteAsync(sql, new { StorageId = storageId, UserId = userId });
+        return rowsAffected > 0;
+    }
+
+    public async Task<bool> DeactivateAsync(int storageId)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = "UPDATE SampleStorage SET IsActive = 0 WHERE StorageID = @StorageId;";
+        var rowsAffected = await connection.ExecuteAsync(sql, new { StorageId = storageId });
         return rowsAffected > 0;
     }
 }

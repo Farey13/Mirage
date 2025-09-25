@@ -13,4 +13,5 @@ public record SampleStorageResponse(
     string StoredByUsername,
     bool IsTestDone,
     DateTime? TestDoneDateTime,
-    int? TestDoneByUserID);
+    int? TestDoneByUserID,
+    string? TestDoneByUsername); // Add this nullable property
