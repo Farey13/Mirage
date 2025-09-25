@@ -9,4 +9,7 @@ public record Handover
     public bool IsReceived { get; set; }
     public DateTime? ReceivedDateTime { get; set; }
     public int? ReceivedByUserID { get; set; }
+
+    public required string Priority { get; set; } // Add this
+    public required string Shift { get; set; }    // Add this
 }

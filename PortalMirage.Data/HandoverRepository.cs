@@ -6,14 +6,15 @@ namespace PortalMirage.Data;
 
 public class HandoverRepository(IDbConnectionFactory connectionFactory) : IHandoverRepository
 {
+    // Replace the CreateAsync method with this
     public async Task<Handover> CreateAsync(Handover handover)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
         const string sql = """
-                           INSERT INTO Handovers (HandoverNotes, GivenByUserID)
-                           OUTPUT INSERTED.*
-                           VALUES (@HandoverNotes, @GivenByUserID);
-                           """;
+                       INSERT INTO Handovers (HandoverNotes, Priority, Shift, GivenByUserID)
+                       OUTPUT INSERTED.*
+                       VALUES (@HandoverNotes, @Priority, @Shift, @GivenByUserID);
+                       """;
         return await connection.QuerySingleAsync<Handover>(sql, handover);
     }
 

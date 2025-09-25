@@ -43,4 +43,16 @@ public interface IPortalMirageApi
 
     [Delete("/api/samplestorage/{id}")]
     Task DeactivateSampleAsync([Header("Authorization")] string token, int id);
+
+    // ... (keep all existing methods) ...
+
+    // --- Handover Book ---
+    [Post("/api/handovers")]
+    Task<HandoverResponse> CreateHandoverAsync([Header("Authorization")] string token, [Body] CreateHandoverRequest request);
+
+    [Get("/api/handovers/pending")]
+    Task<List<HandoverResponse>> GetPendingHandoversAsync([Header("Authorization")] string token);
+
+    [Put("/api/handovers/{id}/receive")]
+    Task MarkHandoverAsReceivedAsync([Header("Authorization")] string token, int id);
 }

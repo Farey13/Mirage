@@ -4,9 +4,74 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Mirage.UI.Views"
+             xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
-    <Grid>
-        <TextBlock Text="Handover Page" FontSize="48" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+             d:DesignHeight="600" d:DesignWidth="1000">
+    <UserControl.DataContext>
+        <viewModels:HandoverViewModel/>
+    </UserControl.DataContext>
+
+    <UserControl.Resources>
+        <Style x:Key="StandardActionButtonStyle" TargetType="Button" BasedOn="{StaticResource MahApps.Styles.Button.Flat}">
+            <Setter Property="mah:ControlsHelper.CornerRadius" Value="3"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#B0BEC5"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="2" Direction="270" Color="#CCCCCC" Opacity="0.4" BlurRadius="4"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="20">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="350"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Column="0" Margin="0,0,20,0">
+            <TextBlock Text="Handover Book" FontSize="36" FontWeight="Light" Margin="0,0,0,20"/>
+
+            <Label Content="Priority"/>
+            <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding SelectedPriority}" Margin="0,0,0,10"/>
+
+            <Label Content="Shift"/>
+            <ComboBox ItemsSource="{Binding Shifts}" SelectedItem="{Binding SelectedShift}" Margin="0,0,0,10"/>
+
+            <Label Content="New Handover Notes"/>
+            <TextBox Text="{Binding NewHandoverNotes}" Height="200" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,10"/>
+
+            <Button Content="Submit Handover" Style="{StaticResource StandardActionButtonStyle}" Command="{Binding SubmitCommand}"/>
+        </StackPanel>
+
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="Pending Handovers" FontSize="24" FontWeight="Light" Margin="0,0,0,10"/>
+            <DataGrid Grid.Row="1" ItemsSource="{Binding PendingHandovers}" AutoGenerateColumns="False" IsReadOnly="True"
+                      AlternationCount="2" AlternatingRowBackground="#F9FAFB">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Given On" Binding="{Binding GivenDateTime, StringFormat='g'}" Width="*"/>
+                    <DataGridTextColumn Header="Given By" Binding="{Binding GivenByUsername}" Width="*"/>
+                    <DataGridTextColumn Header="Priority" Binding="{Binding Priority}" FontWeight="Bold" Width="Auto"/>
+                    <DataGridTextColumn Header="Shift" Binding="{Binding Shift}" Width="Auto"/>
+                    <DataGridTextColumn Header="Notes" Binding="{Binding HandoverNotes}" Width="3*"/>
+                    <DataGridTemplateColumn Header="Actions" Width="Auto">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="Receive" 
+                                        Command="{Binding DataContext.ReceiveCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding HandoverID}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
     </Grid>
 </UserControl>
