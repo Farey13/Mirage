@@ -1,0 +1,6 @@
+﻿USE MirageDB;
+GO
+
+ALTER TABLE SampleStorage
+ADD IsActive BIT NOT NULL DEFAULT 1;
+GO

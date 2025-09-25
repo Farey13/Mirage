@@ -23,16 +23,6 @@
         <TextBlock Grid.Row="0" Text="Sample Storage" FontSize="36" FontWeight="Light" Margin="0,0,0,20"/>
 
         <Grid Grid.Row="1" Margin="0,0,0,10">
-            <Grid.Style>
-                <Style TargetType="Grid">
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding ActiveView}" Value="Completed">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </Grid.Style>
-
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -50,33 +40,20 @@
                 <DatePicker SelectedDate="{Binding StartDate}"/>
                 <Label Content="to" Margin="5,0"/>
                 <DatePicker SelectedDate="{Binding EndDate}"/>
+                <Button Content="Search" Margin="10,0,0,0" Command="{Binding LoadPendingCommand}"/>
             </StackPanel>
         </Grid>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10">
-            <RadioButton Content="Pending" GroupName="ViewToggle" 
-                         IsChecked="{Binding IsPendingViewActive, Mode=OneWay}"
-                         Style="{StaticResource MahApps.Styles.ToggleButton}" 
-                         Command="{Binding LoadPendingCommand}"/>
-            <RadioButton Content="Completed" GroupName="ViewToggle" 
-                         IsChecked="{Binding IsCompletedViewActive, Mode=OneWay}"
-                         Style="{StaticResource MahApps.Styles.ToggleButton}" 
-                         Margin="5,0,0,0" 
-                         Command="{Binding LoadCompletedCommand}"/>
+            <RadioButton Content="Pending" GroupName="ViewToggle" IsChecked="{Binding ActiveView, ConverterParameter=Pending, Converter={StaticResource MahApps.Converters.StringToBooleanConverter}}"
+                         Style="{StaticResource MahApps.Styles.ToggleButton}" Command="{Binding LoadPendingCommand}"/>
+            <RadioButton Content="Completed" GroupName="ViewToggle" IsChecked="{Binding ActiveView, ConverterParameter=Completed, Converter={StaticResource MahApps.Converters.StringToBooleanConverter}}"
+                         Style="{StaticResource MahApps.Styles.ToggleButton}" Margin="5,0,0,0" Command="{Binding LoadCompletedCommand}"/>
         </StackPanel>
 
         <DataGrid Grid.Row="3" ItemsSource="{Binding PendingSamples}" AutoGenerateColumns="False" IsReadOnly="True"
-                  AlternationCount="2" AlternatingRowBackground="#F9FAFB">
-            <DataGrid.Style>
-                <Style TargetType="DataGrid">
-                    <Setter Property="Visibility" Value="Collapsed"/>
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding ActiveView}" Value="Pending">
-                            <Setter Property="Visibility" Value="Visible"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </DataGrid.Style>
+                  AlternationCount="2" AlternatingRowBackground="#F9FAFB"
+                  Visibility="{Binding ActiveView, ConverterParameter=Pending, Converter={StaticResource MahApps.Converters.StringToVisibilityConverter}}">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Stored On" Binding="{Binding StorageDateTime, StringFormat='g'}" Width="*"/>
                 <DataGridTextColumn Header="Sample ID" Binding="{Binding PatientSampleID}" Width="2*"/>
@@ -100,17 +77,8 @@
         </DataGrid>
 
         <DataGrid Grid.Row="3" ItemsSource="{Binding CompletedSamples}" AutoGenerateColumns="False" IsReadOnly="True"
-                  AlternationCount="2" AlternatingRowBackground="#F9FAFB">
-            <DataGrid.Style>
-                <Style TargetType="DataGrid">
-                    <Setter Property="Visibility" Value="Collapsed"/>
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding ActiveView}" Value="Completed">
-                            <Setter Property="Visibility" Value="Visible"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </DataGrid.Style>
+                  AlternationCount="2" AlternatingRowBackground="#F9FAFB"
+                  Visibility="{Binding ActiveView, ConverterParameter=Completed, Converter={StaticResource MahApps.Converters.StringToVisibilityConverter}}">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Completed On" Binding="{Binding TestDoneDateTime, StringFormat='g'}" Width="*"/>
                 <DataGridTextColumn Header="Sample ID" Binding="{Binding PatientSampleID}" Width="2*"/>
@@ -129,4 +97,3 @@
         </DataGrid>
     </Grid>
 </UserControl>
-

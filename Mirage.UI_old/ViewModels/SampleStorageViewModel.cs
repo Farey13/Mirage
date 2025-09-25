@@ -17,15 +17,11 @@ public partial class SampleStorageViewModel : ObservableObject
     private readonly IPortalMirageApi _apiClient;
 
     [ObservableProperty] private string _newPatientSampleId = string.Empty;
-    [ObservableProperty]
-    private string _newTestName = string.Empty;
+    [ObservableProperty] private string _newTestName = string.Empty;
     [ObservableProperty] private DateTime _startDate = DateTime.Today;
     [ObservableProperty] private DateTime _endDate = DateTime.Today;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsPendingViewActive))]
-    [NotifyPropertyChangedFor(nameof(IsCompletedViewActive))]
-    private string _activeView = "Pending";
+    [ObservableProperty] private string _activeView = "Pending"; // To control which grid is visible
 
     public ObservableCollection<SampleStorageResponse> PendingSamples { get; } = new();
     public ObservableCollection<SampleStorageResponse> CompletedSamples { get; } = new();
@@ -39,7 +35,6 @@ public partial class SampleStorageViewModel : ObservableObject
     [RelayCommand]
     private async Task LoadPending()
     {
-        ActiveView = "Pending"; // Add this line
         if (string.IsNullOrEmpty(AuthToken)) return;
         try
         {
@@ -53,7 +48,6 @@ public partial class SampleStorageViewModel : ObservableObject
     [RelayCommand]
     private async Task LoadCompleted()
     {
-        ActiveView = "Completed"; // Add this line
         if (string.IsNullOrEmpty(AuthToken)) return;
         try
         {
@@ -67,6 +61,7 @@ public partial class SampleStorageViewModel : ObservableObject
     [RelayCommand]
     private async Task Add()
     {
+        // ... (Add method remains the same)
         if (string.IsNullOrEmpty(AuthToken) || string.IsNullOrEmpty(NewPatientSampleId) || string.IsNullOrEmpty(NewTestName))
         {
             MessageBox.Show("Patient Sample ID and Test Name are required.");
@@ -77,8 +72,8 @@ public partial class SampleStorageViewModel : ObservableObject
             var request = new CreateSampleStorageRequest(NewPatientSampleId, NewTestName);
             await _apiClient.CreateSampleAsync(AuthToken, request);
             NewPatientSampleId = string.Empty;
-            NewTestName = string.Empty; // Also clears the new Test Name field
-            await LoadPending(); // Refreshes the list
+            NewTestName = string.Empty;
+            await LoadPending();
         }
         catch (Exception ex) { MessageBox.Show($"Failed to add sample: {ex.Message}"); }
     }
@@ -114,6 +109,4 @@ public partial class SampleStorageViewModel : ObservableObject
         }
         catch (Exception ex) { MessageBox.Show($"Failed to delete entry: {ex.Message}"); }
     }
-    public bool IsPendingViewActive => ActiveView == "Pending";
-    public bool IsCompletedViewActive => ActiveView == "Completed";
 }

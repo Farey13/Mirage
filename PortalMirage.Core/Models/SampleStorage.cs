@@ -11,4 +11,6 @@ public record SampleStorage
     public bool IsTestDone { get; set; }
     public DateTime? TestDoneDateTime { get; set; }
     public int? TestDoneByUserID { get; set; }
+
+    public bool IsActive { get; set; } // Add this line
 }
