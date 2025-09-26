@@ -42,12 +42,13 @@ public class SampleStorageService(
         return await sampleStorageRepository.MarkAsDoneAsync(storageId, userId);
     }
 
-    public async Task<bool> DeactivateAsync(int storageId, int userId)
+    // Replace the DeactivateAsync method
+    public async Task<bool> DeactivateAsync(int storageId, int userId, string reason)
     {
-        var success = await sampleStorageRepository.DeactivateAsync(storageId);
+        var success = await sampleStorageRepository.DeactivateAsync(storageId, userId, reason);
         if (success)
         {
-            await auditLogService.LogAsync(userId, "Delete", "SampleStorage", storageId.ToString());
+            await auditLogService.LogAsync(userId, "Deactivate", "SampleStorage", storageId.ToString(), newValue: reason);
         }
         return success;
     }

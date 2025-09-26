@@ -63,11 +63,19 @@ public class SampleStorageRepository(IDbConnectionFactory connectionFactory) : I
         return rowsAffected > 0;
     }
 
-    public async Task<bool> DeactivateAsync(int storageId)
+    // Replace the DeactivateAsync method
+    public async Task<bool> DeactivateAsync(int storageId, int userId, string reason)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = "UPDATE SampleStorage SET IsActive = 0 WHERE StorageID = @StorageId;";
-        var rowsAffected = await connection.ExecuteAsync(sql, new { StorageId = storageId });
+        const string sql = """
+                       UPDATE SampleStorage 
+                       SET IsActive = 0, 
+                           DeactivationReason = @Reason,
+                           DeactivatedByUserID = @UserId,
+                           DeactivationDateTime = GETDATE()
+                       WHERE StorageID = @StorageId AND IsActive = 1;
+                       """;
+        var rowsAffected = await connection.ExecuteAsync(sql, new { StorageId = storageId, UserId = userId, Reason = reason });
         return rowsAffected > 0;
     }
 }

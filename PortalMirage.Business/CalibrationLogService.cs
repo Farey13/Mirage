@@ -4,7 +4,9 @@ using PortalMirage.Data.Abstractions;
 
 namespace PortalMirage.Business;
 
-public class CalibrationLogService(ICalibrationLogRepository calibrationLogRepository) : ICalibrationLogService
+public class CalibrationLogService(
+    ICalibrationLogRepository calibrationLogRepository,
+    IAuditLogService auditLogService) : ICalibrationLogService
 {
     public async Task<CalibrationLog> CreateAsync(CalibrationLog calibrationLog)
     {
@@ -16,5 +18,15 @@ public class CalibrationLogService(ICalibrationLogRepository calibrationLogRepos
     public async Task<IEnumerable<CalibrationLog>> GetByDateRangeAsync(DateTime startDate, DateTime endDate)
     {
         return await calibrationLogRepository.GetByDateRangeAsync(startDate, endDate);
+    }
+
+    public async Task<bool> DeactivateAsync(int logId, int userId, string reason)
+    {
+        var success = await calibrationLogRepository.DeactivateAsync(logId, userId, reason);
+        if (success)
+        {
+            await auditLogService.LogAsync(userId, "Deactivate", "CalibrationLog", logId.ToString(), newValue: reason);
+        }
+        return success;
     }
 }

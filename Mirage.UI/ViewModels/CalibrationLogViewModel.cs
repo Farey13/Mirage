@@ -1,12 +1,13 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Mirage.UI.Services;
+using PortalMirage.Core.Dtos;
 using Refit;
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using PortalMirage.Core.Dtos;
 
 namespace Mirage.UI.ViewModels;
 
@@ -41,6 +42,15 @@ public partial class CalibrationLogViewModel : ObservableObject
     public ObservableCollection<string> TestNames { get; } = new();
     public ObservableCollection<string> QcResults { get; } = new();
 
+    // Properties for the "Deactivate" Flyout
+    [ObservableProperty]
+    private bool _isDeleteFlyoutOpen;
+
+    [ObservableProperty]
+    private CalibrationLogResponse? _selectedLogToDelete;
+
+    [ObservableProperty]
+    private string _deactivationReason = string.Empty;
 
     public CalibrationLogViewModel()
     {
@@ -108,5 +118,36 @@ public partial class CalibrationLogViewModel : ObservableObject
         SelectedTestName = null;
         SelectedQcResult = null;
         Reason = string.Empty;
+    }
+
+    [RelayCommand]
+    private void ShowDeleteFlyout(CalibrationLogResponse log)
+    {
+        SelectedLogToDelete = log;
+        DeactivationReason = string.Empty;
+        IsDeleteFlyoutOpen = true;
+    }
+
+    [RelayCommand]
+    private async Task ConfirmDeactivation()
+    {
+        if (SelectedLogToDelete is null || string.IsNullOrWhiteSpace(DeactivationReason))
+        {
+            MessageBox.Show("A reason is required for deactivation.");
+            return;
+        }
+        if (string.IsNullOrEmpty(AuthToken)) return;
+        try
+        {
+            var request = new DeactivateCalibrationLogRequest(DeactivationReason);
+            await _apiClient.DeactivateCalibrationLogAsync(AuthToken, SelectedLogToDelete.CalibrationID, request);
+
+            IsDeleteFlyoutOpen = false;
+            await LoadLogs(); // Refresh the list
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to deactivate entry: {ex.Message}");
+        }
     }
 }
