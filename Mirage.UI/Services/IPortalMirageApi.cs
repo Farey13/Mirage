@@ -26,6 +26,9 @@ public interface IPortalMirageApi
     [Post("/api/kitvalidations")]
     Task<KitValidationResponse> CreateKitValidationAsync([Header("Authorization")] string token, [Body] CreateKitValidationRequest request);
 
+    [Put("/api/kitvalidations/{id}/deactivate")]
+    Task DeactivateKitValidationAsync([Header("Authorization")] string token, int id, [Body] DeactivateKitValidationRequest request);
+
     [Get("/api/kitvalidations")]
     Task<List<KitValidationResponse>> GetKitValidationsAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
 

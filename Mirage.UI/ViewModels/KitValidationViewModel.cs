@@ -1,13 +1,13 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Mirage.UI.Services;
+using PortalMirage.Core.Dtos;
 using Refit;
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Xml.Linq;
-using PortalMirage.Core.Dtos;
 
 namespace Mirage.UI.ViewModels;
 
@@ -16,17 +16,23 @@ public partial class KitValidationViewModel : ObservableObject
     public static string? AuthToken { get; set; }
     private readonly IPortalMirageApi _apiClient;
 
+    // Form properties
     [ObservableProperty] private string _kitName = string.Empty;
     [ObservableProperty] private string _kitLotNumber = string.Empty;
     [ObservableProperty] private DateTime? _kitExpiryDate = DateTime.Today.AddMonths(6);
     [ObservableProperty] private string? _selectedValidationStatus;
     [ObservableProperty] private string? _comments;
 
+    // Search properties
     [ObservableProperty] private DateTime _startDate = DateTime.Today;
     [ObservableProperty] private DateTime _endDate = DateTime.Today;
-
     public ObservableCollection<KitValidationResponse> Logs { get; } = new();
     public ObservableCollection<string> ValidationStatuses { get; } = new();
+
+    // Properties for the "Deactivate" Flyout
+    [ObservableProperty] private bool _isDeleteFlyoutOpen;
+    [ObservableProperty] private KitValidationResponse? _selectedLogToDelete;
+    [ObservableProperty] private string _deactivationReason = string.Empty;
 
     public KitValidationViewModel()
     {
@@ -75,5 +81,33 @@ public partial class KitValidationViewModel : ObservableObject
         KitExpiryDate = DateTime.Today.AddMonths(6);
         SelectedValidationStatus = null;
         Comments = string.Empty;
+    }
+
+    [RelayCommand]
+    private void ShowDeleteFlyout(KitValidationResponse log)
+    {
+        SelectedLogToDelete = log;
+        DeactivationReason = string.Empty;
+        IsDeleteFlyoutOpen = true;
+    }
+
+    [RelayCommand]
+    private async Task ConfirmDeactivation()
+    {
+        if (SelectedLogToDelete is null || string.IsNullOrWhiteSpace(DeactivationReason))
+        {
+            MessageBox.Show("A reason is required for deactivation.");
+            return;
+        }
+        if (string.IsNullOrEmpty(AuthToken)) return;
+        try
+        {
+            var request = new DeactivateKitValidationRequest(DeactivationReason);
+            await _apiClient.DeactivateKitValidationAsync(AuthToken, SelectedLogToDelete.ValidationID, request);
+
+            IsDeleteFlyoutOpen = false;
+            await LoadLogs(); // Refresh the list
+        }
+        catch (Exception ex) { MessageBox.Show($"Failed to deactivate entry: {ex.Message}"); }
     }
 }

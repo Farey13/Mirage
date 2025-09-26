@@ -35,5 +35,17 @@ namespace PortalMirage.Api.Controllers
 
             return Ok(response);
         }
+
+        [HttpPut("{id}/deactivate")]
+        public async Task<IActionResult> Deactivate(int id, [FromBody] DeactivateKitValidationRequest request)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var success = await kitValidationService.DeactivateAsync(id, userId, request.Reason);
+            if (!success)
+            {
+                return NotFound("Log not found or already deactivated.");
+            }
+            return Ok("Log deactivated successfully.");
+        }
     }
 }

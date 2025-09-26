@@ -10,4 +10,9 @@ public record KitValidation
     public string? Comments { get; set; }
     public DateTime ValidationDateTime { get; init; }
     public int ValidatedByUserID { get; set; }
+
+    public bool IsActive { get; set; }
+    public string? DeactivationReason { get; set; }
+    public int? DeactivatedByUserID { get; set; }
+    public DateTime? DeactivationDateTime { get; set; }
 }
