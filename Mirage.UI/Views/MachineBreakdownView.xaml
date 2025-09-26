@@ -4,9 +4,115 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Mirage.UI.Views"
-             mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels">
+    <UserControl.DataContext>
+        <viewModels:MachineBreakdownViewModel/>
+    </UserControl.DataContext>
+
     <Grid>
-        <TextBlock Text="Machine Breakdown Page" FontSize="48" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Grid Margin="20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="350"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                <TextBlock Text="Machine Breakdown" FontSize="36" FontWeight="Light" Margin="0,0,0,20"/>
+                <Label Content="Machine Name"/>
+                <ComboBox ItemsSource="{Binding MachineNames}" SelectedItem="{Binding SelectedMachineName}" Margin="0,0,0,10" IsEditable="True"/>
+                <Label Content="Reason for Breakdown"/>
+                <TextBox Text="{Binding BreakdownReason}" Height="200" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,10" VerticalScrollBarVisibility="Auto"/>
+                <Button Content="Submit Report" Command="{Binding SubmitCommand}"/>
+            </StackPanel>
+
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="Breakdown Reports" FontSize="24" FontWeight="Light" Margin="0,0,0,10"/>
+
+                <Grid Grid.Row="1" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <RadioButton Content="Pending" GroupName="ViewToggle" 
+                                     IsChecked="{Binding IsPendingViewActive, Mode=TwoWay}" 
+                                     Style="{StaticResource MahApps.Styles.ToggleButton}"/>
+                        <RadioButton Content="Resolved" GroupName="ViewToggle" 
+                                     IsChecked="{Binding IsResolvedViewActive, Mode=TwoWay}" 
+                                     Style="{StaticResource MahApps.Styles.ToggleButton}" Margin="5,0,0,0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <DatePicker SelectedDate="{Binding StartDate}"/>
+                        <Label Content="to" Margin="5,0"/>
+                        <DatePicker SelectedDate="{Binding EndDate}"/>
+                        <Button Content="Search" Margin="10,0,0,0" Command="{Binding SearchCommand}"/>
+                    </StackPanel>
+                </Grid>
+
+                <DataGrid Grid.Row="2" ItemsSource="{Binding PendingBreakdowns}" AutoGenerateColumns="False" IsReadOnly="True" AlternationCount="2" AlternatingRowBackground="#F9FAFB">
+                    <DataGrid.Style>
+                        <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsPendingViewActive}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Style>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Reported On" Binding="{Binding ReportedDateTime, StringFormat='g'}" Width="*"/>
+                        <DataGridTextColumn Header="Reported By" Binding="{Binding ReportedByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Machine" Binding="{Binding MachineName}" Width="*"/>
+                        <DataGridTextColumn Header="Reason" Binding="{Binding BreakdownReason}" Width="2*"/>
+                        <DataGridTemplateColumn Header="Actions" Width="Auto">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="Resolve" Command="{Binding DataContext.ShowResolveFlyoutCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <DataGrid Grid.Row="2" ItemsSource="{Binding ResolvedBreakdowns}" AutoGenerateColumns="False" IsReadOnly="True" AlternationCount="2" AlternatingRowBackground="#F9FAFB">
+                    <DataGrid.Style>
+                        <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsResolvedViewActive}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Style>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Reported On" Binding="{Binding ReportedDateTime, StringFormat='g'}" Width="0.8*"/>
+                        <DataGridTextColumn Header="Machine" Binding="{Binding MachineName}" Width="*"/>
+                        <DataGridTextColumn Header="Resolved On" Binding="{Binding ResolvedDateTime, StringFormat='g'}" Width="0.8*"/>
+                        <DataGridTextColumn Header="Resolved By" Binding="{Binding ResolvedByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Notes" Binding="{Binding ResolutionNotes}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Downtime (Mins)" Binding="{Binding DowntimeMinutes}" Width="Auto"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Grid>
+
+        <mah:FlyoutsControl>
+            <mah:Flyout Header="Resolve Breakdown" IsOpen="{Binding IsResolveFlyoutOpen}" Position="Right" Width="400">
+                <StackPanel Margin="20">
+                    <TextBlock Text="{Binding SelectedBreakdownToResolve.MachineName}" FontWeight="Bold" FontSize="18" Margin="0,0,0,10"/>
+                    <Label Content="Resolution Notes"/>
+                    <TextBox Text="{Binding ResolutionNotes}" Height="150" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10"/>
+                    <Button Content="Confirm Resolution" Command="{Binding ConfirmResolveCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}"/>
+                </StackPanel>
+            </mah:Flyout>
+        </mah:FlyoutsControl>
     </Grid>
 </UserControl>
