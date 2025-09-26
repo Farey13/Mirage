@@ -70,7 +70,13 @@
                         <DataGridTextColumn Header="Reported On" Binding="{Binding ReportedDateTime, StringFormat='g'}" Width="*"/>
                         <DataGridTextColumn Header="Reported By" Binding="{Binding ReportedByUsername}" Width="*"/>
                         <DataGridTextColumn Header="Machine" Binding="{Binding MachineName}" Width="*"/>
-                        <DataGridTextColumn Header="Reason" Binding="{Binding BreakdownReason}" Width="2*"/>
+                        <DataGridTemplateColumn Header="Reason" Width="2*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding BreakdownReason}" TextWrapping="Wrap" Padding="5"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTemplateColumn Header="Actions" Width="Auto">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
