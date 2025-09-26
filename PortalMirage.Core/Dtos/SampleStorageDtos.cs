@@ -4,6 +4,8 @@ namespace PortalMirage.Core.Dtos;
 
 public record CreateSampleStorageRequest(string PatientSampleID, string TestName);
 
+public record DeactivateSampleStorageRequest(string Reason);
+
 public record SampleStorageResponse(
     int StorageID,
     string PatientSampleID,

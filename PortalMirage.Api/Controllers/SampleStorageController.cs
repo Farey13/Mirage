@@ -70,14 +70,15 @@ namespace PortalMirage.Api.Controllers
             return Ok("Sample marked as done.");
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Deactivate(int id)
+        // Replace the Deactivate method (it's now a PUT, not a DELETE)
+        [HttpPut("{id}/deactivate")]
+        public async Task<IActionResult> Deactivate(int id, [FromBody] DeactivateSampleStorageRequest request)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var success = await sampleStorageService.DeactivateAsync(id, userId);
+            var success = await sampleStorageService.DeactivateAsync(id, userId, request.Reason);
             if (!success)
             {
-                return NotFound();
+                return NotFound("Sample not found or already deactivated.");
             }
             return Ok("Sample entry deactivated successfully.");
         }

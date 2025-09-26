@@ -14,6 +14,9 @@ public interface IPortalMirageApi
 
     // === Calibration Log ===
     [Post("/api/calibrationlogs")]
+
+    [Put("/api/calibrationlogs/{id}/deactivate")]
+    Task DeactivateCalibrationLogAsync([Header("Authorization")] string token, int id, [Body] DeactivateCalibrationLogRequest request);
     Task<CalibrationLogResponse> CreateCalibrationLogAsync([Header("Authorization")] string token, [Body] CreateCalibrationLogRequest request);
 
     [Get("/api/calibrationlogs")]
@@ -41,8 +44,8 @@ public interface IPortalMirageApi
     [Get("/api/samplestorage/completed")]
     Task<List<SampleStorageResponse>> GetCompletedSamplesAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
 
-    [Delete("/api/samplestorage/{id}")]
-    Task DeactivateSampleAsync([Header("Authorization")] string token, int id);
+    [Put("/api/samplestorage/{id}/deactivate")]
+    Task DeactivateSampleAsync([Header("Authorization")] string token, int id, [Body] DeactivateSampleStorageRequest request);
 
     // ... (keep all existing methods) ...
 
@@ -63,6 +66,8 @@ public interface IPortalMirageApi
     // --- Machine Breakdown ---
     [Post("/api/machinebreakdowns")]
     Task<MachineBreakdownResponse> CreateBreakdownAsync([Header("Authorization")] string token, [Body] CreateMachineBreakdownRequest request);
+
+
 
     [Get("/api/machinebreakdowns/pending")]
     Task<List<MachineBreakdownResponse>> GetPendingBreakdownsAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);

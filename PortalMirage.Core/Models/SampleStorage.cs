@@ -13,4 +13,8 @@ public record SampleStorage
     public int? TestDoneByUserID { get; set; }
 
     public bool IsActive { get; set; } // Add this line
+
+    public string? DeactivationReason { get; set; }
+    public int? DeactivatedByUserID { get; set; }
+    public DateTime? DeactivationDateTime { get; set; }
 }

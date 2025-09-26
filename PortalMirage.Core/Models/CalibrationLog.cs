@@ -8,4 +8,9 @@ public record CalibrationLog
     public string? Reason { get; set; }
     public DateTime CalibrationDateTime { get; init; }
     public int PerformedByUserID { get; set; }
+
+    public bool IsActive { get; set; }
+    public string? DeactivationReason { get; set; }
+    public int? DeactivatedByUserID { get; set; }
+    public DateTime? DeactivationDateTime { get; set; }
 }
