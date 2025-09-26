@@ -11,9 +11,14 @@ public class HandoverService(IHandoverRepository handoverRepository) : IHandover
         return await handoverRepository.CreateAsync(handover);
     }
 
-    public async Task<IEnumerable<Handover>> GetPendingAsync()
+    public async Task<IEnumerable<Handover>> GetPendingAsync(DateTime startDate, DateTime endDate)
     {
-        return await handoverRepository.GetPendingAsync();
+        return await handoverRepository.GetPendingAsync(startDate, endDate);
+    }
+
+    public async Task<IEnumerable<Handover>> GetCompletedAsync(DateTime startDate, DateTime endDate)
+    {
+        return await handoverRepository.GetCompletedAsync(startDate, endDate);
     }
 
     public async Task<bool> MarkAsReceivedAsync(int handoverId, int userId)

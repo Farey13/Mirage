@@ -32,9 +32,22 @@ namespace PortalMirage.Api.Controllers
         }
 
         [HttpGet("pending")]
-        public async Task<ActionResult<IEnumerable<HandoverResponse>>> GetPending()
+        public async Task<ActionResult<IEnumerable<HandoverResponse>>> GetPending([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
         {
-            var handovers = await handoverService.GetPendingAsync();
+            var handovers = await handoverService.GetPendingAsync(startDate, endDate);
+            var users = (await userService.GetAllUsersAsync()).ToDictionary(u => u.UserID);
+
+            var response = handovers.Select(h => MapToResponse(h,
+                users.TryGetValue(h.GivenByUserID, out var givenByUser) ? givenByUser.FullName : "Unknown",
+                null // No one has received a pending item yet
+            ));
+            return Ok(response);
+        }
+
+        [HttpGet("completed")]
+        public async Task<ActionResult<IEnumerable<HandoverResponse>>> GetCompleted([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+        {
+            var handovers = await handoverService.GetCompletedAsync(startDate, endDate);
             var users = (await userService.GetAllUsersAsync()).ToDictionary(u => u.UserID);
 
             var response = handovers.Select(h => MapToResponse(h,
