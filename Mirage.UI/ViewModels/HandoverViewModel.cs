@@ -30,6 +30,16 @@ public partial class HandoverViewModel : ObservableObject
     [ObservableProperty]
     private DateTime _endDate = DateTime.Today;
 
+    // Properties for the "Deactivate" Flyout
+    [ObservableProperty]
+    private bool _isDeleteFlyoutOpen;
+
+    [ObservableProperty]
+    private HandoverResponse? _selectedHandoverToDelete;
+
+    [ObservableProperty]
+    private string _deactivationReason = string.Empty;
+
     private string _activeView = "Pending";
     public bool IsPendingViewActive
     {
@@ -125,5 +135,47 @@ public partial class HandoverViewModel : ObservableObject
             if (itemToRemove != null) PendingHandovers.Remove(itemToRemove);
         }
         catch (Exception ex) { MessageBox.Show($"Failed to receive handover: {ex.Message}"); }
+    }
+
+    [RelayCommand]
+    private void ShowDeleteFlyout(HandoverResponse handover)
+    {
+        SelectedHandoverToDelete = handover;
+        DeactivationReason = string.Empty;
+        IsDeleteFlyoutOpen = true;
+    }
+
+    [RelayCommand]
+    private async Task ConfirmDeactivation()
+    {
+        if (SelectedHandoverToDelete is null || string.IsNullOrWhiteSpace(DeactivationReason))
+        {
+            MessageBox.Show("A reason is required for deactivation.");
+            return;
+        }
+        if (string.IsNullOrEmpty(AuthToken)) return;
+        try
+        {
+            var request = new DeactivateHandoverRequest(DeactivationReason);
+            await _apiClient.DeactivateHandoverAsync(AuthToken, SelectedHandoverToDelete.HandoverID, request);
+
+            IsDeleteFlyoutOpen = false;
+            await Search();
+        }
+        catch (ApiException ex) // This is the new, smarter catch block
+        {
+            if (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                MessageBox.Show("You do not have permission to perform this action. Please contact an administrator.", "Authorization Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                MessageBox.Show($"An error occurred communicating with the server: {ex.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"An error occurred: {ex.Message}");
+        }
     }
 }

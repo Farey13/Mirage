@@ -11,4 +11,9 @@ public interface IHandoverService
     Task<IEnumerable<Handover>> GetPendingAsync(DateTime startDate, DateTime endDate); // Add date parameters
     Task<IEnumerable<Handover>> GetCompletedAsync(DateTime startDate, DateTime endDate); // Add this new method
     Task<bool> MarkAsReceivedAsync(int handoverId, int userId);
+
+    Task<bool> DeactivateAsync(int handoverId, int userId, string reason);
+
+    Task<Handover?> GetByIdAsync(int handoverId);
+
 }

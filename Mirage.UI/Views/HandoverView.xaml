@@ -76,107 +76,136 @@
         </Style>
     </UserControl.Resources>
 
-    <Grid Margin="20">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="350"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
+    <Grid>
+        <Grid Margin="20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="350"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Column="0" Margin="0,0,20,0">
-            <TextBlock Text="Handover Book" FontSize="36" FontWeight="Light" Margin="0,0,0,20"/>
-            <Label Content="Priority"/>
-            <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding SelectedPriority}" Margin="0,0,0,10"/>
-            <Label Content="Shift"/>
-            <ComboBox ItemsSource="{Binding Shifts}" SelectedItem="{Binding SelectedShift}" Margin="0,0,0,10"/>
-            <Label Content="New Handover Notes"/>
-            <TextBox Text="{Binding NewHandoverNotes}" Height="200" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,10" VerticalScrollBarVisibility="Auto"/>
-            <Button Content="Submit Handover" Style="{StaticResource StandardActionButtonStyle}" Command="{Binding SubmitCommand}"/>
-        </StackPanel>
+            <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                <TextBlock Text="Handover Book" FontSize="36" FontWeight="Light" Margin="0,0,0,20"/>
+                <Label Content="Priority"/>
+                <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding SelectedPriority}" Margin="0,0,0,10"/>
+                <Label Content="Shift"/>
+                <ComboBox ItemsSource="{Binding Shifts}" SelectedItem="{Binding SelectedShift}" Margin="0,0,0,10"/>
+                <Label Content="New Handover Notes"/>
+                <TextBox Text="{Binding NewHandoverNotes}" Height="200" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,10" VerticalScrollBarVisibility="Auto"/>
+                <Button Content="Submit Handover" Style="{StaticResource StandardActionButtonStyle}" Command="{Binding SubmitCommand}"/>
+            </StackPanel>
 
-        <Grid Grid.Column="1">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <TextBlock Grid.Row="0" Text="Handovers" FontSize="24" FontWeight="Light" Margin="0,0,0,10"/>
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="Handovers" FontSize="24" FontWeight="Light" Margin="0,0,0,10"/>
 
-            <Grid Grid.Row="1" Margin="0,0,0,10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <RadioButton Content="Pending" GroupName="ViewToggle" 
-                                 IsChecked="{Binding IsPendingViewActive, Mode=TwoWay}"
-                                 Style="{StaticResource MahApps.Styles.ToggleButton}"/>
-                    <RadioButton Content="Completed" GroupName="ViewToggle" 
-                                 IsChecked="{Binding IsCompletedViewActive, Mode=TwoWay}"
-                                 Style="{StaticResource MahApps.Styles.ToggleButton}" Margin="5,0,0,0"/>
-                </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <DatePicker SelectedDate="{Binding StartDate}"/>
-                    <Label Content="to" Margin="5,0"/>
-                    <DatePicker SelectedDate="{Binding EndDate}"/>
-                    <Button Content="Search" Margin="10,0,0,0" Command="{Binding SearchCommand}"/>
-                </StackPanel>
+                <Grid Grid.Row="1" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <RadioButton Content="Pending" GroupName="ViewToggle" 
+                                     IsChecked="{Binding IsPendingViewActive, Mode=TwoWay}"
+                                     Style="{StaticResource MahApps.Styles.ToggleButton}"/>
+                        <RadioButton Content="Completed" GroupName="ViewToggle" 
+                                     IsChecked="{Binding IsCompletedViewActive, Mode=TwoWay}"
+                                     Style="{StaticResource MahApps.Styles.ToggleButton}" Margin="5,0,0,0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <DatePicker SelectedDate="{Binding StartDate}"/>
+                        <Label Content="to" Margin="5,0"/>
+                        <DatePicker SelectedDate="{Binding EndDate}"/>
+                        <Button Content="Search" Margin="10,0,0,0" Command="{Binding SearchCommand}"/>
+                    </StackPanel>
+                </Grid>
+
+                <DataGrid Grid.Row="2" 
+                          ItemsSource="{Binding PendingHandovers}" 
+                          RowStyle="{StaticResource HandoverRowStyle}" 
+                          AutoGenerateColumns="False" 
+                          IsReadOnly="True" 
+                          AlternationCount="2">
+                    <DataGrid.Style>
+                        <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsPendingViewActive}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Style>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Given On" Binding="{Binding GivenDateTime, StringFormat='g'}" Width="*"/>
+                        <DataGridTextColumn Header="Given By" Binding="{Binding GivenByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Shift" Binding="{Binding Shift}" Width="Auto"/>
+                        <DataGridTextColumn Header="Notes" Binding="{Binding HandoverNotes}" Width="3*"/>
+                        <DataGridTemplateColumn Header="Actions" Width="Auto">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="Receive" Margin="0,0,5,0"
+                                                Command="{Binding DataContext.ReceiveCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding HandoverID}"/>
+                                        <Button Content="Delete" Background="IndianRed" Foreground="White"
+                                                Command="{Binding DataContext.ShowDeleteFlyoutCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <DataGrid Grid.Row="2" 
+                          ItemsSource="{Binding CompletedHandovers}" 
+                          RowStyle="{StaticResource HandoverRowStyle}" 
+                          AutoGenerateColumns="False" 
+                          IsReadOnly="True" 
+                          AlternationCount="2">
+                    <DataGrid.Style>
+                        <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsCompletedViewActive}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Style>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Given On" Binding="{Binding GivenDateTime, StringFormat='g'}" Width="*"/>
+                        <DataGridTextColumn Header="Given By" Binding="{Binding GivenByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Received On" Binding="{Binding ReceivedDateTime, StringFormat='g'}" Width="*"/>
+                        <DataGridTextColumn Header="Received By" Binding="{Binding ReceivedByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Notes" Binding="{Binding HandoverNotes}" Width="3*"/>
+                        <DataGridTemplateColumn Header="Actions" Width="Auto">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="Delete" Background="IndianRed" Foreground="White"
+                                            Command="{Binding DataContext.ShowDeleteFlyoutCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
             </Grid>
-
-            <DataGrid Grid.Row="2" 
-                      ItemsSource="{Binding PendingHandovers}" 
-                      RowStyle="{StaticResource HandoverRowStyle}" 
-                      AutoGenerateColumns="False" 
-                      IsReadOnly="True" 
-                      AlternationCount="2">
-                <DataGrid.Style>
-                    <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsPendingViewActive}" Value="True">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.Style>
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Given On" Binding="{Binding GivenDateTime, StringFormat='g'}" Width="*"/>
-                    <DataGridTextColumn Header="Given By" Binding="{Binding GivenByUsername}" Width="*"/>
-                    <DataGridTextColumn Header="Shift" Binding="{Binding Shift}" Width="Auto"/>
-                    <DataGridTextColumn Header="Notes" Binding="{Binding HandoverNotes}" Width="3*"/>
-                    <DataGridTemplateColumn Header="Actions" Width="Auto">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Button Content="Receive" Command="{Binding DataContext.ReceiveCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding HandoverID}"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
-            </DataGrid>
-
-            <DataGrid Grid.Row="2" 
-                      ItemsSource="{Binding CompletedHandovers}" 
-                      RowStyle="{StaticResource HandoverRowStyle}" 
-                      AutoGenerateColumns="False" 
-                      IsReadOnly="True" 
-                      AlternationCount="2">
-                <DataGrid.Style>
-                    <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsCompletedViewActive}" Value="True">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.Style>
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Given On" Binding="{Binding GivenDateTime, StringFormat='g'}" Width="*"/>
-                    <DataGridTextColumn Header="Given By" Binding="{Binding GivenByUsername}" Width="*"/>
-                    <DataGridTextColumn Header="Received On" Binding="{Binding ReceivedDateTime, StringFormat='g'}" Width="*"/>
-                    <DataGridTextColumn Header="Received By" Binding="{Binding ReceivedByUsername}" Width="*"/>
-                    <DataGridTextColumn Header="Notes" Binding="{Binding HandoverNotes}" Width="3*"/>
-                </DataGrid.Columns>
-            </DataGrid>
         </Grid>
+
+        <mah:FlyoutsControl>
+            <mah:Flyout Header="Confirm Deactivation" IsOpen="{Binding IsDeleteFlyoutOpen}" Position="Right" Width="400">
+                <StackPanel Margin="20">
+                    <TextBlock Text="Please provide a reason for deactivating this handover. This action will be permanently recorded in the audit log." TextWrapping="Wrap" Margin="0,0,0,10"/>
+                    <Label Content="Reason for Deactivation"/>
+                    <TextBox Text="{Binding DeactivationReason}" Height="150" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10"/>
+                    <Button Content="Confirm Deactivation" Command="{Binding ConfirmDeactivationCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}" Background="IndianRed"/>
+                </StackPanel>
+            </mah:Flyout>
+        </mah:FlyoutsControl>
     </Grid>
 </UserControl>

@@ -74,7 +74,14 @@
                         <DataGridTemplateColumn Header="Actions" Width="Auto">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Button Content="Resolve" Command="{Binding DataContext.ShowResolveFlyoutCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="Resolve" Margin="0,0,5,0"
+                                                Command="{Binding DataContext.ShowResolveFlyoutCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button Content="Delete" Background="IndianRed" Foreground="White"
+                                                Command="{Binding DataContext.ShowDeleteFlyoutCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"/>
+                                    </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -99,6 +106,15 @@
                         <DataGridTextColumn Header="Resolved By" Binding="{Binding ResolvedByUsername}" Width="*"/>
                         <DataGridTextColumn Header="Notes" Binding="{Binding ResolutionNotes}" Width="1.5*"/>
                         <DataGridTextColumn Header="Downtime (Mins)" Binding="{Binding DowntimeMinutes}" Width="Auto"/>
+                        <DataGridTemplateColumn Header="Actions" Width="Auto">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="Delete" Background="IndianRed" Foreground="White"
+                                            Command="{Binding DataContext.ShowDeleteFlyoutCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
@@ -111,6 +127,15 @@
                     <Label Content="Resolution Notes"/>
                     <TextBox Text="{Binding ResolutionNotes}" Height="150" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10"/>
                     <Button Content="Confirm Resolution" Command="{Binding ConfirmResolveCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}"/>
+                </StackPanel>
+            </mah:Flyout>
+
+            <mah:Flyout Header="Confirm Deactivation" IsOpen="{Binding IsDeleteFlyoutOpen}" Position="Right" Width="400">
+                <StackPanel Margin="20">
+                    <TextBlock Text="Please provide a reason for deleting this entry. This action will be permanently recorded in the audit log." TextWrapping="Wrap" Margin="0,0,0,10"/>
+                    <Label Content="Reason for Deactivation"/>
+                    <TextBox Text="{Binding DeactivationReason}" Height="150" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10"/>
+                    <Button Content="Confirm Deactivation" Command="{Binding ConfirmDeactivationCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}" Background="IndianRed"/>
                 </StackPanel>
             </mah:Flyout>
         </mah:FlyoutsControl>

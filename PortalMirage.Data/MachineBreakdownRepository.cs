@@ -23,7 +23,7 @@ public class MachineBreakdownRepository(IDbConnectionFactory connectionFactory) 
         var inclusiveEndDate = endDate.Date.AddDays(1);
         const string sql = """
                            SELECT * FROM MachineBreakdowns 
-                           WHERE IsResolved = 0 
+                           WHERE IsResolved = 0 AND IsActive = 1 
                            AND ReportedDateTime >= @StartDate AND ReportedDateTime < @InclusiveEndDate 
                            ORDER BY ReportedDateTime DESC
                            """;
@@ -33,7 +33,7 @@ public class MachineBreakdownRepository(IDbConnectionFactory connectionFactory) 
     public async Task<MachineBreakdown?> GetByIdAsync(int breakdownId)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = "SELECT * FROM MachineBreakdowns WHERE BreakdownID = @BreakdownId";
+        const string sql = "SELECT * FROM MachineBreakdowns WHERE BreakdownID = @BreakdownId AND IsActive = 1";
         return await connection.QuerySingleOrDefaultAsync<MachineBreakdown>(sql, new { BreakdownId = breakdownId });
     }
 
@@ -64,10 +64,22 @@ public class MachineBreakdownRepository(IDbConnectionFactory connectionFactory) 
         var inclusiveEndDate = endDate.Date.AddDays(1);
         const string sql = """
                        SELECT * FROM MachineBreakdowns 
-                       WHERE IsResolved = 1 
+                       WHERE IsResolved = 1 AND IsActive = 1 
                        AND ReportedDateTime >= @StartDate AND ReportedDateTime < @InclusiveEndDate 
                        ORDER BY ReportedDateTime DESC
                        """;
         return await connection.QueryAsync<MachineBreakdown>(sql, new { StartDate = startDate.Date, InclusiveEndDate = inclusiveEndDate });
+    }
+
+    public async Task<bool> DeactivateAsync(int breakdownId, int userId, string reason)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = """
+                       UPDATE MachineBreakdowns SET IsActive = 0, DeactivationReason = @Reason, 
+                       DeactivatedByUserID = @UserId, DeactivationDateTime = GETDATE()
+                       WHERE BreakdownID = @BreakdownId AND IsActive = 1;
+                       """;
+        var rowsAffected = await connection.ExecuteAsync(sql, new { BreakdownId = breakdownId, UserId = userId, Reason = reason });
+        return rowsAffected > 0;
     }
 }

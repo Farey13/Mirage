@@ -34,10 +34,12 @@ namespace PortalMirage.Api.Controllers
                 return Unauthorized("Invalid username or password.");
             }
 
-            var token = jwtTokenGenerator.GenerateToken(user);
+            // Call the new async method with 'await'
+            var token = await jwtTokenGenerator.GenerateTokenAsync(user);
             var userResponse = new UserResponse(user.UserID, user.Username, user.FullName);
 
             return Ok(new LoginResponse(token, userResponse));
         }
+        
     }
 }

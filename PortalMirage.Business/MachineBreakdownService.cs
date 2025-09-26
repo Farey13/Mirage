@@ -5,7 +5,9 @@ using PortalMirage.Data.Abstractions;
 
 namespace PortalMirage.Business;
 
-public class MachineBreakdownService(IMachineBreakdownRepository machineBreakdownRepository) : IMachineBreakdownService
+public class MachineBreakdownService(
+    IMachineBreakdownRepository machineBreakdownRepository,
+    IAuditLogService auditLogService) : IMachineBreakdownService
 {
     public async Task<MachineBreakdown> CreateAsync(MachineBreakdown breakdown)
     {
@@ -38,5 +40,20 @@ public class MachineBreakdownService(IMachineBreakdownRepository machineBreakdow
     public async Task<IEnumerable<MachineBreakdown>> GetResolvedByDateRangeAsync(DateTime startDate, DateTime endDate)
     {
         return await machineBreakdownRepository.GetResolvedByDateRangeAsync(startDate, endDate);
+    }
+
+    public async Task<MachineBreakdown?> GetByIdAsync(int breakdownId)
+    {
+        return await machineBreakdownRepository.GetByIdAsync(breakdownId);
+    }
+
+    public async Task<bool> DeactivateAsync(int breakdownId, int userId, string reason)
+    {
+        var success = await machineBreakdownRepository.DeactivateAsync(breakdownId, userId, reason);
+        if (success)
+        {
+            await auditLogService.LogAsync(userId, "Deactivate", "MachineBreakdown", breakdownId.ToString(), newValue: reason);
+        }
+        return success;
     }
 }

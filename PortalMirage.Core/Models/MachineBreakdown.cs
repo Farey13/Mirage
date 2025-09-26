@@ -10,7 +10,12 @@ public record MachineBreakdown
     public bool IsResolved { get; set; }
     public DateTime? ResolvedDateTime { get; set; }
     public int? ResolvedByUserID { get; set; }
+    public string? ResolutionNotes { get; set; }
+    public int? DowntimeMinutes { get; set; }
 
-    public string? ResolutionNotes { get; set; } // Add this line
-    public int? DowntimeMinutes { get; set; }   // Add this line
+    // New properties for deactivation
+    public bool IsActive { get; set; }
+    public string? DeactivationReason { get; set; }
+    public int? DeactivatedByUserID { get; set; }
+    public DateTime? DeactivationDateTime { get; set; }
 }

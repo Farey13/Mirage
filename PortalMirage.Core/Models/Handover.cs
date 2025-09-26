@@ -12,4 +12,9 @@ public record Handover
 
     public required string Priority { get; set; } // Add this
     public required string Shift { get; set; }    // Add this
+
+    public bool IsActive { get; set; }
+    public string? DeactivationReason { get; set; }
+    public int? DeactivatedByUserID { get; set; }
+    public DateTime? DeactivationDateTime { get; set; }
 }

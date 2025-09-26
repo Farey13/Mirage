@@ -70,6 +70,28 @@ namespace PortalMirage.Api.Controllers
             return Ok("Handover marked as received.");
         }
 
+        [HttpPut("{id}/deactivate")]
+        public async Task<IActionResult> Deactivate(int id, [FromBody] DeactivateHandoverRequest request)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var handover = await handoverService.GetByIdAsync(id);
+
+            if (handover is null) return NotFound();
+
+            // Business Rule: If handover is already completed, only an Admin can deactivate it
+            if (handover.IsReceived && !User.IsInRole("Admin"))
+            {
+                return Forbid("Only Admins can deactivate a completed handover.");
+            }
+
+            var success = await handoverService.DeactivateAsync(id, userId, request.Reason);
+            if (!success)
+            {
+                return NotFound("Handover not found or already deactivated.");
+            }
+            return Ok("Handover deactivated successfully.");
+        }
+
         private static HandoverResponse MapToResponse(Handover h, string givenBy, string? receivedBy)
         {
             return new HandoverResponse(h.HandoverID, h.HandoverNotes, h.Priority, h.Shift, h.GivenDateTime, h.GivenByUserID, givenBy, h.IsReceived, h.ReceivedDateTime, h.ReceivedByUserID, receivedBy);

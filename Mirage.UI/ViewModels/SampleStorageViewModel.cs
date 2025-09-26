@@ -151,6 +151,20 @@ public partial class SampleStorageViewModel : ObservableObject
             IsDeleteFlyoutOpen = false;
             await Search(); // Refresh the current list
         }
-        catch (Exception ex) { MessageBox.Show($"Failed to delete entry: {ex.Message}"); }
+        catch (ApiException ex) // This specifically catches errors from the API
+        {
+            if (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                MessageBox.Show("You do not have permission to perform this action. Please contact an administrator.", "Authorization Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                MessageBox.Show($"An error occurred communicating with the server: {ex.StatusCode}");
+            }
+        }
+        catch (Exception ex) // This catches other errors like no network connection
+        {
+            MessageBox.Show($"An error occurred: {ex.Message}");
+        }
     }
 }

@@ -17,6 +17,8 @@ public interface IPortalMirageApi
 
     [Put("/api/calibrationlogs/{id}/deactivate")]
     Task DeactivateCalibrationLogAsync([Header("Authorization")] string token, int id, [Body] DeactivateCalibrationLogRequest request);
+
+    [Post("/api/calibrationlogs")]
     Task<CalibrationLogResponse> CreateCalibrationLogAsync([Header("Authorization")] string token, [Body] CreateCalibrationLogRequest request);
 
     [Get("/api/calibrationlogs")]
@@ -65,12 +67,16 @@ public interface IPortalMirageApi
     [Put("/api/handovers/{id}/receive")]
     Task MarkHandoverAsReceivedAsync([Header("Authorization")] string token, int id);
 
+    [Put("/api/handovers/{id}/deactivate")]
+    Task DeactivateHandoverAsync([Header("Authorization")] string token, int id, [Body] DeactivateHandoverRequest request);
+
 
     // --- Machine Breakdown ---
     [Post("/api/machinebreakdowns")]
     Task<MachineBreakdownResponse> CreateBreakdownAsync([Header("Authorization")] string token, [Body] CreateMachineBreakdownRequest request);
 
-
+    [Put("/api/machinebreakdowns/{id}/deactivate")]
+    Task DeactivateBreakdownAsync([Header("Authorization")] string token, int id, [Body] DeactivateMachineBreakdownRequest request);
 
     [Get("/api/machinebreakdowns/pending")]
     Task<List<MachineBreakdownResponse>> GetPendingBreakdownsAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);

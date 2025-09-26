@@ -4,7 +4,9 @@ using PortalMirage.Data.Abstractions;
 
 namespace PortalMirage.Business;
 
-public class HandoverService(IHandoverRepository handoverRepository) : IHandoverService
+public class HandoverService(
+    IHandoverRepository handoverRepository,
+    IAuditLogService auditLogService) : IHandoverService
 {
     public async Task<Handover> CreateAsync(Handover handover)
     {
@@ -38,4 +40,27 @@ public class HandoverService(IHandoverRepository handoverRepository) : IHandover
 
         return await handoverRepository.MarkAsReceivedAsync(handoverId, userId);
     }
+
+    public async Task<bool> DeactivateAsync(int handoverId, int userId, string reason)
+    {
+        // First, we check if the handover exists to avoid errors
+        var handover = await handoverRepository.GetByIdAsync(handoverId);
+        if (handover is null)
+        {
+            return false; // Handover not found
+        }
+
+        var success = await handoverRepository.DeactivateAsync(handoverId, userId, reason);
+        if (success)
+        {
+            // If deactivation was successful, we create an audit log entry
+            await auditLogService.LogAsync(userId, "Deactivate", "Handover", handoverId.ToString(), newValue: reason);
+        }
+        return success;
+    }
+    public async Task<Handover?> GetByIdAsync(int handoverId)
+    {
+        return await handoverRepository.GetByIdAsync(handoverId);
+    }
+
 }

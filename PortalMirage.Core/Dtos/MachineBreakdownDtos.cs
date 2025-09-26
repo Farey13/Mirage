@@ -5,6 +5,8 @@ public record CreateMachineBreakdownRequest(string MachineName, string Breakdown
 
 public record ResolveBreakdownRequest(string ResolutionNotes);
 
+public record DeactivateMachineBreakdownRequest(string Reason);
+
 public record MachineBreakdownResponse(
     int BreakdownID,
     string MachineName,
