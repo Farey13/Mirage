@@ -108,6 +108,20 @@ public partial class KitValidationViewModel : ObservableObject
             IsDeleteFlyoutOpen = false;
             await LoadLogs(); // Refresh the list
         }
-        catch (Exception ex) { MessageBox.Show($"Failed to deactivate entry: {ex.Message}"); }
+        catch (ApiException ex)
+        {
+            if (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                MessageBox.Show("You do not have permission to perform this action. Please contact an administrator.", "Authorization Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                MessageBox.Show($"An error occurred communicating with the server: {ex.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"An error occurred: {ex.Message}");
+        }
     }
 }

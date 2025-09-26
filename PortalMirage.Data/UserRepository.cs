@@ -13,6 +13,19 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
         return await connection.QuerySingleOrDefaultAsync<User>(sql, new { Username = username });
     }
 
+
+    public async Task<IEnumerable<string>> GetUserRolesAsync(int userId)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = """
+                       SELECT r.RoleName 
+                       FROM Roles r
+                       INNER JOIN UserRoles ur ON r.RoleID = ur.RoleID
+                       WHERE ur.UserID = @UserId
+                       """;
+        return await connection.QueryAsync<string>(sql, new { UserId = userId });
+    }
+
     public async Task<User> CreateAsync(User user)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();

@@ -62,6 +62,28 @@ namespace PortalMirage.Api.Controllers
             return Ok(response);
         }
 
+        [HttpPut("{id}/deactivate")]
+        public async Task<IActionResult> Deactivate(int id, [FromBody] DeactivateMachineBreakdownRequest request)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var breakdown = await machineBreakdownService.GetByIdAsync(id);
+
+            if (breakdown is null) return NotFound();
+
+            // Business Rule: If breakdown is already resolved, only an Admin can deactivate it
+            if (breakdown.IsResolved && !User.IsInRole("Admin"))
+            {
+                return Forbid("Only Admins can deactivate a resolved issue.");
+            }
+
+            var success = await machineBreakdownService.DeactivateAsync(id, userId, request.Reason);
+            if (!success)
+            {
+                return NotFound("Breakdown not found or already deactivated.");
+            }
+            return Ok("Breakdown deactivated successfully.");
+        }
+
         [HttpPut("{id}/resolve")]
         public async Task<IActionResult> MarkAsResolved(int id, [FromBody] ResolveBreakdownRequest request)
         {

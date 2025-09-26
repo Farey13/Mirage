@@ -10,4 +10,6 @@ public interface IUserRepository
     Task<User?> GetByIdAsync(int userId);
 
     Task<IEnumerable<User>> GetAllAsync(); // Add this line
+
+    Task<IEnumerable<string>> GetUserRolesAsync(int userId);
 }

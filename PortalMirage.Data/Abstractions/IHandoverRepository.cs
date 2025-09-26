@@ -12,4 +12,5 @@ public interface IHandoverRepository
     Task<IEnumerable<Handover>> GetCompletedAsync(DateTime startDate, DateTime endDate);
     Task<Handover?> GetByIdAsync(int handoverId);
     Task<bool> MarkAsReceivedAsync(int handoverId, int userId);
+    Task<bool> DeactivateAsync(int handoverId, int userId, string reason);
 }

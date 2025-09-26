@@ -1,8 +1,9 @@
 ﻿using PortalMirage.Core.Models;
+using System.Threading.Tasks;
 
 namespace PortalMirage.Business.Abstractions;
 
 public interface IJwtTokenGenerator
 {
-    string GenerateToken(User user);
+    Task<string> GenerateTokenAsync(User user);
 }

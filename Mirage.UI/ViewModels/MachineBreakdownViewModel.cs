@@ -57,6 +57,16 @@ public partial class MachineBreakdownViewModel : ObservableObject
     [ObservableProperty] private MachineBreakdownResponse? _selectedBreakdownToResolve;
     [ObservableProperty] private string _resolutionNotes = string.Empty;
 
+    // Properties for the "Deactivate" Flyout
+    [ObservableProperty]
+    private bool _isDeleteFlyoutOpen;
+
+    [ObservableProperty]
+    private MachineBreakdownResponse? _selectedBreakdownToDelete;
+
+    [ObservableProperty]
+    private string _deactivationReason = string.Empty;
+
     public ObservableCollection<MachineBreakdownResponse> PendingBreakdowns { get; } = new();
     public ObservableCollection<MachineBreakdownResponse> ResolvedBreakdowns { get; } = new();
     public ObservableCollection<string> MachineNames { get; } = new();
@@ -141,5 +151,47 @@ public partial class MachineBreakdownViewModel : ObservableObject
             IsResolveFlyoutOpen = false;
         }
         catch (Exception ex) { MessageBox.Show($"Failed to resolve breakdown: {ex.Message}"); }
+    }
+
+    [RelayCommand]
+    private void ShowDeleteFlyout(MachineBreakdownResponse breakdown)
+    {
+        SelectedBreakdownToDelete = breakdown;
+        DeactivationReason = string.Empty;
+        IsDeleteFlyoutOpen = true;
+    }
+
+    [RelayCommand]
+    private async Task ConfirmDeactivation()
+    {
+        if (SelectedBreakdownToDelete is null || string.IsNullOrWhiteSpace(DeactivationReason))
+        {
+            MessageBox.Show("A reason is required for deactivation.");
+            return;
+        }
+        if (string.IsNullOrEmpty(AuthToken)) return;
+        try
+        {
+            var request = new DeactivateMachineBreakdownRequest(DeactivationReason);
+            await _apiClient.DeactivateBreakdownAsync(AuthToken, SelectedBreakdownToDelete.BreakdownID, request);
+
+            IsDeleteFlyoutOpen = false;
+            await Search(); // Refresh the current list
+        }
+        catch (ApiException ex)
+        {
+            if (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                MessageBox.Show("You do not have permission to perform this action. Please contact an administrator.", "Authorization Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                MessageBox.Show($"An error occurred: {ex.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"An error occurred: {ex.Message}");
+        }
     }
 }
