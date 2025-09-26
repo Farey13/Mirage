@@ -3,7 +3,6 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -45,10 +44,12 @@ builder.Services.AddSwaggerGen(options =>
 // =================================================================
 // 1. Add Configuration and JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
 }).AddJwtBearer(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
@@ -59,11 +60,8 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
-
-        // --- Add these two lines ---
         NameClaimType = System.Security.Claims.ClaimTypes.Name,
         RoleClaimType = System.Security.Claims.ClaimTypes.Role,
-
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!))
     };
 });
@@ -83,7 +81,6 @@ builder.Services.AddScoped<PortalMirage.Data.Abstractions.IMachineBreakdownRepos
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IMediaSterilityCheckRepository, PortalMirage.Data.MediaSterilityCheckRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.ITaskRepository, PortalMirage.Data.TaskRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IDailyTaskLogRepository, PortalMirage.Data.DailyTaskLogRepository>();
-
 
 // ... (all your other repositories)
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IRoleRepository, PortalMirage.Data.RoleRepository>();
@@ -110,7 +107,6 @@ builder.Services.AddScoped<PortalMirage.Business.Abstractions.IAuditLogService, 
 // Add our new token generator service
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IJwtTokenGenerator, PortalMirage.Business.JwtTokenGenerator>();
 // =================================================================
-
 
 var app = builder.Build();
 

@@ -180,13 +180,15 @@ public partial class MachineBreakdownViewModel : ObservableObject
         }
         catch (ApiException ex)
         {
-            if (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            // Check for FORBIDDEN (403) OR the INTERNAL SERVER ERROR (500)
+            if (ex.StatusCode == System.Net.HttpStatusCode.Forbidden ||
+                ex.StatusCode == System.Net.HttpStatusCode.InternalServerError)
             {
                 MessageBox.Show("You do not have permission to perform this action. Please contact an administrator.", "Authorization Error", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             else
             {
-                MessageBox.Show($"An error occurred: {ex.StatusCode}");
+                MessageBox.Show($"An error occurred communicating with the server: {ex.StatusCode}");
             }
         }
         catch (Exception ex)

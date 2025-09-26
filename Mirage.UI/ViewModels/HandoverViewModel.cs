@@ -162,9 +162,11 @@ public partial class HandoverViewModel : ObservableObject
             IsDeleteFlyoutOpen = false;
             await Search();
         }
-        catch (ApiException ex) // This is the new, smarter catch block
+        catch (ApiException ex)
         {
-            if (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            // Check for FORBIDDEN (403) OR the INTERNAL SERVER ERROR (500)
+            if (ex.StatusCode == System.Net.HttpStatusCode.Forbidden ||
+                ex.StatusCode == System.Net.HttpStatusCode.InternalServerError)
             {
                 MessageBox.Show("You do not have permission to perform this action. Please contact an administrator.", "Authorization Error", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
