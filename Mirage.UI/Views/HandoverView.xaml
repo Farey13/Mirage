@@ -90,7 +90,9 @@
                 <Label Content="Shift"/>
                 <ComboBox ItemsSource="{Binding Shifts}" SelectedItem="{Binding SelectedShift}" Margin="0,0,0,10"/>
                 <Label Content="New Handover Notes"/>
-                <TextBox Text="{Binding NewHandoverNotes}" Height="200" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,10" VerticalScrollBarVisibility="Auto"/>
+                <TextBox Text="{Binding NewHandoverNotes}" Height="200" 
+                         TextWrapping="Wrap" AcceptsReturn="True" 
+                         Margin="0,0,0,10" VerticalScrollBarVisibility="Auto"/>
                 <Button Content="Submit Handover" Style="{StaticResource StandardActionButtonStyle}" Command="{Binding SubmitCommand}"/>
             </StackPanel>
 
@@ -143,7 +145,13 @@
                         <DataGridTextColumn Header="Given On" Binding="{Binding GivenDateTime, StringFormat='g'}" Width="*"/>
                         <DataGridTextColumn Header="Given By" Binding="{Binding GivenByUsername}" Width="*"/>
                         <DataGridTextColumn Header="Shift" Binding="{Binding Shift}" Width="Auto"/>
-                        <DataGridTextColumn Header="Notes" Binding="{Binding HandoverNotes}" Width="3*"/>
+                        <DataGridTemplateColumn Header="Notes" Width="3*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding HandoverNotes}" TextWrapping="Wrap" Padding="5"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTemplateColumn Header="Actions" Width="Auto">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -182,7 +190,13 @@
                         <DataGridTextColumn Header="Given By" Binding="{Binding GivenByUsername}" Width="*"/>
                         <DataGridTextColumn Header="Received On" Binding="{Binding ReceivedDateTime, StringFormat='g'}" Width="*"/>
                         <DataGridTextColumn Header="Received By" Binding="{Binding ReceivedByUsername}" Width="*"/>
-                        <DataGridTextColumn Header="Notes" Binding="{Binding HandoverNotes}" Width="3*"/>
+                        <DataGridTemplateColumn Header="Notes" Width="3*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding HandoverNotes}" TextWrapping="Wrap" Padding="5"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTemplateColumn Header="Actions" Width="Auto">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
