@@ -1,5 +1,4 @@
-﻿// Replace the entire file content with this
-using System;
+﻿using System;
 
 namespace PortalMirage.Core.Dtos;
 
@@ -12,8 +11,8 @@ public record HandoverResponse(
     string Shift,
     DateTime GivenDateTime,
     int GivenByUserID,
-    string GivenByUsername, // Added for username
+    string GivenByUsername,
     bool IsReceived,
     DateTime? ReceivedDateTime,
     int? ReceivedByUserID,
-    string? ReceivedByUsername); // Added for username
+    string? ReceivedByUsername);

@@ -51,7 +51,10 @@ public interface IPortalMirageApi
     Task<HandoverResponse> CreateHandoverAsync([Header("Authorization")] string token, [Body] CreateHandoverRequest request);
 
     [Get("/api/handovers/pending")]
-    Task<List<HandoverResponse>> GetPendingHandoversAsync([Header("Authorization")] string token);
+    Task<List<HandoverResponse>> GetPendingHandoversAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
+
+    [Get("/api/handovers/completed")]
+    Task<List<HandoverResponse>> GetCompletedHandoversAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
 
     [Put("/api/handovers/{id}/receive")]
     Task MarkHandoverAsReceivedAsync([Header("Authorization")] string token, int id);

@@ -9,111 +9,110 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 
-namespace Mirage.UI.ViewModels;
-
-public partial class SampleStorageViewModel : ObservableObject
+namespace Mirage.UI.ViewModels
 {
-    public static string? AuthToken { get; set; }
-    private readonly IPortalMirageApi _apiClient;
-
-    [ObservableProperty] private string _newPatientSampleId = string.Empty;
-    [ObservableProperty]
-    private string _newTestName = string.Empty;
-    [ObservableProperty] private DateTime _startDate = DateTime.Today;
-    [ObservableProperty] private DateTime _endDate = DateTime.Today;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsPendingViewActive))]
-    [NotifyPropertyChangedFor(nameof(IsCompletedViewActive))]
-    private string _activeView = "Pending";
-
-    public ObservableCollection<SampleStorageResponse> PendingSamples { get; } = new();
-    public ObservableCollection<SampleStorageResponse> CompletedSamples { get; } = new();
-
-    public SampleStorageViewModel()
+    public partial class SampleStorageViewModel : ObservableObject
     {
-        _apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
-        LoadPendingCommand.Execute(null);
-    }
+        public static string? AuthToken { get; set; }
+        private readonly IPortalMirageApi _apiClient;
 
-    [RelayCommand]
-    private async Task LoadPending()
-    {
-        ActiveView = "Pending"; // Add this line
-        if (string.IsNullOrEmpty(AuthToken)) return;
-        try
-        {
-            var samples = await _apiClient.GetPendingSamplesAsync(AuthToken, StartDate, EndDate);
-            PendingSamples.Clear();
-            foreach (var sample in samples) PendingSamples.Add(sample);
-        }
-        catch (Exception ex) { MessageBox.Show($"Failed to load pending samples: {ex.Message}"); }
-    }
+        [ObservableProperty] private string _newPatientSampleId = string.Empty;
+        [ObservableProperty] private string _newTestName = string.Empty;
+        [ObservableProperty] private DateTime _startDate = DateTime.Today;
+        [ObservableProperty] private DateTime _endDate = DateTime.Today;
 
-    [RelayCommand]
-    private async Task LoadCompleted()
-    {
-        ActiveView = "Completed"; // Add this line
-        if (string.IsNullOrEmpty(AuthToken)) return;
-        try
-        {
-            var samples = await _apiClient.GetCompletedSamplesAsync(AuthToken, StartDate, EndDate);
-            CompletedSamples.Clear();
-            foreach (var sample in samples) CompletedSamples.Add(sample);
-        }
-        catch (Exception ex) { MessageBox.Show($"Failed to load completed samples: {ex.Message}"); }
-    }
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsPendingViewActive))]
+        [NotifyPropertyChangedFor(nameof(IsCompletedViewActive))]
+        private string _activeView = "Pending";
 
-    [RelayCommand]
-    private async Task Add()
-    {
-        if (string.IsNullOrEmpty(AuthToken) || string.IsNullOrEmpty(NewPatientSampleId) || string.IsNullOrEmpty(NewTestName))
-        {
-            MessageBox.Show("Patient Sample ID and Test Name are required.");
-            return;
-        }
-        try
-        {
-            var request = new CreateSampleStorageRequest(NewPatientSampleId, NewTestName);
-            await _apiClient.CreateSampleAsync(AuthToken, request);
-            NewPatientSampleId = string.Empty;
-            NewTestName = string.Empty; // Also clears the new Test Name field
-            await LoadPending(); // Refreshes the list
-        }
-        catch (Exception ex) { MessageBox.Show($"Failed to add sample: {ex.Message}"); }
-    }
+        public bool IsPendingViewActive => ActiveView == "Pending";
+        public bool IsCompletedViewActive => ActiveView == "Completed";
 
-    [RelayCommand]
-    private async Task MarkAsDone(int storageId)
-    {
-        // ... (MarkAsDone method remains the same)
-        if (string.IsNullOrEmpty(AuthToken)) return;
-        try
-        {
-            await _apiClient.MarkSampleAsDoneAsync(AuthToken, storageId);
-            var itemToRemove = PendingSamples.FirstOrDefault(s => s.StorageID == storageId);
-            if (itemToRemove != null) PendingSamples.Remove(itemToRemove);
-        }
-        catch (Exception ex) { MessageBox.Show($"Failed to mark as done: {ex.Message}"); }
-    }
+        public ObservableCollection<SampleStorageResponse> PendingSamples { get; } = new();
+        public ObservableCollection<SampleStorageResponse> CompletedSamples { get; } = new();
 
-    [RelayCommand]
-    private async Task Delete(int storageId)
-    {
-        if (string.IsNullOrEmpty(AuthToken)) return;
-        if (MessageBox.Show("Are you sure you want to delete this entry? This action will be logged.", "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.No)
+        public SampleStorageViewModel()
         {
-            return;
+            _apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
+            SearchCommand.Execute(null);
         }
-        try
+
+        [RelayCommand]
+        private async Task Search()
         {
-            await _apiClient.DeactivateSampleAsync(AuthToken, storageId);
-            // Refresh whichever list is active
-            if (ActiveView == "Pending") await LoadPending();
-            else await LoadCompleted();
+            if (string.IsNullOrEmpty(AuthToken)) return;
+            if (ActiveView == "Pending")
+            {
+                try
+                {
+                    var samples = await _apiClient.GetPendingSamplesAsync(AuthToken, StartDate, EndDate);
+                    PendingSamples.Clear();
+                    foreach (var sample in samples) PendingSamples.Add(sample);
+                }
+                catch (Exception ex) { MessageBox.Show($"Failed to load pending samples: {ex.Message}"); }
+            }
+            else // Completed
+            {
+                try
+                {
+                    var samples = await _apiClient.GetCompletedSamplesAsync(AuthToken, StartDate, EndDate);
+                    CompletedSamples.Clear();
+                    foreach (var sample in samples) CompletedSamples.Add(sample);
+                }
+                catch (Exception ex) { MessageBox.Show($"Failed to load completed samples: {ex.Message}"); }
+            }
         }
-        catch (Exception ex) { MessageBox.Show($"Failed to delete entry: {ex.Message}"); }
+
+        [RelayCommand]
+        private async Task Add()
+        {
+            if (string.IsNullOrEmpty(AuthToken) || string.IsNullOrEmpty(NewPatientSampleId) || string.IsNullOrEmpty(NewTestName))
+            {
+                MessageBox.Show("Patient Sample ID and Test Name are required.");
+                return;
+            }
+            try
+            {
+                var request = new CreateSampleStorageRequest(NewPatientSampleId, NewTestName);
+                await _apiClient.CreateSampleAsync(AuthToken, request);
+                NewPatientSampleId = string.Empty;
+                NewTestName = string.Empty;
+                await Search(); // Changed from LoadPending
+            }
+            catch (Exception ex) { MessageBox.Show($"Failed to add sample: {ex.Message}"); }
+        }
+
+        [RelayCommand]
+        private async Task MarkAsDone(int storageId)
+        {
+            if (string.IsNullOrEmpty(AuthToken)) return;
+            try
+            {
+                await _apiClient.MarkSampleAsDoneAsync(AuthToken, storageId);
+                var itemToRemove = PendingSamples.FirstOrDefault(s => s.StorageID == storageId);
+                if (itemToRemove != null)
+                {
+                    PendingSamples.Remove(itemToRemove);
+                }
+            }
+            catch (Exception ex) { MessageBox.Show($"Failed to mark as done: {ex.Message}"); }
+        }
+
+        [RelayCommand]
+        private async Task Delete(int storageId)
+        {
+            if (string.IsNullOrEmpty(AuthToken)) return;
+            if (MessageBox.Show("Are you sure you want to delete this entry? This action will be logged.", "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.No)
+            {
+                return;
+            }
+            try
+            {
+                await _apiClient.DeactivateSampleAsync(AuthToken, storageId);
+                await Search(); // Refresh the current view
+            }
+            catch (Exception ex) { MessageBox.Show($"Failed to delete entry: {ex.Message}"); }
+        }
     }
-    public bool IsPendingViewActive => ActiveView == "Pending";
-    public bool IsCompletedViewActive => ActiveView == "Completed";
 }

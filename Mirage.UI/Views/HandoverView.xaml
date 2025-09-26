@@ -24,6 +24,56 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="HandoverRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource MahApps.Styles.DataGridRow}">
+            <Style.Triggers>
+                <Trigger Property="AlternationIndex" Value="1">
+                    <Setter Property="Background" Value="#F9FAFB"/>
+                </Trigger>
+
+                <DataTrigger Binding="{Binding Priority}" Value="Urgent">
+                    <Setter Property="Background" Value="#FFCDD2"/>
+                    <Setter Property="Foreground" Value="#B71C1C"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                </DataTrigger>
+
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True"/>
+                        <Condition Binding="{Binding Priority}" Value="Normal"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="#E0F2F7"/>
+                    <Setter Property="Foreground" Value="Black"/>
+                </MultiDataTrigger>
+
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True"/>
+                        <Condition Binding="{Binding Priority}" Value="Urgent"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="#E57373"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </MultiDataTrigger>
+
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                        <Condition Binding="{Binding Priority}" Value="Normal"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="{DynamicResource MahApps.Brushes.Accent}" />
+                    <Setter Property="Foreground" Value="{DynamicResource MahApps.Brushes.IdealForegroundColor}" />
+                </MultiDataTrigger>
+
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                        <Condition Binding="{Binding Priority}" Value="Urgent"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="#C62828" />
+                    <Setter Property="Foreground" Value="White" />
+                </MultiDataTrigger>
+            </Style.Triggers>
+        </Style>
     </UserControl.Resources>
 
     <Grid Margin="20">
@@ -34,42 +84,97 @@
 
         <StackPanel Grid.Column="0" Margin="0,0,20,0">
             <TextBlock Text="Handover Book" FontSize="36" FontWeight="Light" Margin="0,0,0,20"/>
-
             <Label Content="Priority"/>
             <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding SelectedPriority}" Margin="0,0,0,10"/>
-
             <Label Content="Shift"/>
             <ComboBox ItemsSource="{Binding Shifts}" SelectedItem="{Binding SelectedShift}" Margin="0,0,0,10"/>
-
             <Label Content="New Handover Notes"/>
-            <TextBox Text="{Binding NewHandoverNotes}" Height="200" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,10"/>
-
+            <TextBox Text="{Binding NewHandoverNotes}" Height="200" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,10" VerticalScrollBarVisibility="Auto"/>
             <Button Content="Submit Handover" Style="{StaticResource StandardActionButtonStyle}" Command="{Binding SubmitCommand}"/>
         </StackPanel>
 
         <Grid Grid.Column="1">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            <TextBlock Grid.Row="0" Text="Pending Handovers" FontSize="24" FontWeight="Light" Margin="0,0,0,10"/>
-            <DataGrid Grid.Row="1" ItemsSource="{Binding PendingHandovers}" AutoGenerateColumns="False" IsReadOnly="True"
-                      AlternationCount="2" AlternatingRowBackground="#F9FAFB">
+            <TextBlock Grid.Row="0" Text="Handovers" FontSize="24" FontWeight="Light" Margin="0,0,0,10"/>
+
+            <Grid Grid.Row="1" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <RadioButton Content="Pending" GroupName="ViewToggle" 
+                                 IsChecked="{Binding IsPendingViewActive, Mode=TwoWay}"
+                                 Style="{StaticResource MahApps.Styles.ToggleButton}"/>
+                    <RadioButton Content="Completed" GroupName="ViewToggle" 
+                                 IsChecked="{Binding IsCompletedViewActive, Mode=TwoWay}"
+                                 Style="{StaticResource MahApps.Styles.ToggleButton}" Margin="5,0,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <DatePicker SelectedDate="{Binding StartDate}"/>
+                    <Label Content="to" Margin="5,0"/>
+                    <DatePicker SelectedDate="{Binding EndDate}"/>
+                    <Button Content="Search" Margin="10,0,0,0" Command="{Binding SearchCommand}"/>
+                </StackPanel>
+            </Grid>
+
+            <DataGrid Grid.Row="2" 
+                      ItemsSource="{Binding PendingHandovers}" 
+                      RowStyle="{StaticResource HandoverRowStyle}" 
+                      AutoGenerateColumns="False" 
+                      IsReadOnly="True" 
+                      AlternationCount="2">
+                <DataGrid.Style>
+                    <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsPendingViewActive}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.Style>
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Given On" Binding="{Binding GivenDateTime, StringFormat='g'}" Width="*"/>
                     <DataGridTextColumn Header="Given By" Binding="{Binding GivenByUsername}" Width="*"/>
-                    <DataGridTextColumn Header="Priority" Binding="{Binding Priority}" FontWeight="Bold" Width="Auto"/>
                     <DataGridTextColumn Header="Shift" Binding="{Binding Shift}" Width="Auto"/>
                     <DataGridTextColumn Header="Notes" Binding="{Binding HandoverNotes}" Width="3*"/>
                     <DataGridTemplateColumn Header="Actions" Width="Auto">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <Button Content="Receive" 
-                                        Command="{Binding DataContext.ReceiveCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                        CommandParameter="{Binding HandoverID}"/>
+                                <Button Content="Receive" Command="{Binding DataContext.ReceiveCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding HandoverID}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <DataGrid Grid.Row="2" 
+                      ItemsSource="{Binding CompletedHandovers}" 
+                      RowStyle="{StaticResource HandoverRowStyle}" 
+                      AutoGenerateColumns="False" 
+                      IsReadOnly="True" 
+                      AlternationCount="2">
+                <DataGrid.Style>
+                    <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsCompletedViewActive}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.Style>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Given On" Binding="{Binding GivenDateTime, StringFormat='g'}" Width="*"/>
+                    <DataGridTextColumn Header="Given By" Binding="{Binding GivenByUsername}" Width="*"/>
+                    <DataGridTextColumn Header="Received On" Binding="{Binding ReceivedDateTime, StringFormat='g'}" Width="*"/>
+                    <DataGridTextColumn Header="Received By" Binding="{Binding ReceivedByUsername}" Width="*"/>
+                    <DataGridTextColumn Header="Notes" Binding="{Binding HandoverNotes}" Width="3*"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Grid>
