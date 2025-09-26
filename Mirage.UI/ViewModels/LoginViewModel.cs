@@ -42,6 +42,7 @@ public partial class LoginViewModel : ObservableObject
             KitValidationViewModel.AuthToken = $"Bearer {loginResponse.Token}"; // Add this line
             SampleStorageViewModel.AuthToken = $"Bearer {loginResponse.Token}"; // Add this line
             HandoverViewModel.AuthToken = $"Bearer {loginResponse.Token}"; // Add this line
+            MachineBreakdownViewModel.AuthToken = $"Bearer {loginResponse.Token}"; // Add this line
             // If we get here, login was successful!
             // We'll store the token and user info later.
 

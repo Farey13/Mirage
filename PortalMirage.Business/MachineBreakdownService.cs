@@ -1,5 +1,6 @@
 ﻿using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Models;
+using PortalMirage.Data;
 using PortalMirage.Data.Abstractions;
 
 namespace PortalMirage.Business;
@@ -16,7 +17,7 @@ public class MachineBreakdownService(IMachineBreakdownRepository machineBreakdow
         return await machineBreakdownRepository.GetPendingByDateRangeAsync(startDate, endDate);
     }
 
-    public async Task<bool> MarkAsResolvedAsync(int breakdownId, int userId)
+    public async Task<bool> MarkAsResolvedAsync(int breakdownId, int userId, string resolutionNotes)
     {
         // Business Rule: Check if the breakdown record exists.
         var breakdown = await machineBreakdownRepository.GetByIdAsync(breakdownId);
@@ -31,6 +32,11 @@ public class MachineBreakdownService(IMachineBreakdownRepository machineBreakdow
             return true; // Already resolved, so the state is correct.
         }
 
-        return await machineBreakdownRepository.MarkAsResolvedAsync(breakdownId, userId);
+        return await machineBreakdownRepository.MarkAsResolvedAsync(breakdownId, userId, resolutionNotes);
+    }
+
+    public async Task<IEnumerable<MachineBreakdown>> GetResolvedByDateRangeAsync(DateTime startDate, DateTime endDate)
+    {
+        return await machineBreakdownRepository.GetResolvedByDateRangeAsync(startDate, endDate);
     }
 }
