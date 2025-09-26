@@ -26,8 +26,20 @@ public class KitValidationRepository(IDbConnectionFactory connectionFactory) : I
         // ensuring we capture everything within the selected end date.
         var inclusiveEndDate = endDate.Date.AddDays(1);
 
-        const string sql = "SELECT * FROM KitValidations WHERE ValidationDateTime >= @StartDate AND ValidationDateTime < @InclusiveEndDate ORDER BY ValidationDateTime DESC";
+        const string sql = "SELECT * FROM KitValidations WHERE IsActive = 1 AND ValidationDateTime >= @StartDate AND ValidationDateTime < @InclusiveEndDate ORDER BY ValidationDateTime DESC";
 
         return await connection.QueryAsync<KitValidation>(sql, new { StartDate = startDate.Date, InclusiveEndDate = inclusiveEndDate });
+    }
+
+    public async Task<bool> DeactivateAsync(int validationId, int userId, string reason)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = """
+                           UPDATE KitValidations SET IsActive = 0, DeactivationReason = @Reason, 
+                           DeactivatedByUserID = @UserId, DeactivationDateTime = GETDATE()
+                           WHERE ValidationID = @ValidationId AND IsActive = 1;
+                           """;
+        var rowsAffected = await connection.ExecuteAsync(sql, new { ValidationId = validationId, UserId = userId, Reason = reason });
+        return rowsAffected > 0;
     }
 }
