@@ -12,4 +12,9 @@ public record MediaSterilityCheck
     public string? Comments { get; set; }
     public DateTime CheckDateTime { get; init; }
     public int PerformedByUserID { get; set; }
+
+    public bool IsActive { get; set; }
+    public string? DeactivationReason { get; set; }
+    public int? DeactivatedByUserID { get; set; }
+    public DateTime? DeactivationDateTime { get; set; }
 }
