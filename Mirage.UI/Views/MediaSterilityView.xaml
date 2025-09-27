@@ -4,9 +4,115 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Mirage.UI.Views"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
+             d:DesignHeight="600" d:DesignWidth="1000">
+    <UserControl.DataContext>
+        <viewModels:MediaSterilityViewModel/>
+    </UserControl.DataContext>
+
+    <UserControl.Resources>
+        <Style x:Key="StandardActionButtonStyle" TargetType="Button" BasedOn="{StaticResource MahApps.Styles.Button.Flat}">
+            <Setter Property="mah:ControlsHelper.CornerRadius" Value="3"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#B0BEC5"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="2" Direction="270" Color="#CCCCCC" Opacity="0.4" BlurRadius="4"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#ECEFF1"/>
+                    <Setter Property="BorderBrush" Value="#90A4AE"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#CFD8DC"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="FailedRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource MahApps.Styles.DataGridRow}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding OverallStatus}" Value="Failed">
+                    <Setter Property="Background" Value="#FFCDD2"/>
+                    <Setter Property="Foreground" Value="#B71C1C"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
     <Grid>
-        <TextBlock Text="Media Sterility Page" FontSize="48" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Grid Margin="20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="350"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                <TextBlock Text="Media Sterility Log" FontSize="36" FontWeight="Light" Margin="0,0,0,20"/>
+                <Label Content="Media Name"/>
+                <ComboBox ItemsSource="{Binding MediaNames}" SelectedItem="{Binding SelectedMediaName}" Margin="0,0,0,10" IsEditable="True"/>
+                <Label Content="Lot Number"/>
+                <TextBox Text="{Binding MediaLotNumber}" Margin="0,0,0,10"/>
+                <Label Content="Quantity"/>
+                <TextBox Text="{Binding MediaQuantity}" Margin="0,0,0,10"/>
+                <Label Content="Result at 37°C"/>
+                <ComboBox ItemsSource="{Binding GrowthResults}" SelectedItem="{Binding SelectedResult37C}" Margin="0,0,0,10"/>
+                <Label Content="Result at 25°C"/>
+                <ComboBox ItemsSource="{Binding GrowthResults}" SelectedItem="{Binding SelectedResult25C}" Margin="0,0,0,10"/>
+                <Label Content="Comments"/>
+                <TextBox Text="{Binding Comments}" Height="80" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,20" VerticalScrollBarVisibility="Auto"/>
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Save" Width="100" Style="{DynamicResource MahApps.Styles.Button.Accent}" Command="{Binding SaveCommand}"/>
+                    <Button Content="Clear" Width="100" Margin="10,0,0,0" Style="{StaticResource StandardActionButtonStyle}" Command="{Binding ClearCommand}"/>
+                </StackPanel>
+            </StackPanel>
+
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,10">
+                    <DatePicker SelectedDate="{Binding StartDate}"/>
+                    <Label Content="to" Margin="5,0"/>
+                    <DatePicker SelectedDate="{Binding EndDate}"/>
+                    <Button Content="Search" Margin="10,0,0,0" Command="{Binding LoadLogsCommand}"/>
+                </StackPanel>
+                <DataGrid Grid.Row="1" ItemsSource="{Binding Logs}" RowStyle="{StaticResource FailedRowStyle}" AutoGenerateColumns="False" IsReadOnly="True" AlternationCount="2" AlternatingRowBackground="#F9FAFB">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Date" Binding="{Binding CheckDateTime, StringFormat='d'}" Width="*"/>
+                        <DataGridTextColumn Header="Media Name" Binding="{Binding MediaName}" Width="2*"/>
+                        <DataGridTextColumn Header="Lot Number" Binding="{Binding MediaLotNumber}" Width="*"/>
+                        <DataGridTextColumn Header="Status" Binding="{Binding OverallStatus}" FontWeight="Bold" Width="*"/>
+                        <DataGridTextColumn Header="Performed By" Binding="{Binding PerformedByUsername}" Width="*"/>
+                        <DataGridTemplateColumn Header="Actions" Width="Auto">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="Delete" Background="IndianRed" Foreground="White"
+                                            Command="{Binding DataContext.ShowDeleteFlyoutCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Grid>
+
+        <mah:FlyoutsControl>
+            <mah:Flyout Header="Confirm Deactivation" IsOpen="{Binding IsDeleteFlyoutOpen}" Position="Right" Width="400">
+                <StackPanel Margin="20">
+                    <TextBlock Text="Please provide a reason for deleting this entry. This action will be permanently recorded in the audit log." TextWrapping="Wrap" Margin="0,0,0,10"/>
+                    <Label Content="Reason for Deactivation"/>
+                    <TextBox Text="{Binding DeactivationReason}" Height="150" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10"/>
+                    <Button Content="Confirm Deactivation" Command="{Binding ConfirmDeactivationCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}" Background="IndianRed"/>
+                </StackPanel>
+            </mah:Flyout>
+        </mah:FlyoutsControl>
     </Grid>
 </UserControl>
