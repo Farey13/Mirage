@@ -42,7 +42,7 @@ public partial class RepeatSampleViewModel : ObservableObject
     public RepeatSampleViewModel()
     {
         _mirageApiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
-        _patientInfoApiClient = RestService.For<IPatientInfoApi>("https://localhost:7124"); // NOTE: Port may be different
+        _patientInfoApiClient = RestService.For<IPatientInfoApi>("https://localhost:7098"); // NOTE: Port may be different
 
         // This list will be loaded from the API in the Admin section later
         Reasons.Add("Hemolysis");
