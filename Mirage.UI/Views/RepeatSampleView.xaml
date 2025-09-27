@@ -4,9 +4,119 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Mirage.UI.Views"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
+             d:DesignHeight="600" d:DesignWidth="1000">
+    <UserControl.DataContext>
+        <viewModels:RepeatSampleViewModel/>
+    </UserControl.DataContext>
+
+    <UserControl.Resources>
+        <Style x:Key="StandardActionButtonStyle" TargetType="Button" BasedOn="{StaticResource MahApps.Styles.Button.Flat}">
+            <Setter Property="mah:ControlsHelper.CornerRadius" Value="3"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#B0BEC5"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="2" Direction="270" Color="#CCCCCC" Opacity="0.4" BlurRadius="4"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#ECEFF1"/>
+                    <Setter Property="BorderBrush" Value="#90A4AE"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#CFD8DC"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
     <Grid>
-        <TextBlock Text="Repeat Sample Page" FontSize="48" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Grid Margin="20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="350"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                <TextBlock Text="Repeat Sample Log" FontSize="36" FontWeight="Light" Margin="0,0,0,20"/>
+
+                <Label Content="Patient ID Card Number"/>
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0" Text="{Binding PatientIdCardNumber, UpdateSourceTrigger=PropertyChanged}"/>
+                    <Button Grid.Column="1" Content="Find" Margin="5,0,0,0" Command="{Binding FindPatientCommand}"/>
+                </Grid>
+
+                <Label Content="Patient Name" Margin="0,10,0,0"/>
+                <TextBox Text="{Binding PatientName}" IsReadOnly="True" Margin="0,0,0,10" FontWeight="Bold" Background="#ECEFF1"/>
+
+                <Label Content="Reason for Repeat"/>
+                <ComboBox ItemsSource="{Binding Reasons}" SelectedItem="{Binding SelectedReason}" IsEditable="True" Margin="0,0,0,10"/>
+
+                <Label Content="Department"/>
+                <ComboBox ItemsSource="{Binding Departments}" SelectedItem="{Binding SelectedDepartment}" Margin="0,0,0,10"/>
+
+                <Label Content="Informed Person"/>
+                <TextBox Text="{Binding InformedPerson}" Margin="0,0,0,20"/>
+
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Save" Width="100" Style="{DynamicResource MahApps.Styles.Button.Accent}" Command="{Binding SaveCommand}"/>
+                    <Button Content="Clear" Width="100" Margin="10,0,0,0" Style="{StaticResource StandardActionButtonStyle}" Command="{Binding ClearCommand}"/>
+                </StackPanel>
+            </StackPanel>
+
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,10">
+                    <DatePicker SelectedDate="{Binding StartDate}"/>
+                    <Label Content="to" Margin="5,0"/>
+                    <DatePicker SelectedDate="{Binding EndDate}"/>
+                    <Button Content="Search" Margin="10,0,0,0" Command="{Binding LoadLogsCommand}"/>
+                </StackPanel>
+
+                <DataGrid Grid.Row="1" ItemsSource="{Binding Logs}" AutoGenerateColumns="False" IsReadOnly="True"
+                          AlternationCount="2" AlternatingRowBackground="#F9FAFB">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Date" Binding="{Binding LogDateTime, StringFormat='g'}" Width="*"/>
+                        <DataGridTextColumn Header="Patient Name" Binding="{Binding PatientName}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Reason" Binding="{Binding ReasonText}" Width="2*"/>
+                        <DataGridTextColumn Header="Department" Binding="{Binding Department}" Width="*"/>
+                        <DataGridTextColumn Header="Logged By" Binding="{Binding LoggedByUsername}" Width="*"/>
+                        <DataGridTemplateColumn Header="Actions" Width="Auto">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="Delete" Background="IndianRed" Foreground="White"
+                                            Command="{Binding DataContext.ShowDeleteFlyoutCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Grid>
+
+        <mah:FlyoutsControl>
+            <mah:Flyout Header="Confirm Deactivation" IsOpen="{Binding IsDeleteFlyoutOpen}" Position="Right" Width="400">
+                <StackPanel Margin="20">
+                    <TextBlock Text="Please provide a reason for deleting this entry. This action will be permanently recorded in the audit log." TextWrapping="Wrap" Margin="0,0,0,10"/>
+                    <Label Content="Reason for Deactivation"/>
+                    <TextBox Text="{Binding DeactivationReason}" Height="150" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10"/>
+                    <Button Content="Confirm Deactivation" Command="{Binding ConfirmDeactivationCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}" Background="IndianRed"/>
+                </StackPanel>
+            </mah:Flyout>
+        </mah:FlyoutsControl>
     </Grid>
 </UserControl>
