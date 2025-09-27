@@ -89,4 +89,14 @@ public interface IPortalMirageApi
 
     [Put("/api/mediasterilitychecks/{id}/deactivate")]
     Task DeactivateSterilityCheckAsync([Header("Authorization")] string token, int id, [Body] DeactivateMediaSterilityCheckRequest request);
+
+    // --- Repeat Sample Book ---
+    [Post("/api/repeatsamples")]
+    Task<RepeatSampleResponse> CreateRepeatSampleAsync([Header("Authorization")] string token, [Body] CreateRepeatSampleRequest request);
+
+    [Get("/api/repeatsamples")]
+    Task<List<RepeatSampleResponse>> GetRepeatSamplesAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
+
+    [Put("/api/repeatsamples/{id}/deactivate")]
+    Task DeactivateRepeatSampleAsync([Header("Authorization")] string token, int id, [Body] DeactivateRepeatSampleRequest request);
 }
