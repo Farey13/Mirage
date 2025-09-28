@@ -18,11 +18,28 @@ namespace PortalMirage.Api.Controllers
             return Ok(tasks);
         }
 
+        [HttpPut("{id}/extend")]
+        [Authorize(Roles = "Admin")] // Only Admins can extend deadlines
+        public async Task<IActionResult> ExtendDeadline(long id, [FromBody] ExtendTaskDeadlineRequest request)
+        {
+            var adminUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var updatedLog = await dailyTaskLogService.ExtendTaskDeadlineAsync(id, request.NewDeadline, request.Reason, adminUserId);
+
+            if (updatedLog is null)
+            {
+                return NotFound("Task log not found or could not be extended.");
+            }
+
+            return Ok(updatedLog);
+        }
+
         [HttpPut("{id}/status")]
         public async Task<IActionResult> UpdateStatus(long id, [FromBody] UpdateTaskStatusRequest request)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var updatedTaskLog = await dailyTaskLogService.UpdateTaskStatusAsync(id, request.Status, userId);
+
+            // Pass the comment from the request to the service
+            var updatedTaskLog = await dailyTaskLogService.UpdateTaskStatusAsync(id, request.Status, userId, request.Comment);
 
             if (updatedTaskLog is null)
             {

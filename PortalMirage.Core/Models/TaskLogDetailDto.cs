@@ -1,6 +1,6 @@
-﻿namespace PortalMirage.Core.Models;
+﻿using System;
+namespace PortalMirage.Core.Models;
 
-// This DTO combines data from the Task and DailyTaskLog models
 public record TaskLogDetailDto
 {
     public long LogID { get; init; }
@@ -9,4 +9,7 @@ public record TaskLogDetailDto
     public required string Status { get; init; }
     public DateTime? CompletedDateTime { get; init; }
     public int? CompletedByUserID { get; init; }
+    public string? CompletedByUsername { get; set; }
+    public string? Comments { get; set; }
+    public DateTime? LockOverrideUntil { get; set; }
 }

@@ -1,0 +1,230 @@
+USE MirageDB;
+GO
+
+-- =================================================================
+-- Core System Tables
+-- =================================================================
+
+CREATE TABLE Users (
+    UserID INT IDENTITY(1,1) PRIMARY KEY,
+    Username NVARCHAR(100) NOT NULL UNIQUE,
+    PasswordHash NVARCHAR(255) NOT NULL,
+    FullName NVARCHAR(255) NOT NULL,
+    IsActive BIT NOT NULL DEFAULT 1,
+    CreatedAt DATETIME2 NOT NULL DEFAULT GETDATE()
+);
+GO
+
+CREATE TABLE Roles (
+    RoleID INT IDENTITY(1,1) PRIMARY KEY,
+    RoleName NVARCHAR(100) NOT NULL UNIQUE
+);
+GO
+
+CREATE TABLE UserRoles (
+    UserID INT NOT NULL,
+    RoleID INT NOT NULL,
+    PRIMARY KEY (UserID, RoleID),
+    FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE CASCADE,
+    FOREIGN KEY (RoleID) REFERENCES Roles(RoleID) ON DELETE CASCADE
+);
+GO
+
+CREATE TABLE Permissions (
+    PermissionID INT IDENTITY(1,1) PRIMARY KEY,
+    PermissionName NVARCHAR(255) NOT NULL UNIQUE
+);
+GO
+
+CREATE TABLE RolePermissions (
+    RoleID INT NOT NULL,
+    PermissionID INT NOT NULL,
+    PRIMARY KEY (RoleID, PermissionID),
+    FOREIGN KEY (RoleID) REFERENCES Roles(RoleID) ON DELETE CASCADE,
+    FOREIGN KEY (PermissionID) REFERENCES Permissions(PermissionID) ON DELETE CASCADE
+);
+GO
+
+CREATE TABLE AuditLog (
+    AuditID BIGINT IDENTITY(1,1) PRIMARY KEY,
+    UserID INT,
+    Timestamp DATETIME2 NOT NULL DEFAULT GETDATE(),
+    ActionType NVARCHAR(50) NOT NULL,
+    ModuleName NVARCHAR(100),
+    RecordID NVARCHAR(100),
+    FieldName NVARCHAR(100),
+    OldValue NVARCHAR(MAX),
+    NewValue NVARCHAR(MAX),
+    FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE SET NULL
+);
+GO
+
+-- This table will be used by the Admin Panel to manage dropdown lists
+CREATE TABLE AdminListItems (
+    ItemID INT IDENTITY(1,1) PRIMARY KEY,
+    ListType NVARCHAR(100) NOT NULL, -- e.g., 'MachineName', 'TestName', 'RepeatReason'
+    ItemValue NVARCHAR(255) NOT NULL,
+    IsActive BIT NOT NULL DEFAULT 1
+);
+GO
+
+-- =================================================================
+-- Logbook Module Tables
+-- =================================================================
+
+-- 1. Repeat Sample Book
+CREATE TABLE RepeatSampleLog (
+    RepeatID INT IDENTITY(1,1) PRIMARY KEY,
+    PatientIdCardNumber NVARCHAR(100),
+    PatientName NVARCHAR(255) NOT NULL,
+    ReasonText NVARCHAR(MAX),
+    InformedPerson NVARCHAR(255),
+    Department NVARCHAR(50),
+    LogDateTime DATETIME2 NOT NULL DEFAULT GETDATE(),
+    LoggedByUserID INT NOT NULL,
+    IsActive BIT NOT NULL DEFAULT 1,
+    DeactivationReason NVARCHAR(MAX) NULL,
+    DeactivatedByUserID INT NULL,
+    DeactivationDateTime DATETIME2 NULL,
+    FOREIGN KEY (LoggedByUserID) REFERENCES Users(UserID)
+);
+GO
+
+-- 2. Kit Validation Book
+CREATE TABLE KitValidations (
+    ValidationID INT IDENTITY(1,1) PRIMARY KEY,
+    KitName NVARCHAR(255) NOT NULL,
+    KitLotNumber NVARCHAR(100) NOT NULL,
+    KitExpiryDate DATE NOT NULL,
+    ValidationStatus NVARCHAR(50) NOT NULL,
+    Comments NVARCHAR(MAX),
+    ValidationDateTime DATETIME2 NOT NULL DEFAULT GETDATE(),
+    ValidatedByUserID INT NOT NULL,
+    IsActive BIT NOT NULL DEFAULT 1,
+    DeactivationReason NVARCHAR(MAX) NULL,
+    DeactivatedByUserID INT NULL,
+    DeactivationDateTime DATETIME2 NULL,
+    FOREIGN KEY (ValidatedByUserID) REFERENCES Users(UserID)
+);
+GO
+
+-- 3. Calibration Log
+CREATE TABLE CalibrationLogs (
+    CalibrationID INT IDENTITY(1,1) PRIMARY KEY,
+    TestName NVARCHAR(255) NOT NULL,
+    QcResult NVARCHAR(50) NOT NULL,
+    Reason NVARCHAR(MAX),
+    CalibrationDateTime DATETIME2 NOT NULL DEFAULT GETDATE(),
+    PerformedByUserID INT NOT NULL,
+    IsActive BIT NOT NULL DEFAULT 1,
+    DeactivationReason NVARCHAR(MAX) NULL,
+    DeactivatedByUserID INT NULL,
+    DeactivationDateTime DATETIME2 NULL,
+    FOREIGN KEY (PerformedByUserID) REFERENCES Users(UserID)
+);
+GO
+
+-- 4. Sample Storage Book
+CREATE TABLE SampleStorage (
+    StorageID INT IDENTITY(1,1) PRIMARY KEY,
+    PatientSampleID NVARCHAR(100) NOT NULL,
+    TestName NVARCHAR(255) NOT NULL,
+    StorageDateTime DATETIME2 NOT NULL DEFAULT GETDATE(),
+    StoredByUserID INT NOT NULL,
+    IsTestDone BIT NOT NULL DEFAULT 0,
+    TestDoneDateTime DATETIME2 NULL,
+    TestDoneByUserID INT NULL,
+    IsActive BIT NOT NULL DEFAULT 1,
+    DeactivationReason NVARCHAR(MAX) NULL,
+    DeactivatedByUserID INT NULL,
+    DeactivationDateTime DATETIME2 NULL,
+    FOREIGN KEY (StoredByUserID) REFERENCES Users(UserID),
+    FOREIGN KEY (TestDoneByUserID) REFERENCES Users(UserID)
+);
+GO
+
+-- 5. Handover Book
+CREATE TABLE Handovers (
+    HandoverID INT IDENTITY(1,1) PRIMARY KEY,
+    HandoverNotes NVARCHAR(MAX) NOT NULL,
+    Priority NVARCHAR(50) NOT NULL DEFAULT 'Normal',
+    Shift NVARCHAR(50) NOT NULL,
+    GivenDateTime DATETIME2 NOT NULL DEFAULT GETDATE(),
+    GivenByUserID INT NOT NULL,
+    IsReceived BIT NOT NULL DEFAULT 0,
+    ReceivedDateTime DATETIME2 NULL,
+    ReceivedByUserID INT NULL,
+    IsActive BIT NOT NULL DEFAULT 1,
+    DeactivationReason NVARCHAR(MAX) NULL,
+    DeactivatedByUserID INT NULL,
+    DeactivationDateTime DATETIME2 NULL,
+    FOREIGN KEY (GivenByUserID) REFERENCES Users(UserID),
+    FOREIGN KEY (ReceivedByUserID) REFERENCES Users(UserID)
+);
+GO
+
+-- 6. Machine Breakdown Log
+CREATE TABLE MachineBreakdowns (
+    BreakdownID INT IDENTITY(1,1) PRIMARY KEY,
+    MachineName NVARCHAR(255) NOT NULL,
+    BreakdownReason NVARCHAR(MAX) NOT NULL,
+    ReportedDateTime DATETIME2 NOT NULL DEFAULT GETDATE(),
+    ReportedByUserID INT NOT NULL,
+    IsResolved BIT NOT NULL DEFAULT 0,
+    ResolvedDateTime DATETIME2 NULL,
+    ResolvedByUserID INT NULL,
+    ResolutionNotes NVARCHAR(MAX) NULL,
+    DowntimeMinutes INT NULL,
+    IsActive BIT NOT NULL DEFAULT 1,
+    DeactivationReason NVARCHAR(MAX) NULL,
+    DeactivatedByUserID INT NULL,
+    DeactivationDateTime DATETIME2 NULL,
+    FOREIGN KEY (ReportedByUserID) REFERENCES Users(UserID),
+    FOREIGN KEY (ResolvedByUserID) REFERENCES Users(UserID)
+);
+GO
+
+-- 7. Media Sterility Book
+CREATE TABLE MediaSterilityChecks (
+    SterilityCheckID INT IDENTITY(1,1) PRIMARY KEY,
+    MediaName NVARCHAR(255) NOT NULL,
+    MediaLotNumber NVARCHAR(100) NOT NULL,
+    MediaQuantity NVARCHAR(100),
+    Result37C NVARCHAR(50) NOT NULL,
+    Result25C NVARCHAR(50) NOT NULL,
+    OverallStatus NVARCHAR(50) NOT NULL,
+    Comments NVARCHAR(MAX),
+    CheckDateTime DATETIME2 NOT NULL DEFAULT GETDATE(),
+    PerformedByUserID INT NOT NULL,
+    IsActive BIT NOT NULL DEFAULT 1,
+    DeactivationReason NVARCHAR(MAX) NULL,
+    DeactivatedByUserID INT NULL,
+    DeactivationDateTime DATETIME2 NULL,
+    FOREIGN KEY (PerformedByUserID) REFERENCES Users(UserID)
+);
+GO
+
+-- 8. Daily Task Log (Definitions)
+CREATE TABLE Tasks (
+    TaskID INT IDENTITY(1,1) PRIMARY KEY,
+    TaskName NVARCHAR(255) NOT NULL,
+    TaskCategory NVARCHAR(50) NOT NULL,
+    ScheduleType NVARCHAR(50) NOT NULL,
+    ScheduleValue NVARCHAR(50) NULL,
+    IsActive BIT NOT NULL DEFAULT 1
+);
+GO
+
+-- 9. Daily Task Log (Records)
+CREATE TABLE DailyTaskLogs (
+    LogID BIGINT IDENTITY(1,1) PRIMARY KEY,
+    TaskID INT NOT NULL,
+    LogDate DATE NOT NULL,
+    Status NVARCHAR(50) NOT NULL,
+    Comments NVARCHAR(MAX) NULL,
+    CompletedByUserID INT NULL,
+    CompletedDateTime DATETIME2 NULL,
+    FOREIGN KEY (TaskID) REFERENCES Tasks(TaskID) ON DELETE CASCADE,
+    FOREIGN KEY (CompletedByUserID) REFERENCES Users(UserID)
+);
+GO

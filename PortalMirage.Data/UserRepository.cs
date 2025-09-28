@@ -12,7 +12,13 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
         const string sql = "SELECT UserID, Username, PasswordHash, FullName, IsActive, CreatedAt FROM Users WHERE Username = @Username";
         return await connection.QuerySingleOrDefaultAsync<User>(sql, new { Username = username });
     }
-
+    public async Task<IEnumerable<User>> GetByIdsAsync(IEnumerable<int> userIds)
+    {
+        if (!userIds.Any()) return Enumerable.Empty<User>();
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = "SELECT * FROM Users WHERE UserID IN @UserIds";
+        return await connection.QueryAsync<User>(sql, new { UserIds = userIds });
+    }
 
     public async Task<IEnumerable<string>> GetUserRolesAsync(int userId)
     {

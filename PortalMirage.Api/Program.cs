@@ -82,7 +82,7 @@ builder.Services.AddScoped<PortalMirage.Data.Abstractions.IMediaSterilityCheckRe
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.ITaskRepository, PortalMirage.Data.TaskRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IDailyTaskLogRepository, PortalMirage.Data.DailyTaskLogRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IRepeatSampleLogRepository, PortalMirage.Data.RepeatSampleLogRepository>();
-
+builder.Services.AddScoped<PortalMirage.Data.Abstractions.IShiftRepository, PortalMirage.Data.ShiftRepository>();
 
 // ... (all your other repositories)
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IRoleRepository, PortalMirage.Data.RoleRepository>();
@@ -101,13 +101,14 @@ builder.Services.AddScoped<PortalMirage.Business.Abstractions.IMachineBreakdownS
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IMediaSterilityCheckService, PortalMirage.Business.MediaSterilityCheckService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IDailyTaskLogService, PortalMirage.Business.DailyTaskLogService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IRepeatSampleLogService, PortalMirage.Business.RepeatSampleLogService>();
-
+builder.Services.AddScoped<PortalMirage.Business.Abstractions.IShiftService, PortalMirage.Business.ShiftService>();
 
 // ... (all your other services)
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IRoleService, PortalMirage.Business.RoleService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IUserRoleService, PortalMirage.Business.UserRoleService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IRolePermissionService, PortalMirage.Business.RolePermissionService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IAuditLogService, PortalMirage.Business.AuditLogService>();
+builder.Services.AddSingleton<PortalMirage.Business.ITimeProvider, PortalMirage.Business.SystemTimeProvider>();
 // Add our new token generator service
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IJwtTokenGenerator, PortalMirage.Business.JwtTokenGenerator>();
 // =================================================================
