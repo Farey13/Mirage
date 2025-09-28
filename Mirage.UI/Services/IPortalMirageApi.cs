@@ -1,8 +1,8 @@
 ﻿using PortalMirage.Core.Dtos;
+using PortalMirage.Core.Models;
 using Refit;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace Mirage.UI.Services;
 
@@ -10,93 +10,103 @@ public interface IPortalMirageApi
 {
     // === Login ===
     [Post("/api/auth/login")]
-    Task<LoginResponse> LoginAsync([Body] LoginRequest loginRequest);
+    System.Threading.Tasks.Task<LoginResponse> LoginAsync([Body] LoginRequest loginRequest);
 
     // === Calibration Log ===
     [Post("/api/calibrationlogs")]
-    Task<CalibrationLogResponse> CreateCalibrationLogAsync([Header("Authorization")] string token, [Body] CreateCalibrationLogRequest request);
+    System.Threading.Tasks.Task<CalibrationLogResponse> CreateCalibrationLogAsync([Header("Authorization")] string token, [Body] CreateCalibrationLogRequest request);
 
     [Get("/api/calibrationlogs")]
-    Task<List<CalibrationLogResponse>> GetCalibrationLogsAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
+    System.Threading.Tasks.Task<List<CalibrationLogResponse>> GetCalibrationLogsAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
 
     [Put("/api/calibrationlogs/{id}/deactivate")]
-    Task DeactivateCalibrationLogAsync([Header("Authorization")] string token, int id, [Body] DeactivateCalibrationLogRequest request);
+    System.Threading.Tasks.Task DeactivateCalibrationLogAsync([Header("Authorization")] string token, int id, [Body] DeactivateCalibrationLogRequest request);
 
     // === Kit Validation ===
     [Post("/api/kitvalidations")]
-    Task<KitValidationResponse> CreateKitValidationAsync([Header("Authorization")] string token, [Body] CreateKitValidationRequest request);
+    System.Threading.Tasks.Task<KitValidationResponse> CreateKitValidationAsync([Header("Authorization")] string token, [Body] CreateKitValidationRequest request);
 
     [Get("/api/kitvalidations")]
-    Task<List<KitValidationResponse>> GetKitValidationsAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
+    System.Threading.Tasks.Task<List<KitValidationResponse>> GetKitValidationsAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
 
     [Put("/api/kitvalidations/{id}/deactivate")]
-    Task DeactivateKitValidationAsync([Header("Authorization")] string token, int id, [Body] DeactivateKitValidationRequest request);
+    System.Threading.Tasks.Task DeactivateKitValidationAsync([Header("Authorization")] string token, int id, [Body] DeactivateKitValidationRequest request);
 
     // === Sample Storage ===
     [Post("/api/samplestorage")]
-    Task<SampleStorageResponse> CreateSampleAsync([Header("Authorization")] string token, [Body] CreateSampleStorageRequest request);
+    System.Threading.Tasks.Task<SampleStorageResponse> CreateSampleAsync([Header("Authorization")] string token, [Body] CreateSampleStorageRequest request);
 
     [Get("/api/samplestorage/pending")]
-    Task<List<SampleStorageResponse>> GetPendingSamplesAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
+    System.Threading.Tasks.Task<List<SampleStorageResponse>> GetPendingSamplesAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
 
     [Get("/api/samplestorage/completed")]
-    Task<List<SampleStorageResponse>> GetCompletedSamplesAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
+    System.Threading.Tasks.Task<List<SampleStorageResponse>> GetCompletedSamplesAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
 
     [Put("/api/samplestorage/{id}/done")]
-    Task MarkSampleAsDoneAsync([Header("Authorization")] string token, int id);
+    System.Threading.Tasks.Task MarkSampleAsDoneAsync([Header("Authorization")] string token, int id);
 
     [Put("/api/samplestorage/{id}/deactivate")]
-    Task DeactivateSampleAsync([Header("Authorization")] string token, int id, [Body] DeactivateSampleStorageRequest request);
+    System.Threading.Tasks.Task DeactivateSampleAsync([Header("Authorization")] string token, int id, [Body] DeactivateSampleStorageRequest request);
 
     // === Handover Book ===
     [Post("/api/handovers")]
-    Task<HandoverResponse> CreateHandoverAsync([Header("Authorization")] string token, [Body] CreateHandoverRequest request);
+    System.Threading.Tasks.Task<HandoverResponse> CreateHandoverAsync([Header("Authorization")] string token, [Body] CreateHandoverRequest request);
 
     [Get("/api/handovers/pending")]
-    Task<List<HandoverResponse>> GetPendingHandoversAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
+    System.Threading.Tasks.Task<List<HandoverResponse>> GetPendingHandoversAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
 
     [Get("/api/handovers/completed")]
-    Task<List<HandoverResponse>> GetCompletedHandoversAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
+    System.Threading.Tasks.Task<List<HandoverResponse>> GetCompletedHandoversAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
 
     [Put("/api/handovers/{id}/receive")]
-    Task MarkHandoverAsReceivedAsync([Header("Authorization")] string token, int id);
+    System.Threading.Tasks.Task MarkHandoverAsReceivedAsync([Header("Authorization")] string token, int id);
 
     [Put("/api/handovers/{id}/deactivate")]
-    Task DeactivateHandoverAsync([Header("Authorization")] string token, int id, [Body] DeactivateHandoverRequest request);
+    System.Threading.Tasks.Task DeactivateHandoverAsync([Header("Authorization")] string token, int id, [Body] DeactivateHandoverRequest request);
 
     // === Machine Breakdown ===
     [Post("/api/machinebreakdowns")]
-    Task<MachineBreakdownResponse> CreateBreakdownAsync([Header("Authorization")] string token, [Body] CreateMachineBreakdownRequest request);
+    System.Threading.Tasks.Task<MachineBreakdownResponse> CreateBreakdownAsync([Header("Authorization")] string token, [Body] CreateMachineBreakdownRequest request);
 
     [Get("/api/machinebreakdowns/pending")]
-    Task<List<MachineBreakdownResponse>> GetPendingBreakdownsAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
+    System.Threading.Tasks.Task<List<MachineBreakdownResponse>> GetPendingBreakdownsAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
 
     [Get("/api/machinebreakdowns/resolved")]
-    Task<List<MachineBreakdownResponse>> GetResolvedBreakdownsAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
+    System.Threading.Tasks.Task<List<MachineBreakdownResponse>> GetResolvedBreakdownsAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
 
     [Put("/api/machinebreakdowns/{id}/resolve")]
-    Task MarkBreakdownAsResolvedAsync([Header("Authorization")] string token, int id, [Body] ResolveBreakdownRequest request);
+    System.Threading.Tasks.Task MarkBreakdownAsResolvedAsync([Header("Authorization")] string token, int id, [Body] ResolveBreakdownRequest request);
 
     [Put("/api/machinebreakdowns/{id}/deactivate")]
-    Task DeactivateBreakdownAsync([Header("Authorization")] string token, int id, [Body] DeactivateMachineBreakdownRequest request);
+    System.Threading.Tasks.Task DeactivateBreakdownAsync([Header("Authorization")] string token, int id, [Body] DeactivateMachineBreakdownRequest request);
 
     // --- Media Sterility ---
     [Post("/api/mediasterilitychecks")]
-    Task<MediaSterilityCheckResponse> CreateSterilityCheckAsync([Header("Authorization")] string token, [Body] CreateMediaSterilityCheckRequest request);
+    System.Threading.Tasks.Task<MediaSterilityCheckResponse> CreateSterilityCheckAsync([Header("Authorization")] string token, [Body] CreateMediaSterilityCheckRequest request);
 
     [Get("/api/mediasterilitychecks")]
-    Task<List<MediaSterilityCheckResponse>> GetSterilityChecksAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
+    System.Threading.Tasks.Task<List<MediaSterilityCheckResponse>> GetSterilityChecksAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
 
     [Put("/api/mediasterilitychecks/{id}/deactivate")]
-    Task DeactivateSterilityCheckAsync([Header("Authorization")] string token, int id, [Body] DeactivateMediaSterilityCheckRequest request);
+    System.Threading.Tasks.Task DeactivateSterilityCheckAsync([Header("Authorization")] string token, int id, [Body] DeactivateMediaSterilityCheckRequest request);
 
     // --- Repeat Sample Book ---
     [Post("/api/repeatsamples")]
-    Task<RepeatSampleResponse> CreateRepeatSampleAsync([Header("Authorization")] string token, [Body] CreateRepeatSampleRequest request);
+    System.Threading.Tasks.Task<RepeatSampleResponse> CreateRepeatSampleAsync([Header("Authorization")] string token, [Body] CreateRepeatSampleRequest request);
 
     [Get("/api/repeatsamples")]
-    Task<List<RepeatSampleResponse>> GetRepeatSamplesAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
+    System.Threading.Tasks.Task<List<RepeatSampleResponse>> GetRepeatSamplesAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
 
     [Put("/api/repeatsamples/{id}/deactivate")]
-    Task DeactivateRepeatSampleAsync([Header("Authorization")] string token, int id, [Body] DeactivateRepeatSampleRequest request);
+    System.Threading.Tasks.Task DeactivateRepeatSampleAsync([Header("Authorization")] string token, int id, [Body] DeactivateRepeatSampleRequest request);
+
+    // --- Daily Task Log ---
+    [Get("/api/dailytasklogs")]
+    System.Threading.Tasks.Task<List<TaskLogDetailDto>> GetTasksForDateAsync([Header("Authorization")] string token, [Query] DateTime date);
+
+    [Put("/api/dailytasklogs/{id}/status")]
+    System.Threading.Tasks.Task<TaskLogDetailDto> UpdateTaskStatusAsync([Header("Authorization")] string token, long id, [Body] UpdateTaskStatusRequest request);
+
+    [Put("/api/dailytasklogs/{id}/extend")]
+    System.Threading.Tasks.Task<DailyTaskLog> ExtendTaskDeadlineAsync([Header("Authorization")] string token, long id, [Body] ExtendTaskDeadlineRequest request);
 }
