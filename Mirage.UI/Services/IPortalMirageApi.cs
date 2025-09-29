@@ -138,4 +138,17 @@ public interface IPortalMirageApi
 
     [Delete("/api/shifts/{id}")]
     System.Threading.Tasks.Task DeactivateShiftAsync([Header("Authorization")] string token, int id);
+
+    // --- Admin Master Lists ---
+    [Get("/api/admin/lists")]
+    System.Threading.Tasks.Task<List<AdminListItemDto>> GetAllListItemsAsync([Header("Authorization")] string token);
+
+    [Get("/api/admin/lists/types")]
+    System.Threading.Tasks.Task<List<string>> GetListTypesAsync([Header("Authorization")] string token);
+
+    [Post("/api/admin/lists")]
+    System.Threading.Tasks.Task<AdminListItemDto> CreateListItemAsync([Header("Authorization")] string token, [Body] CreateAdminListItemRequest request);
+
+    [Put("/api/admin/lists/{id}")]
+    System.Threading.Tasks.Task<AdminListItemDto> UpdateListItemAsync([Header("Authorization")] string token, int id, [Body] UpdateAdminListItemRequest request);
 }
