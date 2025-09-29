@@ -83,6 +83,8 @@ builder.Services.AddScoped<PortalMirage.Data.Abstractions.ITaskRepository, Porta
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IDailyTaskLogRepository, PortalMirage.Data.DailyTaskLogRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IRepeatSampleLogRepository, PortalMirage.Data.RepeatSampleLogRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IShiftRepository, PortalMirage.Data.ShiftRepository>();
+builder.Services.AddScoped<PortalMirage.Data.Abstractions.IAdminListRepository, PortalMirage.Data.AdminListRepository>();
+
 
 // ... (all your other repositories)
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IRoleRepository, PortalMirage.Data.RoleRepository>();
@@ -102,6 +104,9 @@ builder.Services.AddScoped<PortalMirage.Business.Abstractions.IMediaSterilityChe
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IDailyTaskLogService, PortalMirage.Business.DailyTaskLogService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IRepeatSampleLogService, PortalMirage.Business.RepeatSampleLogService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IShiftService, PortalMirage.Business.ShiftService>();
+builder.Services.AddScoped<PortalMirage.Business.Abstractions.IAdminListService, PortalMirage.Business.AdminListService>();
+
+
 
 // ... (all your other services)
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IRoleService, PortalMirage.Business.RoleService>();
