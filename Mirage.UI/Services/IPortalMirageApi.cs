@@ -109,4 +109,33 @@ public interface IPortalMirageApi
 
     [Put("/api/dailytasklogs/{id}/extend")]
     System.Threading.Tasks.Task<DailyTaskLog> ExtendTaskDeadlineAsync([Header("Authorization")] string token, long id, [Body] ExtendTaskDeadlineRequest request);
+
+    // --- Admin Panel ---
+    [Get("/api/admin/users")]
+    Task<List<UserResponse>> GetAllUsersAsync([Header("Authorization")] string token);
+
+    [Get("/api/admin/roles")]
+    
+    Task<List<RoleResponse>> GetAllRolesAsync([Header("Authorization")] string token);
+
+    [Get("/api/shifts")]
+    Task<List<ShiftResponse>> GetAllShiftsAsync([Header("Authorization")] string token);
+
+    [Post("/api/admin/assign-role")]
+    System.Threading.Tasks.Task AssignRoleAsync([Header("Authorization")] string token, [Body] AssignRoleRequest request);
+
+    [Post("/api/admin/remove-role")]
+    System.Threading.Tasks.Task RemoveRoleFromUserAsync([Header("Authorization")] string token, [Body] AssignRoleRequest request);
+
+    [Get("/api/admin/users/{username}/roles")]
+    System.Threading.Tasks.Task<List<RoleResponse>> GetRolesForUserAsync([Header("Authorization")] string token, string username);
+
+    [Post("/api/shifts")]
+    System.Threading.Tasks.Task<ShiftResponse> CreateShiftAsync([Header("Authorization")] string token, [Body] CreateShiftRequest request);
+
+    [Put("/api/shifts/{id}")]
+    System.Threading.Tasks.Task<ShiftResponse> UpdateShiftAsync([Header("Authorization")] string token, int id, [Body] UpdateShiftRequest request);
+
+    [Delete("/api/shifts/{id}")]
+    System.Threading.Tasks.Task DeactivateShiftAsync([Header("Authorization")] string token, int id);
 }

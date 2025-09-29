@@ -1,14 +1,17 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PortalMirage.Core.Dtos; // This is the new, correct location
+using PortalMirage.Core.Dtos; // Make sure this is present
 using PortalMirage.Business.Abstractions;
-using PortalMirage.Core.Models;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using PortalMirage.Core.Models; // Add this for the 'Role' model
 
 namespace PortalMirage.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize] // IMPORTANT: This locks the entire controller
+    [Authorize]
     public class AdminController(
         IUserService userService,
         IRoleService roleService,
@@ -23,10 +26,19 @@ namespace PortalMirage.Api.Controllers
         }
 
         [HttpGet("roles")]
-        public async Task<ActionResult<IEnumerable<Role>>> GetAllRoles()
+        public async Task<ActionResult<IEnumerable<RoleResponse>>> GetAllRoles()
         {
             var roles = await roleService.GetAllRolesAsync();
-            return Ok(roles);
+            var response = roles.Select(r => new RoleResponse(r.RoleID, r.RoleName));
+            return Ok(response);
+        }
+
+        [HttpGet("users/{username}/roles")]
+        public async Task<ActionResult<IEnumerable<RoleResponse>>> GetRolesForUser(string username)
+        {
+            var roles = await userRoleService.GetRolesForUserAsync(username);
+            var response = roles.Select(r => new RoleResponse(r.RoleID, r.RoleName));
+            return Ok(response);
         }
 
         [HttpPost("assign-role")]

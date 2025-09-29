@@ -29,4 +29,9 @@ public class ShiftService(IShiftRepository shiftRepository) : IShiftService
     {
         return await shiftRepository.UpdateAsync(shift);
     }
+
+    public async System.Threading.Tasks. Task DeactivateAsync(int shiftId)
+    {
+        await shiftRepository.DeactivateAsync(shiftId);
+    }
 }

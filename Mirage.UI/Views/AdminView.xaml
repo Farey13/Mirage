@@ -4,10 +4,34 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Mirage.UI.Views"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
+             xmlns:views="clr-namespace:Mirage.UI.Views"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
-    <Grid>
-        <TextBlock Text="Admin Page" FontSize="48" FontWeight="Bold" 
-               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+             d:DesignHeight="600" d:DesignWidth="1000">
+    <UserControl.DataContext>
+        <viewModels:AdminViewModel/>
+    </UserControl.DataContext>
+
+    <Grid Margin="20">
+        <TabControl>
+            <TabItem Header="Users &amp; Roles">
+                <views:UserManagementView/>
+            </TabItem>
+
+            <TabItem Header="Shift Management">
+                <views:ShiftManagementView/>
+            </TabItem>
+
+            <TabItem Header="Master Lists">
+                <TextBlock Text="Master List Management UI coming soon..." 
+                           FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </TabItem>
+
+            <TabItem Header="Audit Log Viewer">
+                <TextBlock Text="Audit Log Viewer UI coming soon..." 
+                           FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </TabItem>
+        </TabControl>
     </Grid>
 </UserControl>
