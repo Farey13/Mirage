@@ -9,29 +9,126 @@
              xmlns:views="clr-namespace:Mirage.UI.Views"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="1000">
+
     <UserControl.DataContext>
         <viewModels:AdminViewModel/>
     </UserControl.DataContext>
 
-    <Grid Margin="20">
-        <TabControl>
-            <TabItem Header="Users &amp; Roles">
-                <views:UserManagementView/>
-            </TabItem>
+    <UserControl.Resources>
+        <!-- Compact TabItem Style for Single Line -->
+        <Style x:Key="CompactTabItem" TargetType="TabItem" BasedOn="{StaticResource MahApps.Styles.TabItem}">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Margin" Value="1,0"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
 
-            <TabItem Header="Shift Management">
-                <views:ShiftManagementView/>
-            </TabItem>
+        <!-- TabControl Style with Single Line -->
+        <Style x:Key="SingleLineTabControl" TargetType="TabControl" BasedOn="{StaticResource MahApps.Styles.TabControl}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+    </UserControl.Resources>
 
-            <TabItem Header="Master Lists">
-                <TextBlock Text="Master List Management UI coming soon..." 
-                           FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </TabItem>
+    <Grid Margin="12">
+        <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" 
+                CornerRadius="6" 
+                Effect="{DynamicResource MahApps.Effects.DropShadow}">
 
-            <TabItem Header="Audit Log Viewer">
-                <TextBlock Text="Audit Log Viewer UI coming soon..." 
-                           FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </TabItem>
-        </TabControl>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Header Section -->
+                <Border Grid.Row="0" 
+                        Background="{DynamicResource MahApps.Brushes.Control.Background}"
+                        CornerRadius="6,6,0,0"
+                        BorderThickness="0,0,0,1"
+                        BorderBrush="{DynamicResource MahApps.Brushes.Gray7}">
+                    <StackPanel Orientation="Horizontal" Margin="15,8">
+                        <TextBlock Text="Administration" 
+                                   FontSize="16"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource MahApps.Brushes.Accent}"
+                                   VerticalAlignment="Center"/>
+                        <Rectangle Width="1" 
+                                   Height="20" 
+                                   Margin="15,0" 
+                                   Fill="{DynamicResource MahApps.Brushes.Gray7}"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="Manage system settings and configurations" 
+                                   FontSize="12"
+                                   Foreground="{DynamicResource MahApps.Brushes.Gray}"
+                                   VerticalAlignment="Center"
+                                   FontStyle="Italic"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Tab Navigation & Content -->
+                <TabControl Grid.Row="1"
+                            Style="{StaticResource SingleLineTabControl}"
+                            TabStripPlacement="Top"
+                            mah:TabControlHelper.UnderlineBrush="{DynamicResource MahApps.Brushes.Accent}"
+                            mah:TabControlHelper.UnderlineSelectedBrush="{DynamicResource MahApps.Brushes.Accent3}"
+                            mah:TabControlHelper.UnderlinePlacement="Bottom">
+
+                    <TabItem Header="👥 Users" Style="{StaticResource CompactTabItem}">
+                        <views:UserManagementView Margin="8"/>
+                    </TabItem>
+
+                    <TabItem Header="⏰ Shifts" Style="{StaticResource CompactTabItem}">
+                        <views:ShiftManagementView Margin="8"/>
+                    </TabItem>
+
+                    <TabItem Header="📋 Master" Style="{StaticResource CompactTabItem}">
+                        <Border Background="{DynamicResource MahApps.Brushes.Control.Background}" Margin="8">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <TextBlock Text="📋" 
+                                           FontSize="32" 
+                                           HorizontalAlignment="Center" 
+                                           Opacity="0.4"
+                                           Margin="0,0,0,8"/>
+                                <TextBlock Text="Master List Management" 
+                                           FontSize="16" 
+                                           FontWeight="Medium"
+                                           HorizontalAlignment="Center" 
+                                           Foreground="{DynamicResource MahApps.Brushes.Text}"/>
+                                <TextBlock Text="Coming soon..." 
+                                           FontSize="12"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource MahApps.Brushes.Gray}"
+                                           Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </TabItem>
+
+                    <TabItem Header="📊 Audit" Style="{StaticResource CompactTabItem}">
+                        <Border Background="{DynamicResource MahApps.Brushes.Control.Background}" Margin="8">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <TextBlock Text="📊" 
+                                           FontSize="32" 
+                                           HorizontalAlignment="Center" 
+                                           Opacity="0.4"
+                                           Margin="0,0,0,8"/>
+                                <TextBlock Text="Audit Log Viewer" 
+                                           FontSize="16" 
+                                           FontWeight="Medium"
+                                           HorizontalAlignment="Center" 
+                                           Foreground="{DynamicResource MahApps.Brushes.Text}"/>
+                                <TextBlock Text="Coming soon..." 
+                                           FontSize="12"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource MahApps.Brushes.Gray}"
+                                           Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </TabItem>
+                </TabControl>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>
