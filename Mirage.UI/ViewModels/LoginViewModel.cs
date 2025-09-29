@@ -46,6 +46,8 @@ public partial class LoginViewModel : ObservableObject
             MediaSterilityViewModel.AuthToken = $"Bearer {loginResponse.Token}";
             RepeatSampleViewModel.AuthToken = $"Bearer {loginResponse.Token}";
             DailyTaskLogViewModel.AuthToken = $"Bearer {loginResponse.Token}";
+            UserManagementViewModel.AuthToken = $"Bearer {loginResponse.Token}";
+            ShiftManagementViewModel.AuthToken = $"Bearer {loginResponse.Token}";
 
             // If we get here, login was successful!
             // We'll store the token and user info later.

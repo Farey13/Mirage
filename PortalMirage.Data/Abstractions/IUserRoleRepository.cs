@@ -1,7 +1,11 @@
-﻿namespace PortalMirage.Data.Abstractions;
+﻿using PortalMirage.Core.Models;
+
+namespace PortalMirage.Data.Abstractions;
 
 public interface IUserRoleRepository
 {
-    Task AssignRoleToUserAsync(int userId, int roleId);
-    Task RemoveRoleFromUserAsync(int userId, int roleId);
+    System.Threading.Tasks.Task AssignRoleToUserAsync(int userId, int roleId);
+    System.Threading.Tasks.Task RemoveRoleFromUserAsync(int userId, int roleId);
+
+    System.Threading.Tasks.Task<IEnumerable<Role>> GetRolesForUserAsync(string username);
 }

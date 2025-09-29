@@ -48,4 +48,12 @@ public class ShiftRepository(IDbConnectionFactory connectionFactory) : IShiftRep
                            """;
         return await connection.QuerySingleAsync<Shift>(sql, shift);
     }
+
+    public async System.Threading.Tasks.Task DeactivateAsync(int shiftId)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = "UPDATE Shifts SET IsActive = 0 WHERE ShiftID = @ShiftId";
+        await connection.ExecuteAsync(sql, new { ShiftId = shiftId });
+    }
+
 }

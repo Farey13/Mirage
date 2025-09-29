@@ -51,5 +51,13 @@ namespace PortalMirage.Api.Controllers
             var updatedShift = await shiftService.UpdateAsync(shiftToUpdate);
             return Ok(updatedShift);
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Deactivate(int id)
+        {
+            // We will add auditing here later if needed
+            await shiftService.DeactivateAsync(id);
+            return NoContent(); // Standard response for a successful delete
+        }
     }
 }

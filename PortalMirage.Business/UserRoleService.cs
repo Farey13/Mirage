@@ -1,4 +1,5 @@
 ﻿using PortalMirage.Business.Abstractions;
+using PortalMirage.Core.Models;
 using PortalMirage.Data.Abstractions;
 using Task = System.Threading.Tasks.Task;
 
@@ -25,6 +26,11 @@ public class UserRoleService(
         // 3. If they exist, create the link
         await userRoleRepository.AssignRoleToUserAsync(user.UserID, role.RoleID);
         return true;
+    }
+
+    public async Task<IEnumerable<Role>> GetRolesForUserAsync(string username)
+    {
+        return await userRoleRepository.GetRolesForUserAsync(username); // You will need to create this repository method
     }
 
     public async Task<bool> RemoveRoleFromUserAsync(string username, string roleName)

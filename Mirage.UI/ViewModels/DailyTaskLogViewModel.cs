@@ -2,12 +2,12 @@
 using CommunityToolkit.Mvvm.Input;
 using Mirage.UI.Services;
 using PortalMirage.Core.Dtos;
-using PortalMirage.Core.Models; // Required for TaskLogDetailDto
+using PortalMirage.Core.Models;
 using Refit;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
-// No need to add 'using System.Threading.Tasks;' as we will fully qualify it
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace Mirage.UI.ViewModels;
@@ -52,10 +52,7 @@ public partial class DailyTaskLogViewModel : ObservableObject
             foreach (var task in tasks.Where(t => t.TaskCategory == "Morning")) MorningTasks.Add(task);
             foreach (var task in tasks.Where(t => t.TaskCategory == "Evening")) EveningTasks.Add(task);
         }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Failed to load tasks: {ex.Message}");
-        }
+        catch (Exception ex) { MessageBox.Show($"Failed to load tasks: {ex.Message}"); }
     }
 
     [RelayCommand]
@@ -69,10 +66,7 @@ public partial class DailyTaskLogViewModel : ObservableObject
             await _apiClient.UpdateTaskStatusAsync(AuthToken, task.LogID, request);
             await LoadTasksAsync();
         }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Failed to update status: {ex.Message}");
-        }
+        catch (Exception ex) { MessageBox.Show($"Failed to update status: {ex.Message}"); }
     }
 
     [RelayCommand]
@@ -94,14 +88,11 @@ public partial class DailyTaskLogViewModel : ObservableObject
         if (string.IsNullOrEmpty(AuthToken)) return;
         try
         {
-            var request = new UpdateTaskStatusRequest("NotApplicable", NaReason); // Corrected status to "NotApplicable"
+            var request = new UpdateTaskStatusRequest("Not Available", NaReason);
             await _apiClient.UpdateTaskStatusAsync(AuthToken, SelectedTaskForNa.LogID, request);
             IsNaFlyoutOpen = false;
             await LoadTasksAsync();
         }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Failed to update status: {ex.Message}");
-        }
+        catch (Exception ex) { MessageBox.Show($"Failed to update status: {ex.Message}"); }
     }
 }

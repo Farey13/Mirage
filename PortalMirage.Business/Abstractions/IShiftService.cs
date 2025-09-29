@@ -10,4 +10,6 @@ public interface IShiftService
     Task<Shift?> GetByIdAsync(int shiftId);
     Task<Shift> CreateAsync(Shift shift);
     Task<Shift> UpdateAsync(Shift shift);
+
+    System.Threading.Tasks.Task DeactivateAsync(int shiftId);
 }
