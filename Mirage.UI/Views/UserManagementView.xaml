@@ -59,6 +59,69 @@
                     </StackPanel>
                 </StackPanel>
             </mah:Flyout>
+
+            <mah:Flyout Header="Manage System Roles"
+                        IsOpen="{Binding IsManageRolesFlyoutOpen}"
+                        Position="Right"
+                        Width="400"
+                        Theme="Adapt">
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <GroupBox Grid.Row="0" Header="Existing Roles">
+                        <ListBox ItemsSource="{Binding AllRoles}" 
+                                 DisplayMemberPath="RoleName" 
+                                 Height="200"/>
+                    </GroupBox>
+
+                    <GroupBox Grid.Row="1" Header="Create New Role" Margin="0,15,0,0">
+                        <StackPanel Margin="10">
+                            <TextBox Text="{Binding NewRoleName, UpdateSourceTrigger=PropertyChanged}"
+                                     mah:TextBoxHelper.Watermark="Enter new role name"
+                                     Margin="0,0,0,10"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="Create Role"
+                                        Command="{Binding CreateNewRoleCommand}"
+                                        Style="{DynamicResource MahApps.Styles.Button.Accent}"
+                                        Width="120"/>
+                                <Button Content="Cancel"
+                                        Command="{Binding CancelManageRolesCommand}"
+                                        Margin="10,0,0,0"
+                                        Width="100"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </GroupBox>
+                </Grid>
+            </mah:Flyout>
+
+            <mah:Flyout Header="Reset Password"
+                        IsOpen="{Binding IsResetPasswordFlyoutOpen}"
+                        Position="Right" 
+                        Width="400" 
+                        Theme="Adapt">
+                <StackPanel Margin="20">
+                    <TextBlock Text="You are resetting the password for:" Margin="0,0,0,2"/>
+                    <TextBlock Text="{Binding SelectedUser.FullName}" FontWeight="Bold" FontSize="16" Margin="0,0,0,15"/>
+
+                    <Label Content="New Password"/>
+                    <TextBox Text="{Binding PasswordToReset}" Margin="0,0,0,20"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Confirm Reset"
+                                Command="{Binding ConfirmResetPasswordCommand}"
+                                Style="{DynamicResource MahApps.Styles.Button.Accent}"
+                                Background="IndianRed"
+                                Width="120"/>
+                        <Button Content="Cancel"
+                                Margin="10,0,0,0"
+                                Width="100"
+                                Command="{Binding CancelResetPasswordCommand}"/>
+                    </StackPanel>
+                </StackPanel>
+            </mah:Flyout>
         </mah:FlyoutsControl>
 
         <Grid Margin="20">

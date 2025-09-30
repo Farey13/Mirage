@@ -160,4 +160,10 @@ public interface IPortalMirageApi
     // === Admin User Management ===
     [Post("/api/admin/users/create")]
     System.Threading.Tasks.Task<UserResponse> CreateUserAsync([Header("Authorization")] string token, [Body] CreateUserRequest request);
+
+    [Post("/api/admin/roles")] // ADD THIS
+    System.Threading.Tasks.Task<RoleResponse> CreateRoleAsync([Header("Authorization")] string token, [Body] CreateRoleRequest request);
+
+    [Post("/api/admin/users/reset-password")] // ADD THIS
+    System.Threading.Tasks.Task ResetPasswordAsync([Header("Authorization")] string token, [Body] ResetPasswordRequest request);
 }

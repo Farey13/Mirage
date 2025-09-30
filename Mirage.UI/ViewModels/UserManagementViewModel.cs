@@ -18,6 +18,7 @@ public partial class UserManagementViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanAssignRole))]
+    [NotifyPropertyChangedFor(nameof(CanManageSelectedUser))] // ADD THIS
     private UserResponse? _selectedUser;
 
     [ObservableProperty]
@@ -37,7 +38,24 @@ public partial class UserManagementViewModel : ObservableObject
     [ObservableProperty]
     private string _newFullName = string.Empty;
 
+    // --- Properties for the "Manage Roles" Flyout ---
+    [ObservableProperty]
+    private bool _isManageRolesFlyoutOpen;
+
+    [ObservableProperty]
+    private string _newRoleName = string.Empty;
+
+    // --- ADD these new properties for the Reset Password Flyout ---
+    [ObservableProperty]
+    private bool _isResetPasswordFlyoutOpen;
+
+    [ObservableProperty]
+    private string _passwordToReset = string.Empty;
+
     public bool CanAssignRole => SelectedUser is not null && SelectedRoleToAssign is not null;
+
+    // --- ADD this helper property for enabling/disabling buttons ---
+    public bool CanManageSelectedUser => SelectedUser is not null;
 
     public ObservableCollection<UserResponse> Users { get; } = new();
     public ObservableCollection<RoleResponse> AllRoles { get; } = new();
@@ -180,8 +198,84 @@ public partial class UserManagementViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ManageRoles() => MessageBox.Show("Manage Roles feature coming soon!");
+    private async Task ManageRoles()
+    {
+        // We already have the roles in AllRoles, just ensure it's up to date
+        await LoadDataAsync();
+        IsManageRolesFlyoutOpen = true;
+    }
 
     [RelayCommand]
-    private void ResetPassword() => MessageBox.Show("Reset Password feature coming soon!");
+    private async Task CreateNewRole()
+    {
+        if (string.IsNullOrWhiteSpace(NewRoleName))
+        {
+            MessageBox.Show("Role name cannot be empty.", "Missing Information");
+            return;
+        }
+
+        try
+        {
+            var request = new CreateRoleRequest(NewRoleName);
+            var newRole = await _apiClient.CreateRoleAsync(AuthToken!, request);
+
+            // Add to the list and clear the textbox
+            AllRoles.Add(newRole);
+            NewRoleName = string.Empty;
+
+            MessageBox.Show($"Role '{newRole.RoleName}' created successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (ApiException ex)
+        {
+            MessageBox.Show($"Failed to create role. The server responded with: {ex.StatusCode}. The role may already exist.", "API Error");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"An unexpected error occurred: {ex.Message}", "Error");
+        }
+    }
+
+    [RelayCommand]
+    private void CancelManageRoles()
+    {
+        IsManageRolesFlyoutOpen = false;
+        NewRoleName = string.Empty;
+    }
+
+    // --- REPLACE your placeholder ResetPassword command with this ---
+    [RelayCommand(CanExecute = nameof(CanManageSelectedUser))]
+    private void ResetPassword()
+    {
+        PasswordToReset = string.Empty;
+        IsResetPasswordFlyoutOpen = true;
+    }
+
+    // --- ADD these two new commands ---
+    [RelayCommand]
+    private async Task ConfirmResetPassword()
+    {
+        if (SelectedUser is null || string.IsNullOrWhiteSpace(PasswordToReset))
+        {
+            MessageBox.Show("Please enter a new password.", "Missing Information");
+            return;
+        }
+
+        try
+        {
+            var request = new ResetPasswordRequest(SelectedUser.Username, PasswordToReset);
+            await _apiClient.ResetPasswordAsync(AuthToken!, request);
+            IsResetPasswordFlyoutOpen = false;
+            MessageBox.Show($"Password for {SelectedUser.Username} has been reset successfully.", "Success");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to reset password: {ex.Message}", "Error");
+        }
+    }
+
+    [RelayCommand]
+    private void CancelResetPassword()
+    {
+        IsResetPasswordFlyoutOpen = false;
+    }
 }

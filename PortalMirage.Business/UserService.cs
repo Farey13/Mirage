@@ -5,7 +5,7 @@ using Task = System.Threading.Tasks.Task;
 
 namespace PortalMirage.Business;
 
-public class UserService(IUserRepository userRepository) : IUserService
+public class UserService(IUserRepository userRepository, IAuditLogService auditLogService) : IUserService
 {
     public async Task<User?> RegisterUserAsync(string username, string password, string fullName)
     {
@@ -53,12 +53,39 @@ public class UserService(IUserRepository userRepository) : IUserService
         // 3. If validation succeeds, return the user object
         return user;
     }
+
     public async Task<User?> GetUserByIdAsync(int userId)
     {
         return await userRepository.GetByIdAsync(userId);
     }
+
     public async Task<IEnumerable<User>> GetAllUsersAsync()
     {
         return await userRepository.GetAllAsync();
+    }
+
+    public async Task<bool> ResetPasswordAsync(string username, string newPassword)
+    {
+        var user = await userRepository.GetByUsernameAsync(username);
+        if (user is null)
+        {
+            return false; // User not found
+        }
+
+        var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        var success = await userRepository.UpdatePasswordHashAsync(user.UserID, newPasswordHash);
+
+        if (success)
+        {
+            // Log this critical security event. The user performing the reset is captured by the controller.
+            await auditLogService.LogAsync(
+                userId: null, // User ID of the actor will be added by the controller
+                actionType: "ResetPassword",
+                moduleName: "UserManagement",
+                recordId: user.UserID.ToString(),
+                newValue: $"Password reset for user '{username}'."
+            );
+        }
+        return success;
     }
 }

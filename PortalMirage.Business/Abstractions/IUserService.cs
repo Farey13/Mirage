@@ -9,4 +9,5 @@ public interface IUserService
     Task<IEnumerable<User>> GetAllUsersAsync(); // Add this line
 
     Task<User?> GetUserByIdAsync(int userId);
+    Task<bool> ResetPasswordAsync(string username, string newPassword); // ADD THIS LINE
 }
