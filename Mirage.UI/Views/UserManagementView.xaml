@@ -8,6 +8,7 @@
              xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="1000">
+
     <UserControl.DataContext>
         <viewModels:UserManagementViewModel/>
     </UserControl.DataContext>
@@ -29,66 +30,135 @@
         </Style>
     </UserControl.Resources>
 
-    <Grid Margin="20">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="2*"/>
-            <ColumnDefinition Width="20"/>
-            <ColumnDefinition Width="1*"/>
-        </Grid.ColumnDefinitions>
+    <Grid>
+        <mah:FlyoutsControl>
+            <mah:Flyout Header="Create New User" 
+                        IsOpen="{Binding IsCreateUserFlyoutOpen}" 
+                        Position="Right" 
+                        Width="400"
+                        Theme="Adapt">
+                <StackPanel Margin="20">
+                    <Label Content="Username"/>
+                    <TextBox Text="{Binding NewUsername}" Margin="0,0,0,10"/>
 
-        <Grid Grid.Column="0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                <Button Content="Create New User" Command="{Binding CreateUserCommand}"/>
-                <Button Content="Manage Roles" Margin="10,0,0,0" Command="{Binding ManageRolesCommand}"/>
+                    <Label Content="Password"/>
+                    <TextBox Text="{Binding NewPassword}" Margin="0,0,0,10"/>
+
+                    <Label Content="Full Name"/>
+                    <TextBox Text="{Binding NewFullName}" Margin="0,0,0,20"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Save User" 
+                                Command="{Binding SaveNewUserCommand}"
+                                Style="{DynamicResource MahApps.Styles.Button.Accent}"
+                                Width="120"/>
+                        <Button Content="Cancel" 
+                                Command="{Binding CancelCreateUserCommand}"
+                                Margin="10,0,0,0"
+                                Width="100"/>
+                    </StackPanel>
+                </StackPanel>
+            </mah:Flyout>
+        </mah:FlyoutsControl>
+
+        <Grid Margin="20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="20"/>
+                <ColumnDefinition Width="1*"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                    <Button Content="Create New User" 
+                            Command="{Binding CreateUserCommand}"
+                            Style="{DynamicResource MahApps.Styles.Button.Accent}"/>
+                    <Button Content="Manage Roles" 
+                            Margin="10,0,0,0" 
+                            Command="{Binding ManageRolesCommand}"/>
+                </StackPanel>
+                <GroupBox Grid.Row="1" Header="Users">
+                    <DataGrid ItemsSource="{Binding Users}"
+                              SelectedItem="{Binding SelectedUser}"
+                              RowStyle="{StaticResource StandardDataGridRowStyle}"
+                              AutoGenerateColumns="False" 
+                              IsReadOnly="True" 
+                              AlternationCount="2">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="User ID" Binding="{Binding UserID}" Width="Auto"/>
+                            <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="*"/>
+                            <DataGridTextColumn Header="Full Name" Binding="{Binding FullName}" Width="2*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </GroupBox>
+            </Grid>
+
+            <StackPanel Grid.Column="2">
+                <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                        <Setter Property="IsEnabled" Value="True"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedUser}" Value="{x:Null}">
+                                <Setter Property="IsEnabled" Value="False"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </StackPanel.Style>
+
+                <GroupBox Header="Manage Selected User">
+                    <StackPanel Margin="10">
+                        <TextBlock Text="{Binding SelectedUser.FullName, FallbackValue='No user selected', TargetNullValue='No user selected'}" 
+                                   FontWeight="Bold"
+                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding SelectedUser.Username, StringFormat='Username: {0}'}" 
+                                   Margin="0,5,0,0"/>
+                        <Label Content="Current Roles:" Margin="0,10,0,0"/>
+                        <ListBox ItemsSource="{Binding SelectedUserRoles}" 
+                                 Height="80" 
+                                 Margin="0,5,0,0">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" 
+                                                   Text="{Binding RoleName}" 
+                                                   VerticalAlignment="Center"/>
+                                        <Button Grid.Column="1" 
+                                                Content="Remove" 
+                                                FontSize="10"
+                                                Command="{Binding DataContext.RemoveRoleCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                CommandParameter="{Binding}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Assign New Role" Margin="0,10,0,0">
+                    <StackPanel Margin="10">
+                        <Label Content="Select a Role:"/>
+                        <ComboBox ItemsSource="{Binding AllRoles}" 
+                                  SelectedItem="{Binding SelectedRoleToAssign}" 
+                                  DisplayMemberPath="RoleName" 
+                                  Margin="0,0,0,10"/>
+                        <Button Content="Assign Role" 
+                                Command="{Binding AssignRoleCommand}" 
+                                Style="{DynamicResource MahApps.Styles.Button.Accent}"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <Button Content="Reset Password" 
+                        Margin="0,20,0,0" 
+                        Command="{Binding ResetPasswordCommand}"/>
             </StackPanel>
-            <GroupBox Grid.Row="1" Header="Users">
-                <DataGrid ItemsSource="{Binding Users}"
-                          SelectedItem="{Binding SelectedUser}"
-                          RowStyle="{StaticResource StandardDataGridRowStyle}"
-                          AutoGenerateColumns="False" IsReadOnly="True" AlternationCount="2">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="User ID" Binding="{Binding UserID}" Width="Auto"/>
-                        <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="*"/>
-                        <DataGridTextColumn Header="Full Name" Binding="{Binding FullName}" Width="2*"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </GroupBox>
         </Grid>
-
-        <StackPanel Grid.Column="2">
-            <StackPanel.Style>
-                <Style TargetType="StackPanel">
-                    <Setter Property="IsEnabled" Value="True"/>
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding SelectedUser}" Value="{x:Null}">
-                            <Setter Property="IsEnabled" Value="False"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </StackPanel.Style>
-
-            <GroupBox Header="Manage Selected User">
-                <StackPanel Margin="10">
-                    <TextBlock Text="{Binding SelectedUser.FullName, FallbackValue='No user selected', TargetNullValue='No user selected'}" FontWeight="Bold"/>
-                    <TextBlock Text="{Binding SelectedUser.Username, StringFormat='Username: {0}'}" Margin="0,5,0,0"/>
-                    <Label Content="Current Roles:" Margin="0,10,0,0"/>
-                    <ListBox ItemsSource="{Binding SelectedUserRoles}" DisplayMemberPath="RoleName" Height="80" Margin="0,5,0,0"/>
-                </StackPanel>
-            </GroupBox>
-
-            <GroupBox Header="Assign New Role" Margin="0,10,0,0">
-                <StackPanel Margin="10">
-                    <Label Content="Select a Role:"/>
-                    <ComboBox ItemsSource="{Binding AllRoles}" SelectedItem="{Binding SelectedRoleToAssign}" DisplayMemberPath="RoleName" Margin="0,0,0,10"/>
-                    <Button Content="Assign Role" Command="{Binding AssignRoleCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}"/>
-                </StackPanel>
-            </GroupBox>
-
-            <Button Content="Reset Password" Margin="0,20,0,0" Command="{Binding ResetPasswordCommand}"/>
-        </StackPanel>
     </Grid>
 </UserControl>

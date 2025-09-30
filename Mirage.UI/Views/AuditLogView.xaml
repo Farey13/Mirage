@@ -1,0 +1,200 @@
+﻿<UserControl x:Class="Mirage.UI.Views.AuditLogView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
+             xmlns:converters="clr-namespace:Mirage.UI.Converters"
+             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="900">
+
+    <i:Interaction.Triggers>
+        <i:EventTrigger EventName="Loaded">
+            <i:InvokeCommandAction Command="{Binding LoadLogsAsyncCommand}" />
+        </i:EventTrigger>
+    </i:Interaction.Triggers>
+
+    <UserControl.Resources>
+        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+        <Style x:Key="WrapTextDataGridStyle" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="5"/>
+        </Style>
+    </UserControl.Resources>
+
+    <UserControl.DataContext>
+        <viewModels:AuditLogViewModel/>
+    </UserControl.DataContext>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
+            <TextBlock Text="Audit Logs" 
+                       FontSize="20" 
+                       FontWeight="Bold" 
+                       VerticalAlignment="Center"
+                       Margin="0,0,15,0"/>
+
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="Today" 
+                        Command="{Binding SetDatePresetAsyncCommand}" 
+                        CommandParameter="today"
+                        Style="{DynamicResource MahApps.Styles.Button.Square.Accent}"
+                        Margin="0,0,5,0"/>
+                <Button Content="Last 7 Days" 
+                        Command="{Binding SetDatePresetAsyncCommand}" 
+                        CommandParameter="week"
+                        Style="{DynamicResource MahApps.Styles.Button.Square.Accent}"
+                        Margin="5,0"/>
+                <Button Content="Last 30 Days" 
+                        Command="{Binding SetDatePresetAsyncCommand}" 
+                        CommandParameter="month"
+                        Style="{DynamicResource MahApps.Styles.Button.Square.Accent}"
+                        Margin="5,0"/>
+            </StackPanel>
+        </StackPanel>
+
+        <Border Grid.Row="1" 
+                Background="{DynamicResource MahApps.Brushes.Control.Background}"
+                BorderBrush="{DynamicResource MahApps.Brushes.Control.Border}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="10"
+                Margin="0,0,0,10">
+            <StackPanel Orientation="Horizontal">
+                <Label Content="Date Range:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <DatePicker SelectedDate="{Binding StartDate, UpdateSourceTrigger=PropertyChanged}" 
+                            Margin="5,0" 
+                            Width="120"
+                            mah:TextBoxHelper.Watermark="Start Date"/>
+                <Label Content="to" VerticalAlignment="Center" Margin="5,0"/>
+                <DatePicker SelectedDate="{Binding EndDate, UpdateSourceTrigger=PropertyChanged}" 
+                            Margin="5,0" 
+                            Width="120"
+                            mah:TextBoxHelper.Watermark="End Date"/>
+
+                <Button Content="Search" 
+                        Command="{Binding LoadLogsAsyncCommand}" 
+                        Margin="15,0,0,0" 
+                        Style="{DynamicResource MahApps.Styles.Button.Accent}"
+                        Width="80"/>
+
+                <ComboBox x:Name="ModuleFilter"
+                          Margin="15,0,0,0"
+                          Width="150"
+                          mah:TextBoxHelper.Watermark="Filter by Module"
+                          ItemsSource="{Binding AvailableModules}"
+                          SelectedItem="{Binding SelectedModule}"/>
+
+                <ComboBox x:Name="ActionFilter"
+                          Margin="5,0,0,0"
+                          Width="120"
+                          mah:TextBoxHelper.Watermark="Action Type"
+                          ItemsSource="{Binding AvailableActions}"
+                          SelectedItem="{Binding SelectedAction}"/>
+
+                <Button Content="Clear Filters" 
+                        Command="{Binding ClearFiltersCommand}"
+                        Margin="10,0,0,0"
+                        Style="{DynamicResource MahApps.Styles.Button}"
+                        Width="100"/>
+            </StackPanel>
+        </Border>
+
+        <mah:ProgressRing Grid.Row="2" 
+                          IsActive="{Binding IsLoading}" 
+                          Panel.ZIndex="1"
+                          Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" 
+                       Text="{Binding Logs.Count, StringFormat='{}Found {0} audit log entries'}"
+                       FontStyle="Italic"
+                       Margin="0,0,0,5"
+                       Visibility="{Binding IsLoading, Converter={StaticResource InverseBooleanConverter}}"/>
+
+            <DataGrid Grid.Row="1"
+                      ItemsSource="{Binding Logs}"
+                      RowStyle="{StaticResource StandardDataGridRowStyle}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      GridLinesVisibility="Horizontal"
+                      HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto"
+                      SelectionMode="Single"
+                      Visibility="{Binding IsLoading, Converter={StaticResource InverseBooleanConverter}}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Timestamp" 
+                                        Binding="{Binding Timestamp, StringFormat='MM/dd/yyyy HH:mm'}" 
+                                        Width="150"
+                                        CanUserSort="True"/>
+                    <DataGridTextColumn Header="User" 
+                                        Binding="{Binding UserFullName, FallbackValue='System'}" 
+                                        Width="120"
+                                        CanUserSort="True"/>
+                    <DataGridTextColumn Header="Module" 
+                                        Binding="{Binding ModuleName}" 
+                                        Width="120"
+                                        CanUserSort="True"/>
+                    <DataGridTextColumn Header="Action" 
+                                        Binding="{Binding ActionType}" 
+                                        Width="100"
+                                        CanUserSort="True"/>
+                    <DataGridTextColumn Header="Record ID" 
+                                        Binding="{Binding RecordID}" 
+                                        Width="80"
+                                        CanUserSort="True"/>
+                    <DataGridTextColumn Header="Details" 
+                                        Binding="{Binding NewValue}" 
+                                        Width="*"
+                                        MinWidth="200"
+                                        ElementStyle="{StaticResource WrapTextDataGridStyle}"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <Border Grid.Row="1" 
+                    Background="{DynamicResource MahApps.Brushes.Control.Background}"
+                    BorderBrush="{DynamicResource MahApps.Brushes.Control.Border}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Visibility="{Binding HasNoResults, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Vertical">
+                    <TextBlock Text="No audit logs found" 
+                               FontSize="16"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,10"/>
+                    <TextBlock Text="Try adjusting your date range or filters"
+                               FontStyle="Italic"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Grid.Row="2" 
+                        Orientation="Horizontal" 
+                        HorizontalAlignment="Right"
+                        Margin="0,10,0,0"
+                        Visibility="{Binding IsLoading, Converter={StaticResource InverseBooleanConverter}}">
+                <Button Content="Export to CSV" 
+                        Command="{Binding ExportToCsvCommand}"
+                        Style="{DynamicResource MahApps.Styles.Button}"
+                        Width="100"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

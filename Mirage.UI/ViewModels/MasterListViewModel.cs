@@ -47,10 +47,8 @@ public partial class MasterListViewModel : ObservableObject
     public MasterListViewModel()
     {
         _apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
-        LoadInitialData();
+        _ = LoadAllItemsAsync();
     }
-
-    private async void LoadInitialData() => await LoadAllItemsAsync();
 
     [RelayCommand]
     private async Task LoadAllItemsAsync()
@@ -58,7 +56,6 @@ public partial class MasterListViewModel : ObservableObject
         if (string.IsNullOrEmpty(AuthToken)) return;
         try
         {
-            // Fetch all items and list types in parallel for optimal performance
             var itemsTask = _apiClient.GetAllListItemsAsync(AuthToken);
             var typesTask = _apiClient.GetListTypesAsync(AuthToken);
             await Task.WhenAll(itemsTask, typesTask);
@@ -66,16 +63,14 @@ public partial class MasterListViewModel : ObservableObject
             _allItems = await itemsTask;
             var types = await typesTask;
 
-            // Always refresh list types to ensure consistency
             ListTypes.Clear();
             foreach (var type in types.OrderBy(t => t))
                 ListTypes.Add(type);
 
-            // Maintain selection or set default
             if (SelectedListType is null)
                 SelectedListType = ListTypes.FirstOrDefault();
             else
-                FilterItems();
+                ApplyFilters();
         }
         catch (Exception ex)
         {
@@ -85,13 +80,12 @@ public partial class MasterListViewModel : ObservableObject
 
     partial void OnSelectedListTypeChanged(string? value)
     {
-        // Reset search when changing lists for better UX
         SearchFilter = string.Empty;
-        FilterItems();
-        NewItem(); // Reset edit form
+        ApplyFilters();
+        NewItem();
     }
 
-    partial void OnSearchFilterChanged(string value) => FilterItems();
+    partial void OnSearchFilterChanged(string value) => ApplyFilters();
 
     partial void OnSelectedItemChanged(AdminListItemDto? value)
     {
@@ -108,7 +102,7 @@ public partial class MasterListViewModel : ObservableObject
         }
     }
 
-    private void FilterItems()
+    private void ApplyFilters()
     {
         if (SelectedListType is null) return;
 
@@ -118,7 +112,7 @@ public partial class MasterListViewModel : ObservableObject
         {
             filtered = filtered.Where(i =>
                 i.ItemValue.Contains(SearchFilter, StringComparison.OrdinalIgnoreCase) ||
-                (i.Description != null && i.Description.Contains(SearchFilter, StringComparison.OrdinalIgnoreCase)));
+                 (i.Description != null && i.Description.Contains(SearchFilter, StringComparison.OrdinalIgnoreCase)));
         }
 
         FilteredItems.Clear();

@@ -84,14 +84,13 @@ builder.Services.AddScoped<PortalMirage.Data.Abstractions.IDailyTaskLogRepositor
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IRepeatSampleLogRepository, PortalMirage.Data.RepeatSampleLogRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IShiftRepository, PortalMirage.Data.ShiftRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IAdminListRepository, PortalMirage.Data.AdminListRepository>();
-
+builder.Services.AddScoped<PortalMirage.Data.Abstractions.IAuditLogRepository, PortalMirage.Data.AuditLogRepository>(); // ADDED IN CORRECT PLACE
 
 // ... (all your other repositories)
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IRoleRepository, PortalMirage.Data.RoleRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IUserRoleRepository, PortalMirage.Data.UserRoleRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IPermissionRepository, PortalMirage.Data.PermissionRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IRolePermissionRepository, PortalMirage.Data.RolePermissionRepository>();
-builder.Services.AddScoped<PortalMirage.Data.Abstractions.IAuditLogRepository, PortalMirage.Data.AuditLogRepository>();
 
 // 4. Add the Services (BLL)
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IUserService, PortalMirage.Business.UserService>();
@@ -106,13 +105,14 @@ builder.Services.AddScoped<PortalMirage.Business.Abstractions.IRepeatSampleLogSe
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IShiftService, PortalMirage.Business.ShiftService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IAdminListService, PortalMirage.Business.AdminListService>();
 
-
-
 // ... (all your other services)
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IRoleService, PortalMirage.Business.RoleService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IUserRoleService, PortalMirage.Business.UserRoleService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IRolePermissionService, PortalMirage.Business.RolePermissionService>();
+
+// AUDIT LOG SERVICE - ADD THIS LINE
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IAuditLogService, PortalMirage.Business.AuditLogService>();
+
 builder.Services.AddSingleton<PortalMirage.Business.ITimeProvider, PortalMirage.Business.SystemTimeProvider>();
 // Add our new token generator service
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IJwtTokenGenerator, PortalMirage.Business.JwtTokenGenerator>();

@@ -49,6 +49,7 @@ public partial class LoginViewModel : ObservableObject
             UserManagementViewModel.AuthToken = $"Bearer {loginResponse.Token}";
             ShiftManagementViewModel.AuthToken = $"Bearer {loginResponse.Token}";
             MasterListViewModel.AuthToken = $"Bearer {loginResponse.Token}";
+            AuditLogViewModel.AuthToken = $"Bearer {loginResponse.Token}";
 
             // If we get here, login was successful!
             // We'll store the token and user info later.
