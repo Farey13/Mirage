@@ -1,11 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PortalMirage.Core.Dtos;
+using PortalMirage.Business;
 using PortalMirage.Business.Abstractions;
-using System.Threading.Tasks;
-using System.Linq;
-using System.Collections.Generic;
+using PortalMirage.Core.Dtos;
 using PortalMirage.Core.Models;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace PortalMirage.Api.Controllers
 {
@@ -15,8 +17,11 @@ namespace PortalMirage.Api.Controllers
     public class AdminController(
         IUserService userService,
         IRoleService roleService,
-        IUserRoleService userRoleService) : ControllerBase
+        IUserRoleService userRoleService,
+        IAuditLogService auditLogService) : ControllerBase // 1. Add the service to the constructor's parameter list
     {
+        private readonly IAuditLogService _auditLogService = auditLogService; // 2. Add a private field and assign the parameter
+
         [HttpPost("users/create")]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
         {
@@ -47,12 +52,41 @@ namespace PortalMirage.Api.Controllers
             return Ok(response);
         }
 
+        [HttpPost("roles")] // NEW ENDPOINT
+        public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
+        {
+            var newRole = await roleService.CreateRoleAsync(request.RoleName);
+            if (newRole is null)
+            {
+                return BadRequest("A role with this name already exists.");
+            }
+            var response = new RoleResponse(newRole.RoleID, newRole.RoleName);
+            return CreatedAtAction(nameof(GetAllRoles), response);
+        }
+
         [HttpGet("users/{username}/roles")]
         public async Task<ActionResult<IEnumerable<RoleResponse>>> GetRolesForUser(string username)
         {
             var roles = await userRoleService.GetRolesForUserAsync(username);
             var response = roles.Select(r => new RoleResponse(r.RoleID, r.RoleName));
             return Ok(response);
+        }
+
+        [HttpPost("users/reset-password")] // NEW ENDPOINT
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            var adminUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var success = await userService.ResetPasswordAsync(request.Username, request.NewPassword);
+
+            if (!success)
+            {
+                return NotFound("User not found.");
+            }
+
+            // 3. Use the audit log service
+            await _auditLogService.LogAsync(adminUserId, "ResetPassword", "UserManagement", newValue: $"Admin user ID {adminUserId} reset password for {request.Username}");
+
+            return Ok("Password has been reset successfully.");
         }
 
         [HttpPost("assign-role")]
@@ -66,6 +100,17 @@ namespace PortalMirage.Api.Controllers
             }
 
             return Ok("Role assigned successfully.");
+        }
+
+        [HttpPost("remove-role")]
+        public async Task<IActionResult> RemoveRoleFromUser([FromBody] AssignRoleRequest request)
+        {
+            var success = await userRoleService.RemoveRoleFromUserAsync(request.Username, request.RoleName);
+            if (!success)
+            {
+                return BadRequest("Failed to remove role from user.");
+            }
+            return Ok("Role removed successfully.");
         }
     }
 }

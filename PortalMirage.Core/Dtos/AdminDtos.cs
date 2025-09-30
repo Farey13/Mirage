@@ -10,3 +10,8 @@ public record RoleResponse(int RoleID, string RoleName);
 
 // Request for an admin to create a new user
 public record CreateUserRequest(string Username, string Password, string FullName);
+
+
+public record CreateRoleRequest(string RoleName); // ADD THIS RECORD
+
+public record ResetPasswordRequest(string Username, string NewPassword); // ADD THIS

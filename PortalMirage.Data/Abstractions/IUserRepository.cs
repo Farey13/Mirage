@@ -13,5 +13,7 @@ public interface IUserRepository
 
     Task<IEnumerable<string>> GetUserRolesAsync(int userId);
 
+
     Task<IEnumerable<User>> GetByIdsAsync(IEnumerable<int> userIds);
+    Task<bool> UpdatePasswordHashAsync(int userId, string newPasswordHash); // ADD THIS LINE
 }
