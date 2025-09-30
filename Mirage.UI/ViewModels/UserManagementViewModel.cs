@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 
 namespace Mirage.UI.ViewModels;
 
@@ -18,7 +19,7 @@ public partial class UserManagementViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanAssignRole))]
-    [NotifyPropertyChangedFor(nameof(CanManageSelectedUser))] // ADD THIS
+    [NotifyPropertyChangedFor(nameof(CanManageSelectedUser))]
     private UserResponse? _selectedUser;
 
     [ObservableProperty]
@@ -33,9 +34,6 @@ public partial class UserManagementViewModel : ObservableObject
     private string _newUsername = string.Empty;
 
     [ObservableProperty]
-    private string _newPassword = string.Empty;
-
-    [ObservableProperty]
     private string _newFullName = string.Empty;
 
     // --- Properties for the "Manage Roles" Flyout ---
@@ -45,16 +43,11 @@ public partial class UserManagementViewModel : ObservableObject
     [ObservableProperty]
     private string _newRoleName = string.Empty;
 
-    // --- ADD these new properties for the Reset Password Flyout ---
+    // --- Properties for the Reset Password Flyout ---
     [ObservableProperty]
     private bool _isResetPasswordFlyoutOpen;
 
-    [ObservableProperty]
-    private string _passwordToReset = string.Empty;
-
     public bool CanAssignRole => SelectedUser is not null && SelectedRoleToAssign is not null;
-
-    // --- ADD this helper property for enabling/disabling buttons ---
     public bool CanManageSelectedUser => SelectedUser is not null;
 
     public ObservableCollection<UserResponse> Users { get; } = new();
@@ -146,21 +139,71 @@ public partial class UserManagementViewModel : ObservableObject
         }
     }
 
-    // --- Commands for New Features ---
+    // --- Updated Commands with Toggle Logic ---
     [RelayCommand]
     private void CreateUser()
     {
-        // Clear fields and open the flyout
+        // If this flyout is already open, just close it and do nothing else.
+        if (IsCreateUserFlyoutOpen)
+        {
+            IsCreateUserFlyoutOpen = false;
+            return;
+        }
+
+        // Close any other open flyouts before opening this one.
+        IsManageRolesFlyoutOpen = false;
+        IsResetPasswordFlyoutOpen = false;
+
+        // Clear fields and open the flyout.
         NewUsername = string.Empty;
-        NewPassword = string.Empty;
         NewFullName = string.Empty;
         IsCreateUserFlyoutOpen = true;
     }
 
     [RelayCommand]
-    private async Task SaveNewUser()
+    private async Task ManageRoles()
     {
-        if (string.IsNullOrWhiteSpace(NewUsername) || string.IsNullOrWhiteSpace(NewPassword) || string.IsNullOrWhiteSpace(NewFullName))
+        // If this flyout is already open, just close it and do nothing else.
+        if (IsManageRolesFlyoutOpen)
+        {
+            IsManageRolesFlyoutOpen = false;
+            return;
+        }
+
+        // Close any other open flyouts before opening this one.
+        IsCreateUserFlyoutOpen = false;
+        IsResetPasswordFlyoutOpen = false;
+
+        // We already have the roles in AllRoles, just ensure it's up to date
+        await LoadDataAsync();
+        IsManageRolesFlyoutOpen = true;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanManageSelectedUser))]
+    private void ResetPassword()
+    {
+        // If this flyout is already open, just close it and do nothing else.
+        if (IsResetPasswordFlyoutOpen)
+        {
+            IsResetPasswordFlyoutOpen = false;
+            return;
+        }
+
+        // Close any other open flyouts before opening this one.
+        IsCreateUserFlyoutOpen = false;
+        IsManageRolesFlyoutOpen = false;
+
+        IsResetPasswordFlyoutOpen = true;
+    }
+
+    [RelayCommand]
+    private async Task SaveNewUser(object parameter)
+    {
+        // Read the password directly from the PasswordBox control
+        if (parameter is not PasswordBox passwordBox) return;
+        var password = passwordBox.Password;
+
+        if (string.IsNullOrWhiteSpace(NewUsername) || string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(NewFullName))
         {
             MessageBox.Show("Username, Password, and Full Name are all required.", "Missing Information");
             return;
@@ -168,23 +211,24 @@ public partial class UserManagementViewModel : ObservableObject
 
         try
         {
-            // Use parameterized constructor - make sure it exists in your DTO
-            var request = new CreateUserRequest(NewUsername, NewPassword, NewFullName);
-
+            var request = new CreateUserRequest(NewUsername, password, NewFullName);
             await _apiClient.CreateUserAsync(AuthToken!, request);
 
-            IsCreateUserFlyoutOpen = false; // Close flyout on success
-            await LoadDataAsync(); // Refresh the user list
+            IsCreateUserFlyoutOpen = false;
+            await LoadDataAsync();
 
-            MessageBox.Show($"User '{NewUsername}' created successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            ShowMessageBox($"User '{NewUsername}' created successfully!", "Success", MessageBoxImage.Information);
+
+            // Clear the password box
+            passwordBox.Password = string.Empty;
         }
         catch (ApiException ex)
         {
-            MessageBox.Show($"Failed to create user. The server responded with: {ex.StatusCode}. The username may already be taken.", "API Error");
+            ShowMessageBox($"Failed to create user. The server responded with: {ex.StatusCode}. The username may already be taken.", "API Error", MessageBoxImage.Error);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"An unexpected error occurred: {ex.Message}", "Error");
+            ShowMessageBox($"An unexpected error occurred: {ex.Message}", "Error", MessageBoxImage.Error);
         }
     }
 
@@ -193,16 +237,7 @@ public partial class UserManagementViewModel : ObservableObject
     {
         IsCreateUserFlyoutOpen = false;
         NewUsername = string.Empty;
-        NewPassword = string.Empty;
         NewFullName = string.Empty;
-    }
-
-    [RelayCommand]
-    private async Task ManageRoles()
-    {
-        // We already have the roles in AllRoles, just ensure it's up to date
-        await LoadDataAsync();
-        IsManageRolesFlyoutOpen = true;
     }
 
     [RelayCommand]
@@ -242,34 +277,32 @@ public partial class UserManagementViewModel : ObservableObject
         NewRoleName = string.Empty;
     }
 
-    // --- REPLACE your placeholder ResetPassword command with this ---
-    [RelayCommand(CanExecute = nameof(CanManageSelectedUser))]
-    private void ResetPassword()
-    {
-        PasswordToReset = string.Empty;
-        IsResetPasswordFlyoutOpen = true;
-    }
-
-    // --- ADD these two new commands ---
     [RelayCommand]
-    private async Task ConfirmResetPassword()
+    private async Task ConfirmResetPassword(object parameter)
     {
-        if (SelectedUser is null || string.IsNullOrWhiteSpace(PasswordToReset))
+        // Read the password directly from the PasswordBox control
+        if (parameter is not PasswordBox passwordBox) return;
+        var newPassword = passwordBox.Password;
+
+        if (SelectedUser is null || string.IsNullOrWhiteSpace(newPassword))
         {
-            MessageBox.Show("Please enter a new password.", "Missing Information");
+            ShowMessageBox("Please enter a new password.", "Missing Information", MessageBoxImage.Warning);
             return;
         }
 
         try
         {
-            var request = new ResetPasswordRequest(SelectedUser.Username, PasswordToReset);
+            var request = new ResetPasswordRequest(SelectedUser.Username, newPassword);
             await _apiClient.ResetPasswordAsync(AuthToken!, request);
             IsResetPasswordFlyoutOpen = false;
-            MessageBox.Show($"Password for {SelectedUser.Username} has been reset successfully.", "Success");
+            ShowMessageBox($"Password for {SelectedUser.Username} has been reset successfully.", "Success", MessageBoxImage.Information);
+
+            // Clear the password box
+            passwordBox.Password = string.Empty;
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to reset password: {ex.Message}", "Error");
+            ShowMessageBox($"Failed to reset password: {ex.Message}", "Error", MessageBoxImage.Error);
         }
     }
 
@@ -277,5 +310,11 @@ public partial class UserManagementViewModel : ObservableObject
     private void CancelResetPassword()
     {
         IsResetPasswordFlyoutOpen = false;
+    }
+
+    // Helper method for consistent message boxes
+    private void ShowMessageBox(string message, string caption, MessageBoxImage image)
+    {
+        MessageBox.Show(message, caption, MessageBoxButton.OK, image);
     }
 }
