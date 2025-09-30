@@ -112,14 +112,13 @@ public interface IPortalMirageApi
 
     // --- Admin Panel ---
     [Get("/api/admin/users")]
-    Task<List<UserResponse>> GetAllUsersAsync([Header("Authorization")] string token);
+    System.Threading.Tasks.Task<List<UserResponse>> GetAllUsersAsync([Header("Authorization")] string token);
 
     [Get("/api/admin/roles")]
-    
-    Task<List<RoleResponse>> GetAllRolesAsync([Header("Authorization")] string token);
+    System.Threading.Tasks.Task<List<RoleResponse>> GetAllRolesAsync([Header("Authorization")] string token);
 
     [Get("/api/shifts")]
-    Task<List<ShiftResponse>> GetAllShiftsAsync([Header("Authorization")] string token);
+    System.Threading.Tasks.Task<List<ShiftResponse>> GetAllShiftsAsync([Header("Authorization")] string token);
 
     [Post("/api/admin/assign-role")]
     System.Threading.Tasks.Task AssignRoleAsync([Header("Authorization")] string token, [Body] AssignRoleRequest request);
@@ -132,6 +131,8 @@ public interface IPortalMirageApi
 
     [Post("/api/shifts")]
     System.Threading.Tasks.Task<ShiftResponse> CreateShiftAsync([Header("Authorization")] string token, [Body] CreateShiftRequest request);
+
+
 
     [Put("/api/shifts/{id}")]
     System.Threading.Tasks.Task<ShiftResponse> UpdateShiftAsync([Header("Authorization")] string token, int id, [Body] UpdateShiftRequest request);
@@ -151,4 +152,12 @@ public interface IPortalMirageApi
 
     [Put("/api/admin/lists/{id}")]
     System.Threading.Tasks.Task<AdminListItemDto> UpdateListItemAsync([Header("Authorization")] string token, int id, [Body] UpdateAdminListItemRequest request);
+
+    // === Audit Log ===
+    [Get("/api/auditlogs")]
+    System.Threading.Tasks.Task<List<AuditLogDto>> GetAuditLogsAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
+
+    // === Admin User Management ===
+    [Post("/api/admin/users/create")]
+    System.Threading.Tasks.Task<UserResponse> CreateUserAsync([Header("Authorization")] string token, [Body] CreateUserRequest request);
 }

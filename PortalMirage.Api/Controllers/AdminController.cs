@@ -1,22 +1,36 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PortalMirage.Core.Dtos; // Make sure this is present
+using PortalMirage.Core.Dtos;
 using PortalMirage.Business.Abstractions;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using PortalMirage.Core.Models; // Add this for the 'Role' model
+using System.Linq;
+using System.Collections.Generic;
+using PortalMirage.Core.Models;
 
 namespace PortalMirage.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Roles = "Admin")] // Secure the entire controller for Admins
     public class AdminController(
         IUserService userService,
         IRoleService roleService,
         IUserRoleService userRoleService) : ControllerBase
     {
+        [HttpPost("users/create")]
+        public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
+        {
+            var newUser = await userService.RegisterUserAsync(request.Username, request.Password, request.FullName);
+
+            if (newUser is null)
+            {
+                return BadRequest("Username is already taken.");
+            }
+
+            var userResponse = new UserResponse(newUser.UserID, newUser.Username, newUser.FullName);
+            return CreatedAtAction(nameof(GetAllUsers), new { }, userResponse);
+        }
+
         [HttpGet("users")]
         public async Task<ActionResult<IEnumerable<UserResponse>>> GetAllUsers()
         {
