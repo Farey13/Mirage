@@ -31,18 +31,18 @@
     </UserControl.Resources>
 
     <Grid>
-        <mah:FlyoutsControl>
+        <mah:FlyoutsControl Panel.ZIndex="1">
             <mah:Flyout Header="Create New User" 
                         IsOpen="{Binding IsCreateUserFlyoutOpen}" 
                         Position="Right" 
                         Width="400"
-                        Theme="Adapt">
+                        Background="{DynamicResource MahApps.Brushes.ThemeBackground}">
                 <StackPanel Margin="20">
                     <Label Content="Username"/>
                     <TextBox Text="{Binding NewUsername}" Margin="0,0,0,10"/>
 
                     <Label Content="Password"/>
-                    <TextBox Text="{Binding NewPassword}" Margin="0,0,0,10"/>
+                    <PasswordBox x:Name="NewPasswordBox" Margin="0,0,0,10"/>
 
                     <Label Content="Full Name"/>
                     <TextBox Text="{Binding NewFullName}" Margin="0,0,0,20"/>
@@ -50,6 +50,7 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Content="Save User" 
                                 Command="{Binding SaveNewUserCommand}"
+                                CommandParameter="{Binding ElementName=NewPasswordBox}" 
                                 Style="{DynamicResource MahApps.Styles.Button.Accent}"
                                 Width="120"/>
                         <Button Content="Cancel" 
@@ -64,7 +65,7 @@
                         IsOpen="{Binding IsManageRolesFlyoutOpen}"
                         Position="Right"
                         Width="400"
-                        Theme="Adapt">
+                        Background="{DynamicResource MahApps.Brushes.ThemeBackground}">
                 <Grid Margin="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
@@ -101,17 +102,18 @@
                         IsOpen="{Binding IsResetPasswordFlyoutOpen}"
                         Position="Right" 
                         Width="400" 
-                        Theme="Adapt">
+                        Background="{DynamicResource MahApps.Brushes.ThemeBackground}">
                 <StackPanel Margin="20">
                     <TextBlock Text="You are resetting the password for:" Margin="0,0,0,2"/>
                     <TextBlock Text="{Binding SelectedUser.FullName}" FontWeight="Bold" FontSize="16" Margin="0,0,0,15"/>
 
                     <Label Content="New Password"/>
-                    <TextBox Text="{Binding PasswordToReset}" Margin="0,0,0,20"/>
+                    <PasswordBox x:Name="ResetPasswordBox" Margin="0,0,0,20"/>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Content="Confirm Reset"
                                 Command="{Binding ConfirmResetPasswordCommand}"
+                                CommandParameter="{Binding ElementName=ResetPasswordBox}" 
                                 Style="{DynamicResource MahApps.Styles.Button.Accent}"
                                 Background="IndianRed"
                                 Width="120"/>
@@ -124,7 +126,7 @@
             </mah:Flyout>
         </mah:FlyoutsControl>
 
-        <Grid Margin="20">
+        <Grid Margin="20" Panel.ZIndex="0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*"/>
                 <ColumnDefinition Width="20"/>
@@ -182,7 +184,8 @@
                         <Label Content="Current Roles:" Margin="0,10,0,0"/>
                         <ListBox ItemsSource="{Binding SelectedUserRoles}" 
                                  Height="80" 
-                                 Margin="0,5,0,0">
+                                 Margin="0,5,0,0"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <Grid>
@@ -196,6 +199,7 @@
                                         <Button Grid.Column="1" 
                                                 Content="Remove" 
                                                 FontSize="10"
+                                                Margin="5,0,0,0"
                                                 Command="{Binding DataContext.RemoveRoleCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                                 CommandParameter="{Binding}"/>
                                     </Grid>
@@ -220,7 +224,8 @@
 
                 <Button Content="Reset Password" 
                         Margin="0,20,0,0" 
-                        Command="{Binding ResetPasswordCommand}"/>
+                        Command="{Binding ResetPasswordCommand}"
+                        Style="{DynamicResource MahApps.Styles.Button.Danger}"/>
             </StackPanel>
         </Grid>
     </Grid>
