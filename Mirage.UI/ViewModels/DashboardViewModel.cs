@@ -12,7 +12,6 @@ using System.Windows.Media;
 
 namespace Mirage.UI.ViewModels;
 
-// A new class to represent a single dashboard widget
 public partial class DashboardItem : ObservableObject
 {
     [ObservableProperty]
@@ -30,26 +29,12 @@ public partial class DashboardItem : ObservableObject
     [ObservableProperty]
     private Type _targetView;
 
-    [ObservableProperty]
-    private string? _subtitle;
-
-    [ObservableProperty]
-    private string? _trendIcon;
-
-    [ObservableProperty]
-    private Brush _trendColor;
-
-    [ObservableProperty]
-    private bool _hasTrend;
-
     public DashboardItem(string label, string icon, Brush accentColor, Type targetView)
     {
         _label = label;
         _icon = icon;
         _accentColor = accentColor;
         _targetView = targetView;
-        _trendColor = Brushes.Gray;
-        _hasTrend = false;
     }
 }
 
@@ -61,19 +46,6 @@ public partial class DashboardViewModel : ObservableObject
     [ObservableProperty]
     private bool _isLoading;
 
-    [ObservableProperty]
-    private DateTime _lastUpdated;
-
-    // Keep individual properties for backward compatibility if needed
-    [ObservableProperty]
-    private int _pendingHandoversCount;
-
-    [ObservableProperty]
-    private int _unresolvedBreakdownsCount;
-
-    [ObservableProperty]
-    private int _pendingDailyTasksCount;
-
     public ObservableCollection<DashboardItem> DashboardItems { get; } = new();
 
     public DashboardViewModel()
@@ -81,7 +53,6 @@ public partial class DashboardViewModel : ObservableObject
         _apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
         if (string.IsNullOrEmpty(AuthToken))
         {
-            // Fallback to get token from another ViewModel if not set directly
             AuthToken = UserManagementViewModel.AuthToken;
         }
 
@@ -105,24 +76,13 @@ public partial class DashboardViewModel : ObservableObject
         {
             var summary = await _apiClient.GetDashboardSummaryAsync(AuthToken);
 
-            // Update both individual properties and dashboard items for flexibility
-            PendingHandoversCount = summary.PendingHandoversCount;
-            UnresolvedBreakdownsCount = summary.UnresolvedBreakdownsCount;
-            PendingDailyTasksCount = summary.PendingDailyTasksCount;
-
-            // Update the counts on the existing dashboard items
+            // Update dashboard items - UI will auto-update due to ObservableObject
             if (DashboardItems.Count >= 3)
             {
                 DashboardItems[0].Count = summary.PendingHandoversCount;
                 DashboardItems[1].Count = summary.UnresolvedBreakdownsCount;
                 DashboardItems[2].Count = summary.PendingDailyTasksCount;
-
-                // Optional: Add trend indicators based on previous data
-                // You could implement logic here to compare with previous values
-                // and set trend icons (↑ ↓) and colors (Green/Red)
             }
-
-            LastUpdated = DateTime.Now;
         }
         catch (Exception ex)
         {

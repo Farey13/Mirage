@@ -74,6 +74,7 @@ public partial class MachineBreakdownViewModel : ObservableObject
     public MachineBreakdownViewModel()
     {
         _apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
+   
         MachineNames.Add("Vitros 250");
         MachineNames.Add("Abbott Architect");
         MachineNames.Add("Sysmex XN-1000");
