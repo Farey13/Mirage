@@ -17,6 +17,13 @@ public class MachineBreakdownRepository(IDbConnectionFactory connectionFactory) 
         return await connection.QuerySingleAsync<MachineBreakdown>(sql, breakdown);
     }
 
+    public async Task<int> GetPendingCountAsync()
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = "SELECT COUNT(*) FROM MachineBreakdowns WHERE IsResolved = 0 AND IsActive = 1";
+        return await connection.ExecuteScalarAsync<int>(sql);
+    }
+
     public async Task<IEnumerable<MachineBreakdown>> GetPendingByDateRangeAsync(DateTime startDate, DateTime endDate)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();

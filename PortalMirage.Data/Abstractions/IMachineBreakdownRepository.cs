@@ -13,4 +13,6 @@ public interface IMachineBreakdownRepository
     Task<MachineBreakdown?> GetByIdAsync(int breakdownId); // This was missing
     Task<bool> MarkAsResolvedAsync(int breakdownId, int userId, string resolutionNotes);
     Task<bool> DeactivateAsync(int breakdownId, int userId, string reason); // This is new
+
+    Task<int> GetPendingCountAsync(); // ADD THIS LINE
 }

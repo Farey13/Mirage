@@ -3,11 +3,110 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:Mirage.UI.Views"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
+             xmlns:views="clr-namespace:Mirage.UI.Views"
+             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
-    <Grid>
-        <TextBlock Text="Dashboard Page" FontSize="48" FontWeight="Bold" 
-               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+             d:DesignHeight="600" d:DesignWidth="1000">
+
+    <UserControl.DataContext>
+        <viewModels:DashboardViewModel/>
+    </UserControl.DataContext>
+
+    <i:Interaction.Triggers>
+        <i:EventTrigger EventName="Loaded">
+            <i:InvokeCommandAction Command="{Binding LoadSummaryAsyncCommand}" />
+        </i:EventTrigger>
+    </i:Interaction.Triggers>
+
+    <UserControl.Resources>
+        <Style x:Key="DashboardWidgetStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource MahApps.Brushes.Control.Background}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource MahApps.Brushes.Control.Border}" />
+            <Setter Property="Foreground" Value="{DynamicResource MahApps.Brushes.Text}" />
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="25"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="2" Direction="270" Color="#CCCCCC" Opacity="0.4" BlurRadius="5"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource MahApps.Brushes.Accent}"/>
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource MahApps.Brushes.Gray9}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource MahApps.Brushes.Gray7}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Dashboard" FontSize="36" FontWeight="Light" Margin="0,0,0,20"/>
+
+        <mah:ProgressRing Grid.Row="1" IsActive="{Binding IsLoading}" Panel.ZIndex="1"/>
+
+        <UniformGrid Grid.Row="1" Columns="3" Rows="1" Margin="0,10,0,0">
+            <UniformGrid.Style>
+                <Style TargetType="UniformGrid">
+                    <Setter Property="Visibility" Value="Visible"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </UniformGrid.Style>
+
+            <Button Style="{StaticResource DashboardWidgetStyle}" Margin="10"
+                    Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
+                    CommandParameter="{x:Type views:HandoverView}">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="&#xE8AB;" FontFamily="Segoe MDL2 Assets" FontSize="32" HorizontalAlignment="Center" Foreground="{DynamicResource MahApps.Brushes.Accent}"/>
+                    <TextBlock Text="{Binding PendingHandoversCount}" FontSize="72" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                    <TextBlock Text="Pending Handovers" FontSize="16" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+
+            <Button Style="{StaticResource DashboardWidgetStyle}" Margin="10"
+                    Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
+                    CommandParameter="{x:Type views:MachineBreakdownView}">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="&#xE99A;" FontFamily="Segoe MDL2 Assets" FontSize="32" HorizontalAlignment="Center" Foreground="{DynamicResource MahApps.Brushes.Accent}"/>
+                    <TextBlock Text="{Binding UnresolvedBreakdownsCount}" FontSize="72" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                    <TextBlock Text="Unresolved Breakdowns" FontSize="16" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+
+            <Button Style="{StaticResource DashboardWidgetStyle}" Margin="10"
+                    Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
+                    CommandParameter="{x:Type views:DailyTaskLogView}">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="&#xECC8;" FontFamily="Segoe MDL2 Assets" FontSize="32" HorizontalAlignment="Center" Foreground="{DynamicResource MahApps.Brushes.Accent}"/>
+                    <TextBlock Text="{Binding PendingDailyTasksCount}" FontSize="72" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                    <TextBlock Text="Pending Daily Tasks" FontSize="16" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+
+        </UniformGrid>
     </Grid>
 </UserControl>

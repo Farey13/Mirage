@@ -13,4 +13,6 @@ public interface IHandoverRepository
     Task<Handover?> GetByIdAsync(int handoverId);
     Task<bool> MarkAsReceivedAsync(int handoverId, int userId);
     Task<bool> DeactivateAsync(int handoverId, int userId, string reason);
+
+    Task<int> GetPendingCountAsync(); // ADD THIS LINE
 }

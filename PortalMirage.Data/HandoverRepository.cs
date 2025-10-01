@@ -19,7 +19,12 @@ public class HandoverRepository(IDbConnectionFactory connectionFactory) : IHando
                            """;
         return await connection.QuerySingleAsync<Handover>(sql, handover);
     }
-
+    public async Task<int> GetPendingCountAsync()
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = "SELECT COUNT(*) FROM Handovers WHERE IsReceived = 0 AND IsActive = 1";
+        return await connection.ExecuteScalarAsync<int>(sql);
+    }
     public async Task<IEnumerable<Handover>> GetPendingAsync(DateTime startDate, DateTime endDate)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
