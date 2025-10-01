@@ -6,6 +6,7 @@
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
              xmlns:views="clr-namespace:Mirage.UI.Views"
+             xmlns:converters="clr-namespace:Mirage.UI.Converters"
              xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="1000">
@@ -21,92 +22,201 @@
     </i:Interaction.Triggers>
 
     <UserControl.Resources>
-        <Style x:Key="DashboardWidgetStyle" TargetType="Button">
-            <Setter Property="Background" Value="{DynamicResource MahApps.Brushes.Control.Background}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource MahApps.Brushes.Control.Border}" />
-            <Setter Property="Foreground" Value="{DynamicResource MahApps.Brushes.Text}" />
+        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+        <converters:StringIsNullOrEmptyToVisibilityConverter x:Key="StringIsNullOrEmptyToVisibilityConverter"/>
+
+        <Style x:Key="ModernCardStyle" TargetType="Button">
+            <Setter Property="BorderBrush" Value="{DynamicResource MahApps.Brushes.Accent}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="25"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Margin" Value="10"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="border" 
-                                Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="5">
+                                CornerRadius="12"
+                                SnapsToDevicePixels="True">
                             <Border.Effect>
-                                <DropShadowEffect ShadowDepth="2" Direction="270" Color="#CCCCCC" Opacity="0.4" BlurRadius="5"/>
+                                <DropShadowEffect ShadowDepth="4" Direction="270" Opacity="0.15" BlurRadius="12" RenderingBias="Quality"/>
                             </Border.Effect>
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="{DynamicResource MahApps.Brushes.ThemeBackground.Color}" Offset="0"/>
+                                    <GradientStop Color="{DynamicResource MahApps.Brushes.Gray8.Color}" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <Border Grid.Row="0" Background="{TemplateBinding BorderBrush}" 
+                                        CornerRadius="8,8,0,0" Height="4" Margin="-1,-1,-1,0"/>
+
+                                <ContentPresenter Grid.Row="1" 
+                                                  HorizontalAlignment="Stretch" 
+                                                  VerticalAlignment="Center"
+                                                  Margin="0,15,0,10"/>
+
+                                <Border Grid.Row="2" Background="#10000000" CornerRadius="0,0,8,8" 
+                                        Height="30" Margin="-1,0,-1,-1">
+                                    <TextBlock Text="View Details" 
+                                               Foreground="{TemplateBinding BorderBrush}"
+                                               FontSize="11" 
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Border>
+                            </Grid>
                         </Border>
+
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource MahApps.Brushes.Accent}"/>
-                                <Setter TargetName="border" Property="Background" Value="{DynamicResource MahApps.Brushes.Gray9}"/>
+                                <Setter TargetName="border" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="1.02" ScaleY="1.02"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="border" Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="8" Direction="270" Opacity="0.25" BlurRadius="16"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="border" Property="BorderThickness" Value="2"/>
                             </Trigger>
+
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{DynamicResource MahApps.Brushes.Gray7}"/>
+                                <Setter TargetName="border" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.98" ScaleY="0.98"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="border" Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="{DynamicResource MahApps.Brushes.Gray7.Color}" Offset="0"/>
+                                            <GradientStop Color="{DynamicResource MahApps.Brushes.Gray9.Color}" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="CountTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="42"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource MahApps.Brushes.Text}"/>
+        </Style>
+
+        <Style x:Key="LabelTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource MahApps.Brushes.Gray6}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
     </UserControl.Resources>
 
-    <Grid Margin="20">
+    <Grid Margin="25">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Dashboard" FontSize="36" FontWeight="Light" Margin="0,0,0,20"/>
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,30">
+            <TextBlock Text="&#xE80F;" 
+                       FontFamily="Segoe MDL2 Assets" 
+                       FontSize="32" 
+                       Foreground="{DynamicResource MahApps.Brushes.Accent}"
+                       VerticalAlignment="Center"
+                       Margin="0,0,15,0"/>
+            <TextBlock Text="Dashboard Overview" 
+                       FontSize="28" 
+                       FontWeight="Light" 
+                       VerticalAlignment="Center"/>
+        </StackPanel>
 
-        <mah:ProgressRing Grid.Row="1" IsActive="{Binding IsLoading}" Panel.ZIndex="1"/>
+        <TextBlock Grid.Row="1" 
+                   Text="{Binding LastUpdated, StringFormat='Last updated: {0:MMM dd, yyyy HH:mm}'}"
+                   FontSize="12"
+                   Foreground="{DynamicResource MahApps.Brushes.Gray6}"
+                   Margin="0,0,0,20"
+                   HorizontalAlignment="Left"/>
 
-        <UniformGrid Grid.Row="1" Columns="3" Rows="1" Margin="0,10,0,0">
-            <UniformGrid.Style>
-                <Style TargetType="UniformGrid">
-                    <Setter Property="Visibility" Value="Visible"/>
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsLoading}" Value="True">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </UniformGrid.Style>
+        <mah:ProgressRing Grid.Row="2" 
+                          IsActive="{Binding IsLoading}" 
+                          Panel.ZIndex="1"
+                          Width="60" 
+                          Height="60"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"/>
 
-            <Button Style="{StaticResource DashboardWidgetStyle}" Margin="10"
-                    Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
-                    CommandParameter="{x:Type views:HandoverView}">
-                <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="&#xE8AB;" FontFamily="Segoe MDL2 Assets" FontSize="32" HorizontalAlignment="Center" Foreground="{DynamicResource MahApps.Brushes.Accent}"/>
-                    <TextBlock Text="{Binding PendingHandoversCount}" FontSize="72" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,10,0,0"/>
-                    <TextBlock Text="Pending Handovers" FontSize="16" HorizontalAlignment="Center"/>
-                </StackPanel>
-            </Button>
+        <ItemsControl Grid.Row="2" 
+                      ItemsSource="{Binding DashboardItems}"
+                      Visibility="{Binding IsLoading, Converter={StaticResource InverseBooleanConverter}}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
 
-            <Button Style="{StaticResource DashboardWidgetStyle}" Margin="10"
-                    Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
-                    CommandParameter="{x:Type views:MachineBreakdownView}">
-                <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="&#xE99A;" FontFamily="Segoe MDL2 Assets" FontSize="32" HorizontalAlignment="Center" Foreground="{DynamicResource MahApps.Brushes.Accent}"/>
-                    <TextBlock Text="{Binding UnresolvedBreakdownsCount}" FontSize="72" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,10,0,0"/>
-                    <TextBlock Text="Unresolved Breakdowns" FontSize="16" HorizontalAlignment="Center"/>
-                </StackPanel>
-            </Button>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Button Style="{StaticResource ModernCardStyle}"
+                            Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
+                            CommandParameter="{Binding TargetView}">
+                        <Button.Resources>
+                            <Style TargetType="Border" x:Key="IconBorderStyle">
+                                <Setter Property="Background" Value="{Binding AccentColor}"/>
+                                <Setter Property="Width" Value="48"/>
+                                <Setter Property="Height" Value="48"/>
+                                <Setter Property="CornerRadius" Value="24"/>
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                            </Style>
+                        </Button.Resources>
 
-            <Button Style="{StaticResource DashboardWidgetStyle}" Margin="10"
-                    Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
-                    CommandParameter="{x:Type views:DailyTaskLogView}">
-                <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="&#xECC8;" FontFamily="Segoe MDL2 Assets" FontSize="32" HorizontalAlignment="Center" Foreground="{DynamicResource MahApps.Brushes.Accent}"/>
-                    <TextBlock Text="{Binding PendingDailyTasksCount}" FontSize="72" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,10,0,0"/>
-                    <TextBlock Text="Pending Daily Tasks" FontSize="16" HorizontalAlignment="Center"/>
-                </StackPanel>
-            </Button>
+                        <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                            <Border Style="{StaticResource IconBorderStyle}">
+                                <TextBlock Text="{Binding Icon}" 
+                                           FontFamily="Segoe MDL2 Assets" 
+                                           FontSize="20" 
+                                           Foreground="White"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Border>
 
-        </UniformGrid>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,5">
+                                <TextBlock Text="{Binding Count}" Style="{StaticResource CountTextStyle}"/>
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding Label}" Style="{StaticResource LabelTextStyle}"/>
+
+                            <TextBlock Text="{Binding Subtitle}" 
+                                       FontSize="11"
+                                       Foreground="{DynamicResource MahApps.Brushes.Gray5}"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,5,0,0"
+                                       Visibility="{Binding Subtitle, Converter={StaticResource StringIsNullOrEmptyToVisibilityConverter}, ConverterParameter=Inverse}"/>
+                        </StackPanel>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
     </Grid>
 </UserControl>
