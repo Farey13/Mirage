@@ -163,17 +163,6 @@
             </Grid>
 
             <StackPanel Grid.Column="2">
-                <StackPanel.Style>
-                    <Style TargetType="StackPanel">
-                        <Setter Property="IsEnabled" Value="True"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding SelectedUser}" Value="{x:Null}">
-                                <Setter Property="IsEnabled" Value="False"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </StackPanel.Style>
-
                 <GroupBox Header="Manage Selected User">
                     <StackPanel Margin="10">
                         <TextBlock Text="{Binding SelectedUser.FullName, FallbackValue='No user selected', TargetNullValue='No user selected'}" 
@@ -218,6 +207,7 @@
                                   Margin="0,0,0,10"/>
                         <Button Content="Assign Role" 
                                 Command="{Binding AssignRoleCommand}" 
+                                IsEnabled="{Binding CanAssignRole}"
                                 Style="{DynamicResource MahApps.Styles.Button.Accent}"/>
                     </StackPanel>
                 </GroupBox>
@@ -225,6 +215,7 @@
                 <Button Content="Reset Password" 
                         Margin="0,20,0,0" 
                         Command="{Binding ResetPasswordCommand}"
+                        IsEnabled="{Binding CanManageSelectedUser}"
                         Style="{DynamicResource MahApps.Styles.Button.Danger}"/>
             </StackPanel>
         </Grid>

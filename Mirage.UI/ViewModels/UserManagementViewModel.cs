@@ -20,10 +20,13 @@ public partial class UserManagementViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanAssignRole))]
     [NotifyPropertyChangedFor(nameof(CanManageSelectedUser))]
+    [NotifyCanExecuteChangedFor(nameof(AssignRoleCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ResetPasswordCommand))]
     private UserResponse? _selectedUser;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanAssignRole))]
+    [NotifyCanExecuteChangedFor(nameof(AssignRoleCommand))]
     private RoleResponse? _selectedRoleToAssign;
 
     // Properties for the "Create User" Flyout
