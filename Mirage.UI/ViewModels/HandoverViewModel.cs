@@ -81,7 +81,7 @@ public partial class HandoverViewModel : ObservableObject
     public HandoverViewModel()
     {
         _apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
-        SearchCommand.Execute(null);
+               SearchCommand.Execute(null);
     }
 
     [RelayCommand]
