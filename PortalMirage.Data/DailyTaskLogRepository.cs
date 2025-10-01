@@ -71,6 +71,13 @@ public class DailyTaskLogRepository(IDbConnectionFactory connectionFactory) : ID
         });
     }
 
+    public async Task<int> GetPendingCountForDateAsync(DateTime date)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = "SELECT COUNT(*) FROM DailyTaskLogs WHERE LogDate = @Date AND Status = 'Pending'";
+        return await connection.ExecuteScalarAsync<int>(sql, new { Date = date.Date });
+    }
+
     public async Task<DailyTaskLog?> OverrideLockAsync(long logId, DateTime overrideUntil, string reason, int adminUserId)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();

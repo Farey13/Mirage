@@ -166,4 +166,8 @@ public interface IPortalMirageApi
 
     [Post("/api/admin/users/reset-password")] // ADD THIS
     System.Threading.Tasks.Task ResetPasswordAsync([Header("Authorization")] string token, [Body] ResetPasswordRequest request);
+
+    // === Dashboard ===
+    [Get("/api/dashboard/summary")] // ADD THIS ENDPOINT
+    System.Threading.Tasks.Task<DashboardSummaryDto> GetDashboardSummaryAsync([Header("Authorization")] string token);
 }

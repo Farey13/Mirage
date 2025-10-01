@@ -104,6 +104,8 @@ builder.Services.AddScoped<PortalMirage.Business.Abstractions.IDailyTaskLogServi
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IRepeatSampleLogService, PortalMirage.Business.RepeatSampleLogService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IShiftService, PortalMirage.Business.ShiftService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IAdminListService, PortalMirage.Business.AdminListService>();
+builder.Services.AddScoped<PortalMirage.Business.Abstractions.IDashboardService, PortalMirage.Business.DashboardService>(); // ADD THIS LINE
+
 
 // ... (all your other services)
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IRoleService, PortalMirage.Business.RoleService>();
