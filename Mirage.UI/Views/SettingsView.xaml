@@ -3,11 +3,78 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:Mirage.UI.Views"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
+             xmlns:converters="clr-namespace:Mirage.UI.Converters"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
-    <Grid>
-        <TextBlock Text="Settings Page" FontSize="48" FontWeight="Bold" 
-               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-    </Grid>
+             d:DesignHeight="600" d:DesignWidth="800">
+
+    <UserControl.DataContext>
+        <viewModels:SettingsViewModel/>
+    </UserControl.DataContext>
+
+    <UserControl.Resources>
+        <converters:ThemeToBooleanConverter x:Key="ThemeToBooleanConverter"/>
+    </UserControl.Resources>
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="30">
+            <TextBlock Text="Settings" FontSize="36" FontWeight="Light" Margin="0,0,0,25"/>
+
+            <GroupBox Header="Appearance"
+                      mah:HeaderedControlHelper.HeaderFontSize="18"
+                      Padding="15">
+                <StackPanel>
+                    <mah:ToggleSwitch OnContent="Dark" OffContent="Light"
+                                      IsOn="{Binding SelectedTheme, Converter={StaticResource ThemeToBooleanConverter}}"
+                                      Margin="0,5,0,20"/>
+
+                    <Label Content="Accent Color"/>
+                    <ListBox ItemsSource="{Binding AccentColors}"
+                             SelectedItem="{Binding SelectedAccent}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="5">
+                                    <Rectangle Width="20" Height="20" Fill="{Binding ColorBrush}" Margin="0,0,10,0"/>
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </StackPanel>
+            </GroupBox>
+
+            <!-- REPLACED: Font Size GroupBox with enabled version -->
+            <GroupBox Header="Font Size"
+                      mah:HeaderedControlHelper.HeaderFontSize="18"
+                      Padding="15" Margin="0,20,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Slider Grid.Column="0" 
+                            Minimum="12" Maximum="18"
+                            TickFrequency="1" IsSnapToTickEnabled="True"
+                            Value="{Binding AppFontSize, Mode=TwoWay}"/>
+
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding AppFontSize}"
+                               FontWeight="Bold"
+                               Width="30"
+                               TextAlignment="Center"
+                               VerticalAlignment="Center"
+                               Margin="10,0,0,0"/>
+                </Grid>
+            </GroupBox>
+
+        </StackPanel>
+    </ScrollViewer>
 </UserControl>

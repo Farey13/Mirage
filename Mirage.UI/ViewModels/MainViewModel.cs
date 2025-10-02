@@ -2,8 +2,10 @@
 using CommunityToolkit.Mvvm.Input;
 using Mirage.UI.Views;
 using System;
-using System.Collections.ObjectModel;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Windows;
+
 namespace Mirage.UI.ViewModels;
 
 public partial class MainViewModel : ObservableObject
@@ -11,10 +13,14 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private object? _currentView;
 
-    private readonly Dictionary<Type, ObservableObject> _viewModelInstances = new();
-
     [ObservableProperty]
     private NavigationItem? _selectedMenuItem;
+
+    // ADDED: New property for the bottom menu items (Settings)
+    [ObservableProperty]
+    private NavigationItem? _selectedOptionsMenuItem;
+
+    private readonly Dictionary<Type, ObservableObject> _viewModelInstances = new();
 
     public ObservableCollection<NavigationItem> MenuItems { get; } = new();
     public ObservableCollection<NavigationItem> OptionsMenuItems { get; } = new();
@@ -34,25 +40,51 @@ public partial class MainViewModel : ObservableObject
         MenuItems.Add(new NavigationItem("📈", "Reports", typeof(ReportsViewModel)));
         MenuItems.Add(new NavigationItem("🛠️", "Admin", typeof(AdminViewModel)));
 
+        // ADDED: Options menu items (bottom menu)
         OptionsMenuItems.Add(new NavigationItem("⚙️", "Settings", typeof(SettingsViewModel)));
 
         // Set the default starting page
         SelectedMenuItem = MenuItems[0];
     }
 
-    // This method is called whenever a menu item is clicked.
+    // This method handles clicks on the TOP menu items
     partial void OnSelectedMenuItemChanged(NavigationItem? value)
     {
-        if (value?.ViewType != null)
+        // When a main item is selected, clear the options item selection
+        if (value != null)
         {
-            // This is the simple and correct way: create a new instance of the View.
-            CurrentView = Activator.CreateInstance(value.ViewType);
+            SelectedOptionsMenuItem = null;
+            NavigateToView(value);
+        }
+    }
 
-            // If the view we just created is the Dashboard, we tell its new ViewModel to load its data.
-            // This ensures the dashboard refreshes every time you navigate to it.
-            if (CurrentView is DashboardView dashboardView && dashboardView.DataContext is DashboardViewModel dvm)
+    // ADDED: This method handles clicks on the BOTTOM menu items
+    partial void OnSelectedOptionsMenuItemChanged(NavigationItem? value)
+    {
+        // When an options item is selected, clear the main item selection
+        if (value != null)
+        {
+            SelectedMenuItem = null;
+            NavigateToView(value);
+        }
+    }
+
+    // REFACTORED: Unified navigation logic for both menu types
+    private void NavigateToView(NavigationItem item)
+    {
+        if (_viewModelInstances.TryGetValue(item.DestinationViewModel, out var vm))
+        {
+            // Create a new instance of the View
+            if (Activator.CreateInstance(item.ViewType) is FrameworkElement view)
             {
-                // We use _ = to call the async method without waiting for it to finish.
+                // Set its DataContext to our persistent ViewModel
+                view.DataContext = vm;
+                CurrentView = view;
+            }
+
+            // If the new view is the dashboard, tell its ViewModel to load data.
+            if (vm is DashboardViewModel dvm)
+            {
                 _ = dvm.LoadSummaryAsync();
             }
         }
@@ -65,6 +97,7 @@ public partial class MainViewModel : ObservableObject
         {
             CurrentView = Activator.CreateInstance(viewType);
             SelectedMenuItem = null;
+            SelectedOptionsMenuItem = null;
         }
     }
 }

@@ -21,7 +21,8 @@
         IsPaneOpen="True"
         ItemsSource="{Binding MenuItems}"
         OptionsItemsSource="{Binding OptionsMenuItems}"
-        SelectedItem="{Binding SelectedMenuItem}">
+        SelectedItem="{Binding SelectedMenuItem}"
+        SelectedOptionsItem="{Binding SelectedOptionsMenuItem}">
 
         <mah:HamburgerMenu.ItemTemplate>
             <DataTemplate>
