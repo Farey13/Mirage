@@ -6,19 +6,12 @@
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
              xmlns:converters="clr-namespace:Mirage.UI.Converters"
-             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="1000">
 
     <UserControl.DataContext>
         <viewModels:DashboardViewModel/>
     </UserControl.DataContext>
-
-    <i:Interaction.Triggers>
-        <i:EventTrigger EventName="Loaded">
-            <i:InvokeCommandAction Command="{Binding LoadSummaryAsyncCommand}" />
-        </i:EventTrigger>
-    </i:Interaction.Triggers>
 
     <UserControl.Resources>
         <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>

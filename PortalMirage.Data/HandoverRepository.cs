@@ -22,7 +22,11 @@ public class HandoverRepository(IDbConnectionFactory connectionFactory) : IHando
     public async Task<int> GetPendingCountAsync()
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = "SELECT COUNT(*) FROM Handovers WHERE IsReceived = 0 AND IsActive = 1";
+        // UPDATED SQL: Added a date filter for today
+        const string sql = @"
+            SELECT COUNT(*) FROM Handovers 
+            WHERE IsReceived = 0 AND IsActive = 1 
+            AND GivenDateTime >= CAST(GETDATE() AS DATE) AND GivenDateTime < DATEADD(day, 1, CAST(GETDATE() AS DATE))";
         return await connection.ExecuteScalarAsync<int>(sql);
     }
     public async Task<IEnumerable<Handover>> GetPendingAsync(DateTime startDate, DateTime endDate)
@@ -47,6 +51,7 @@ public class HandoverRepository(IDbConnectionFactory connectionFactory) : IHando
         const string sql = "SELECT * FROM Handovers WHERE HandoverID = @HandoverId";
         return await connection.QuerySingleOrDefaultAsync<Handover>(sql, new { HandoverId = handoverId });
     }
+
 
     public async Task<bool> MarkAsReceivedAsync(int handoverId, int userId)
     {
