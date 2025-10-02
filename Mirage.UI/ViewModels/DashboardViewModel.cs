@@ -66,6 +66,7 @@ public partial class DashboardViewModel : ObservableObject
         DashboardItems.Add(new DashboardItem("Pending Handovers", "\uE8AB", new SolidColorBrush((Color)ColorConverter.ConvertFromString("#007AFF")), typeof(HandoverView)));
         DashboardItems.Add(new DashboardItem("Unresolved Breakdowns", "\uE99A", new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF9500")), typeof(MachineBreakdownView)));
         DashboardItems.Add(new DashboardItem("Pending Daily Tasks", "\uECC8", new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF3B30")), typeof(DailyTaskLogView)));
+        DashboardItems.Add(new DashboardItem("Pending Samples", "\uE728", new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34C759")), typeof(SampleStorageView))); // ADD THIS LINE
     }
 
     public async Task LoadSummaryAsync()
@@ -78,11 +79,12 @@ public partial class DashboardViewModel : ObservableObject
             var summary = await _apiClient.GetDashboardSummaryAsync(AuthToken);
 
             // Update dashboard items - UI will auto-update due to ObservableObject
-            if (DashboardItems.Count >= 3)
+            if (DashboardItems.Count >= 4) // Update this check from 3 to 4
             {
                 DashboardItems[0].Count = summary.PendingHandoversCount;
                 DashboardItems[1].Count = summary.UnresolvedBreakdownsCount;
                 DashboardItems[2].Count = summary.PendingDailyTasksCount;
+                DashboardItems[3].Count = summary.PendingSamplesCount; // Add this line
             }
         }
         catch (Exception ex)

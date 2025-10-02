@@ -13,4 +13,6 @@ public interface ISampleStorageRepository
     Task<SampleStorage?> GetByIdAsync(int storageId);
     Task<bool> MarkAsDoneAsync(int storageId, int userId);
     Task<bool> DeactivateAsync(int storageId, int userId, string reason); // This is the corrected signature
+
+    Task<int> GetPendingCountAsync(); // ADD THIS LINE
 }
