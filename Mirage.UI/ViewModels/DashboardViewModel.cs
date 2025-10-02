@@ -57,6 +57,8 @@ public partial class DashboardViewModel : ObservableObject
         }
 
         InitializeDashboardItems();
+
+        // The event subscription and initial load call are REMOVED from here.
     }
 
     private void InitializeDashboardItems()
@@ -66,8 +68,7 @@ public partial class DashboardViewModel : ObservableObject
         DashboardItems.Add(new DashboardItem("Pending Daily Tasks", "\uECC8", new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF3B30")), typeof(DailyTaskLogView)));
     }
 
-    [RelayCommand]
-    private async Task LoadSummaryAsync()
+    public async Task LoadSummaryAsync()
     {
         if (string.IsNullOrEmpty(AuthToken)) return;
 
