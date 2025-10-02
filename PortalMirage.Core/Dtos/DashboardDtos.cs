@@ -3,5 +3,6 @@
 public record DashboardSummaryDto(
     int PendingHandoversCount,
     int UnresolvedBreakdownsCount,
-    int PendingDailyTasksCount
+    int PendingDailyTasksCount,  
+    int PendingSamplesCount // ADD THIS LINE
 );

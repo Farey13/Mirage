@@ -85,6 +85,8 @@ builder.Services.AddScoped<PortalMirage.Data.Abstractions.IRepeatSampleLogReposi
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IShiftRepository, PortalMirage.Data.ShiftRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IAdminListRepository, PortalMirage.Data.AdminListRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IAuditLogRepository, PortalMirage.Data.AuditLogRepository>(); // ADDED IN CORRECT PLACE
+builder.Services.AddScoped<PortalMirage.Data.Abstractions.ISampleStorageRepository, PortalMirage.Data.SampleStorageRepository>();
+
 
 // ... (all your other repositories)
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IRoleRepository, PortalMirage.Data.RoleRepository>();

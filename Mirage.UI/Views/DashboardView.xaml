@@ -148,7 +148,7 @@
                       Visibility="{Binding IsLoading, Converter={StaticResource InverseBooleanConverter}}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
-                    <UniformGrid Columns="3" HorizontalAlignment="Stretch"/>
+                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center"/>
                 </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
 

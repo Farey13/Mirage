@@ -18,6 +18,18 @@ public class SampleStorageRepository(IDbConnectionFactory connectionFactory) : I
         return await connection.QuerySingleAsync<SampleStorage>(sql, sampleStorage);
     }
 
+    public async Task<int> GetPendingCountAsync()
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = @"
+            SELECT COUNT(*) FROM SampleStorage 
+            WHERE IsTestDone = 0 
+              AND IsActive = 1 
+              AND StorageDateTime >= CAST(GETDATE() AS DATE) 
+              AND StorageDateTime < DATEADD(day, 1, CAST(GETDATE() AS DATE))";
+        return await connection.ExecuteScalarAsync<int>(sql);
+    }
+
     public async Task<IEnumerable<SampleStorage>> GetPendingByDateRangeAsync(DateTime startDate, DateTime endDate)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
