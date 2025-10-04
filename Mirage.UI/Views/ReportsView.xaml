@@ -3,11 +3,79 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:Mirage.UI.Views"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
-    <Grid>
-        <TextBlock Text="Reports Page" FontSize="48" FontWeight="Bold" 
-               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+             d:DesignHeight="700" d:DesignWidth="1000">
+
+    <UserControl.DataContext>
+        <viewModels:ReportsViewModel/>
+    </UserControl.DataContext>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Reporting Engine" FontSize="36" FontWeight="Light" Margin="0,0,0,20"/>
+
+        <Border Grid.Row="1" Background="{DynamicResource MahApps.Brushes.Gray9}" CornerRadius="5" Padding="15" Margin="0,0,0,15">
+            <StackPanel>
+                <TextBlock Text="Machine Breakdown Report" FontSize="18" FontWeight="Bold"/>
+                <Separator Margin="0,10"/>
+                <StackPanel Orientation="Horizontal">
+                    <Label Content="Date Range:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <DatePicker SelectedDate="{Binding StartDate}" Margin="5,0"/>
+                    <Label Content="to" VerticalAlignment="Center"/>
+                    <DatePicker SelectedDate="{Binding EndDate}" Margin="5,0"/>
+
+                    <ComboBox ItemsSource="{Binding MachineNames}" SelectedItem="{Binding SelectedMachineName}"
+                              mah:TextBoxHelper.Watermark="All Machines"
+                              Width="180" Margin="20,0,0,0"/>
+                    <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}"
+                              mah:TextBoxHelper.Watermark="All Statuses"
+                              Width="150" Margin="5,0,0,0"/>
+
+                    <Button Content="Generate Report" Command="{Binding GenerateMachineBreakdownReportCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}" Margin="20,0,0,0"/>
+                    <Button Content="Clear Filters" Command="{Binding ClearFiltersCommand}" Margin="5,0,0,0"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <mah:ProgressRing IsActive="{Binding IsLoading}" Panel.ZIndex="1"/>
+
+            <TextBlock Text="Generate a report to see the results here."
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       FontSize="16" Foreground="{DynamicResource MahApps.Brushes.Gray5}"
+                       FontStyle="Italic">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding MachineBreakdownReportData.Count}" Value="0">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
+            <DataGrid ItemsSource="{Binding MachineBreakdownReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Reported On" Binding="{Binding ReportedDateTime, StringFormat='g'}" Width="1.5*"/>
+                    <DataGridTextColumn Header="Machine" Binding="{Binding MachineName}" Width="1.5*"/>
+                    <DataGridTextColumn Header="Reason" Binding="{Binding BreakdownReason}" Width="2*"/>
+                    <DataGridTextColumn Header="Reported By" Binding="{Binding ReportedByUsername}" Width="*"/>
+                    <DataGridTextColumn Header="Resolved On" Binding="{Binding ResolvedDateTime, StringFormat='g'}" Width="1.5*"/>
+                    <!-- FIXED: Changed 1.S* to 1.5* -->
+                    <DataGridTextColumn Header="Resolved By" Binding="{Binding ResolvedByUsername}" Width="*"/>
+                    <DataGridTextColumn Header="Resolution" Binding="{Binding ResolutionNotes}" Width="2*"/>
+                    <DataGridTextColumn Header="Downtime (Mins)" Binding="{Binding DowntimeMinutes}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
     </Grid>
 </UserControl>

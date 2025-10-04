@@ -147,6 +147,11 @@ public interface IPortalMirageApi
     [Get("/api/admin/lists/types")]
     System.Threading.Tasks.Task<List<string>> GetListTypesAsync([Header("Authorization")] string token);
 
+    // ADD THIS NEW METHOD
+    [Get("/api/admin/lists/{listType}")]
+    System.Threading.Tasks.Task<List<AdminListItemDto>> GetListItemsByTypeAsync([Header("Authorization")] string token, string listType);
+
+
     [Post("/api/admin/lists")]
     System.Threading.Tasks.Task<AdminListItemDto> CreateListItemAsync([Header("Authorization")] string token, [Body] CreateAdminListItemRequest request);
 
@@ -170,4 +175,13 @@ public interface IPortalMirageApi
     // === Dashboard ===
     [Get("/api/dashboard/summary")] // ADD THIS ENDPOINT
     System.Threading.Tasks.Task<DashboardSummaryDto> GetDashboardSummaryAsync([Header("Authorization")] string token);
+
+    // === Reports ===
+    [Get("/api/reports/machine-breakdowns")] // ADD THIS
+    System.Threading.Tasks.Task<List<MachineBreakdownReportDto>> GetMachineBreakdownReportAsync(
+        [Header("Authorization")] string token,
+        [Query] DateTime startDate,
+        [Query] DateTime endDate,
+        [Query] string? machineName,
+        [Query] string? status);
 }

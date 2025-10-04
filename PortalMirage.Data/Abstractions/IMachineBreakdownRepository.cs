@@ -1,4 +1,5 @@
-﻿using PortalMirage.Core.Models;
+﻿using PortalMirage.Core.Dtos;
+using PortalMirage.Core.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -15,4 +16,6 @@ public interface IMachineBreakdownRepository
     Task<bool> DeactivateAsync(int breakdownId, int userId, string reason); // This is new
 
     Task<int> GetPendingCountAsync(); // ADD THIS LINE
+
+    Task<IEnumerable<MachineBreakdownReportDto>> GetReportDataAsync(DateTime startDate, DateTime endDate, string? machineName, string? status); // ADD THIS LINE
 }
