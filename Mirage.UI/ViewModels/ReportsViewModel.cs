@@ -2,7 +2,6 @@
 using CommunityToolkit.Mvvm.Input;
 using Mirage.UI.Services;
 using PortalMirage.Core.Dtos;
-using PortalMirage.Core.Models; // Add this for AdminListItem
 using Refit;
 using System;
 using System.Collections.ObjectModel;
@@ -17,14 +16,30 @@ public partial class ReportsViewModel : ObservableObject
     public static string? AuthToken { get; set; }
     private readonly IPortalMirageApi _apiClient;
 
+    // --- NEW: Report Selection ---
+    [ObservableProperty]
+    private string _selectedReport = "Machine Breakdowns"; // Default to the first report
+
+    public ObservableCollection<string> AvailableReports { get; } = new()
+    {
+        "Machine Breakdowns",
+        "Handover Summary", // We will add the others as we build them
+        "Kit Validation Log"
+    };
+
+    // --- General Report Filters ---
     [ObservableProperty] private DateTime _startDate = DateTime.Today;
     [ObservableProperty] private DateTime _endDate = DateTime.Today;
-    [ObservableProperty] private string? _selectedMachineName;
-    [ObservableProperty] private string? _selectedStatus = "All"; // Default to "All"
 
+    // --- Machine Breakdown Specific Filters ---
+    [ObservableProperty] private string? _selectedMachineName;
+    [ObservableProperty] private string? _selectedStatus = "All";
+
+    // --- Data & State ---
     [ObservableProperty] private bool _isLoading;
     public ObservableCollection<MachineBreakdownReportDto> MachineBreakdownReportData { get; } = new();
 
+    // --- Filter Options ---
     public ObservableCollection<string> MachineNames { get; } = new();
     public ObservableCollection<string> StatusOptions { get; } = new() { "All", "Pending", "Resolved" };
 
@@ -33,20 +48,18 @@ public partial class ReportsViewModel : ObservableObject
         _apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
         if (string.IsNullOrEmpty(AuthToken)) AuthToken = UserManagementViewModel.AuthToken;
 
-        // Call the new async method to load dropdown options from the API
         _ = LoadFilterOptionsAsync();
     }
 
-    private async System.Threading.Tasks.Task LoadFilterOptionsAsync()
+    private async Task LoadFilterOptionsAsync()
     {
         if (string.IsNullOrEmpty(AuthToken)) return;
         try
         {
-            // Fetch the list of machine names from the database
             var machineNameItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "MachineName");
 
             MachineNames.Clear();
-            MachineNames.Add("All"); // Add the "All" option for filtering
+            MachineNames.Add("All");
             foreach (var item in machineNameItems.Select(i => i.ItemValue))
             {
                 MachineNames.Add(item);
@@ -59,11 +72,16 @@ public partial class ReportsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task GenerateMachineBreakdownReport()
+    private async Task GenerateReport()
+    {
+        // This will eventually have a switch statement for different reports
+        await GenerateMachineBreakdownReport();
+    }
+
+    private async Task GenerateMachineBreakdownReport()
     {
         if (string.IsNullOrEmpty(AuthToken)) return;
 
-        // Added validation for the date range
         if (StartDate > EndDate)
         {
             MessageBox.Show("The start date cannot be after the end date.", "Invalid Date Range", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -74,7 +92,6 @@ public partial class ReportsViewModel : ObservableObject
         MachineBreakdownReportData.Clear();
         try
         {
-            // Handle "All" filter option by sending null to the API
             var machineNameFilter = SelectedMachineName == "All" ? null : SelectedMachineName;
             var statusFilter = SelectedStatus == "All" ? null : SelectedStatus;
 
@@ -84,7 +101,6 @@ public partial class ReportsViewModel : ObservableObject
                 MachineBreakdownReportData.Add(item);
             }
 
-            // Added better user feedback
             if (!MachineBreakdownReportData.Any())
             {
                 MessageBox.Show("No records found for the selected criteria.", "Report Generated", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -103,7 +119,6 @@ public partial class ReportsViewModel : ObservableObject
     [RelayCommand]
     private void ClearFilters()
     {
-        // Now resets dates as well
         StartDate = DateTime.Today;
         EndDate = DateTime.Today;
         SelectedMachineName = null;
