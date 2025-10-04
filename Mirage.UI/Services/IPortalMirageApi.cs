@@ -202,5 +202,13 @@ public interface IPortalMirageApi
         [Query] string? priority,
         [Query] string? status);
 
-
+    [Get("/api/reports/repeat-samples")] // ADD THIS NEW METHOD
+    System.Threading.Tasks.Task<List<RepeatSampleReportDto>> GetRepeatSampleReportAsync(
+        [Header("Authorization")] string token,
+        [Query] DateTime startDate,
+        [Query] DateTime endDate,
+        [Query] string? reason,
+        [Query] string? department);
 }
+
+

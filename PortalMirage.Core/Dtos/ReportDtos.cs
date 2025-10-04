@@ -59,3 +59,13 @@ public record KitValidationReportDto(
     string? Comments,
     string ValidatedByUsername
 );
+
+public record RepeatSampleReportDto(
+    DateTime LogDateTime,
+    string? PatientIdCardNumber,
+    string PatientName,
+    string? ReasonText,
+    string? Department,
+    string? InformedPerson,
+    string LoggedByUsername
+);
