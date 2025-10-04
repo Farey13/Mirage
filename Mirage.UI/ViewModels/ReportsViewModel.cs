@@ -16,32 +16,28 @@ public partial class ReportsViewModel : ObservableObject
     public static string? AuthToken { get; set; }
     private readonly IPortalMirageApi _apiClient;
 
-    // --- NEW: Report Selection ---
-    [ObservableProperty]
-    private string _selectedReport = "Machine Breakdowns"; // Default to the first report
+    [ObservableProperty] private string _selectedReport = "Machine Breakdowns";
+    public ObservableCollection<string> AvailableReports { get; } = new() { "Machine Breakdowns", "Handover Summary" };
 
-    public ObservableCollection<string> AvailableReports { get; } = new()
-    {
-        "Machine Breakdowns",
-        "Handover Summary", // We will add the others as we build them
-        "Kit Validation Log"
-    };
-
-    // --- General Report Filters ---
     [ObservableProperty] private DateTime _startDate = DateTime.Today;
     [ObservableProperty] private DateTime _endDate = DateTime.Today;
-
-    // --- Machine Breakdown Specific Filters ---
-    [ObservableProperty] private string? _selectedMachineName;
-    [ObservableProperty] private string? _selectedStatus = "All";
-
-    // --- Data & State ---
     [ObservableProperty] private bool _isLoading;
-    public ObservableCollection<MachineBreakdownReportDto> MachineBreakdownReportData { get; } = new();
 
-    // --- Filter Options ---
+    // --- Machine Breakdown Properties ---
+    [ObservableProperty] private string? _selectedMachineName;
+    [ObservableProperty] private string? _selectedBreakdownStatus = "All";
+    public ObservableCollection<MachineBreakdownReportDto> MachineBreakdownReportData { get; } = new();
     public ObservableCollection<string> MachineNames { get; } = new();
-    public ObservableCollection<string> StatusOptions { get; } = new() { "All", "Pending", "Resolved" };
+    public ObservableCollection<string> BreakdownStatusOptions { get; } = new() { "All", "Pending", "Resolved" };
+
+    // --- NEW: Handover Report Properties ---
+    [ObservableProperty] private string? _selectedShift;
+    [ObservableProperty] private string? _selectedPriority;
+    [ObservableProperty] private string? _selectedHandoverStatus = "All";
+    public ObservableCollection<HandoverReportDto> HandoverReportData { get; } = new();
+    public ObservableCollection<string> ShiftOptions { get; } = new();
+    public ObservableCollection<string> PriorityOptions { get; } = new();
+    public ObservableCollection<string> HandoverStatusOptions { get; } = new() { "All", "Pending", "Received" };
 
     public ReportsViewModel()
     {
@@ -57,25 +53,37 @@ public partial class ReportsViewModel : ObservableObject
         try
         {
             var machineNameItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "MachineName");
-
             MachineNames.Clear();
             MachineNames.Add("All");
-            foreach (var item in machineNameItems.Select(i => i.ItemValue))
-            {
-                MachineNames.Add(item);
-            }
+            foreach (var item in machineNameItems.Select(i => i.ItemValue)) MachineNames.Add(item);
+
+            // NEW: Load Handover filter options
+            var shiftItems = await _apiClient.GetAllShiftsAsync(AuthToken);
+            ShiftOptions.Clear();
+            ShiftOptions.Add("All");
+            foreach (var shift in shiftItems) ShiftOptions.Add(shift.ShiftName);
+
+            PriorityOptions.Clear();
+            PriorityOptions.Add("All");
+            PriorityOptions.Add("Normal");
+            PriorityOptions.Add("Urgent");
         }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Failed to load filter options: {ex.Message}", "Error");
-        }
+        catch (Exception ex) { MessageBox.Show($"Failed to load filter options: {ex.Message}"); }
     }
 
     [RelayCommand]
     private async Task GenerateReport()
     {
-        // This will eventually have a switch statement for different reports
-        await GenerateMachineBreakdownReport();
+        // NEW: Switch to call the correct method based on selection
+        switch (SelectedReport)
+        {
+            case "Machine Breakdowns":
+                await GenerateMachineBreakdownReport();
+                break;
+            case "Handover Summary":
+                await GenerateHandoverReport();
+                break;
+        }
     }
 
     private async Task GenerateMachineBreakdownReport()
@@ -93,7 +101,7 @@ public partial class ReportsViewModel : ObservableObject
         try
         {
             var machineNameFilter = SelectedMachineName == "All" ? null : SelectedMachineName;
-            var statusFilter = SelectedStatus == "All" ? null : SelectedStatus;
+            var statusFilter = SelectedBreakdownStatus == "All" ? null : SelectedBreakdownStatus;
 
             var reportData = await _apiClient.GetMachineBreakdownReportAsync(AuthToken, StartDate, EndDate, machineNameFilter, statusFilter);
             foreach (var item in reportData)
@@ -116,14 +124,48 @@ public partial class ReportsViewModel : ObservableObject
         }
     }
 
+    // NEW: Method to generate the Handover Report
+    private async Task GenerateHandoverReport()
+    {
+        if (string.IsNullOrEmpty(AuthToken)) return;
+        if (StartDate > EndDate)
+        {
+            MessageBox.Show("Start date cannot be after end date.", "Invalid Date Range");
+            return;
+        }
+
+        IsLoading = true;
+        HandoverReportData.Clear();
+        try
+        {
+            var shiftFilter = SelectedShift == "All" ? null : SelectedShift;
+            var priorityFilter = SelectedPriority == "All" ? null : SelectedPriority;
+            var statusFilter = SelectedHandoverStatus == "All" ? null : SelectedHandoverStatus;
+
+            var reportData = await _apiClient.GetHandoverReportAsync(AuthToken, StartDate, EndDate, shiftFilter, priorityFilter, statusFilter);
+            foreach (var item in reportData) HandoverReportData.Add(item);
+
+            if (!HandoverReportData.Any())
+            {
+                MessageBox.Show("No records found for the selected criteria.", "Report Generated");
+            }
+        }
+        catch (Exception ex) { MessageBox.Show($"Failed to generate report: {ex.Message}"); }
+        finally { IsLoading = false; }
+    }
+
     [RelayCommand]
     private void ClearFilters()
     {
         StartDate = DateTime.Today;
         EndDate = DateTime.Today;
         SelectedMachineName = null;
-        SelectedStatus = "All";
+        SelectedBreakdownStatus = "All";
+        SelectedShift = null;
+        SelectedPriority = null;
+        SelectedHandoverStatus = "All";
         MachineBreakdownReportData.Clear();
+        HandoverReportData.Clear();
     }
 
     [RelayCommand]

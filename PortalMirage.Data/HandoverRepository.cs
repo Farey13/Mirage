@@ -1,8 +1,10 @@
 ﻿using Dapper;
 using PortalMirage.Core.Models;
+using PortalMirage.Core.Dtos;
 using PortalMirage.Data.Abstractions;
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace PortalMirage.Data;
@@ -53,6 +55,55 @@ public class HandoverRepository(IDbConnectionFactory connectionFactory) : IHando
         return await connection.QuerySingleOrDefaultAsync<Handover>(sql, new { HandoverId = handoverId });
     }
 
+    public async Task<IEnumerable<HandoverReportDto>> GetReportDataAsync(DateTime startDate, DateTime endDate, string? shift, string? priority, string? status)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        var inclusiveEndDate = endDate.Date.AddDays(1);
+
+        var sqlBuilder = new StringBuilder(@"
+            SELECT 
+                h.GivenDateTime,
+                givenBy.FullName AS GivenByUsername,
+                h.Shift,
+                h.Priority,
+                h.HandoverNotes,
+                h.IsReceived,
+                h.ReceivedDateTime,
+                receivedBy.FullName AS ReceivedByUsername
+            FROM Handovers h
+            LEFT JOIN Users givenBy ON h.GivenByUserID = givenBy.UserID
+            LEFT JOIN Users receivedBy ON h.ReceivedByUserID = receivedBy.UserID
+            WHERE h.IsActive = 1
+              AND h.GivenDateTime >= @StartDate 
+              AND h.GivenDateTime < @InclusiveEndDate
+        ");
+
+        var parameters = new DynamicParameters();
+        parameters.Add("StartDate", startDate.Date);
+        parameters.Add("InclusiveEndDate", inclusiveEndDate);
+
+        if (!string.IsNullOrEmpty(shift) && shift != "All")
+        {
+            sqlBuilder.Append(" AND h.Shift = @Shift");
+            parameters.Add("Shift", shift);
+        }
+
+        if (!string.IsNullOrEmpty(priority) && priority != "All")
+        {
+            sqlBuilder.Append(" AND h.Priority = @Priority");
+            parameters.Add("Priority", priority);
+        }
+
+        if (!string.IsNullOrEmpty(status))
+        {
+            if (status == "Pending") sqlBuilder.Append(" AND h.IsReceived = 0");
+            else if (status == "Received") sqlBuilder.Append(" AND h.IsReceived = 1");
+        }
+
+        sqlBuilder.Append(" ORDER BY h.GivenDateTime DESC;");
+
+        return await connection.QueryAsync<HandoverReportDto>(sqlBuilder.ToString(), parameters);
+    }
 
     public async Task<bool> MarkAsReceivedAsync(int handoverId, int userId)
     {
