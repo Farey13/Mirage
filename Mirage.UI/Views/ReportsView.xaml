@@ -125,7 +125,7 @@
                     <DataGridTextColumn Header="Resolved On" Binding="{Binding ResolvedDateTime, StringFormat='g'}" Width="1.5*"/>
                     <DataGridTextColumn Header="Resolved By" Binding="{Binding ResolvedByUsername}" Width="*"/>
                     <DataGridTextColumn Header="Resolution" Binding="{Binding ResolutionNotes}" Width="2*"/>
-                    <DataGridTextColumn Header="Downtime (Mins)" Binding="{Binding DowntimeMinutes}" Width="*"/>
+                    <DataGridTextColumn Header="Downtime" Binding="{Binding ElapsedDowntimeDisplay}" Width="*" FontWeight="SemiBold"/>
                 </DataGrid.Columns>
             </DataGrid>
 
