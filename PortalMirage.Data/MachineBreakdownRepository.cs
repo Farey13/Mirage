@@ -25,11 +25,8 @@ public class MachineBreakdownRepository(IDbConnectionFactory connectionFactory) 
     public async Task<int> GetPendingCountAsync()
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        // UPDATED SQL: Added a date filter for today
-        const string sql = @"
-            SELECT COUNT(*) FROM MachineBreakdowns 
-            WHERE IsResolved = 0 AND IsActive = 1
-            AND ReportedDateTime >= CAST(GETDATE() AS DATE) AND ReportedDateTime < DATEADD(day, 1, CAST(GETDATE() AS DATE))";
+        // This SQL now correctly counts ALL unresolved breakdowns from all time.
+        const string sql = "SELECT COUNT(*) FROM MachineBreakdowns WHERE IsResolved = 0 AND IsActive = 1";
         return await connection.ExecuteScalarAsync<int>(sql);
     }
 

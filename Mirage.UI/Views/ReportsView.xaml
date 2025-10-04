@@ -21,36 +21,49 @@
 
         <TextBlock Grid.Row="0" Text="Reporting Engine" FontSize="36" FontWeight="Light" Margin="0,0,0,20"/>
 
-        <Border Grid.Row="1" Background="{DynamicResource MahApps.Brushes.Gray9}" CornerRadius="5" Padding="15" Margin="0,0,0,15">
-            <StackPanel>
-                <TextBlock Text="Machine Breakdown Report" FontSize="18" FontWeight="Bold"/>
-                <Separator Margin="0,10"/>
-                <StackPanel Orientation="Horizontal">
-                    <Label Content="Date Range:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    <DatePicker SelectedDate="{Binding StartDate}" Margin="5,0"/>
-                    <Label Content="to" VerticalAlignment="Center"/>
-                    <DatePicker SelectedDate="{Binding EndDate}" Margin="5,0"/>
+        <StackPanel Grid.Row="1">
+            <ComboBox ItemsSource="{Binding AvailableReports}" 
+                      SelectedItem="{Binding SelectedReport}"
+                      mah:TextBoxHelper.Watermark="Select a Report to Generate"
+                      FontSize="16"
+                      Padding="8"
+                      Margin="0,0,0,15"/>
 
-                    <ComboBox ItemsSource="{Binding MachineNames}" SelectedItem="{Binding SelectedMachineName}"
-                              mah:TextBoxHelper.Watermark="All Machines"
-                              Width="180" Margin="20,0,0,0"/>
-                    <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}"
-                              mah:TextBoxHelper.Watermark="All Statuses"
-                              Width="150" Margin="5,0,0,0"/>
-
-                    <Button Content="Generate Report" Command="{Binding GenerateMachineBreakdownReportCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}" Margin="20,0,0,0"/>
-                    <Button Content="Clear Filters" Command="{Binding ClearFiltersCommand}" Margin="5,0,0,0"/>
+            <Border Background="{DynamicResource MahApps.Brushes.Gray9}" CornerRadius="5" Padding="15" Margin="0,0,0,15">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedReport}" Value="Machine Breakdowns">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <StackPanel>
+                    <TextBlock Text="Machine Breakdown Report" FontSize="18" FontWeight="Bold"/>
+                    <Separator Margin="0,10"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Label Content="Date Range:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <DatePicker SelectedDate="{Binding StartDate}" Margin="5,0"/>
+                        <Label Content="to" VerticalAlignment="Center"/>
+                        <DatePicker SelectedDate="{Binding EndDate}" Margin="5,0"/>
+                        <ComboBox ItemsSource="{Binding MachineNames}" SelectedItem="{Binding SelectedMachineName}"
+                                  mah:TextBoxHelper.Watermark="All Machines"
+                                  Width="180" Margin="20,0,0,0"/>
+                        <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}"
+                                  mah:TextBoxHelper.Watermark="All Statuses"
+                                  Width="150" Margin="5,0,0,0"/>
+                        <Button Content="Generate Report" Command="{Binding GenerateReportCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}" Margin="20,0,0,0"/>
+                        <Button Content="Clear Filters" Command="{Binding ClearFiltersCommand}" Margin="5,0,0,0"/>
+                    </StackPanel>
                 </StackPanel>
-            </StackPanel>
-        </Border>
+            </Border>
+        </StackPanel>
 
         <Grid Grid.Row="2">
             <mah:ProgressRing IsActive="{Binding IsLoading}" Panel.ZIndex="1"/>
-
-            <TextBlock Text="Generate a report to see the results here."
-                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                       FontSize="16" Foreground="{DynamicResource MahApps.Brushes.Gray5}"
-                       FontStyle="Italic">
+            <TextBlock Text="Generate a report to see the results here." HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource MahApps.Brushes.Gray5}" FontStyle="Italic">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock">
                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -62,7 +75,6 @@
                     </Style>
                 </TextBlock.Style>
             </TextBlock>
-
             <DataGrid ItemsSource="{Binding MachineBreakdownReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Reported On" Binding="{Binding ReportedDateTime, StringFormat='g'}" Width="1.5*"/>
@@ -70,7 +82,6 @@
                     <DataGridTextColumn Header="Reason" Binding="{Binding BreakdownReason}" Width="2*"/>
                     <DataGridTextColumn Header="Reported By" Binding="{Binding ReportedByUsername}" Width="*"/>
                     <DataGridTextColumn Header="Resolved On" Binding="{Binding ResolvedDateTime, StringFormat='g'}" Width="1.5*"/>
-                    <!-- FIXED: Changed 1.S* to 1.5* -->
                     <DataGridTextColumn Header="Resolved By" Binding="{Binding ResolvedByUsername}" Width="*"/>
                     <DataGridTextColumn Header="Resolution" Binding="{Binding ResolutionNotes}" Width="2*"/>
                     <DataGridTextColumn Header="Downtime (Mins)" Binding="{Binding DowntimeMinutes}" Width="*"/>
