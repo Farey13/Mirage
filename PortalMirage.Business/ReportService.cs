@@ -10,7 +10,8 @@ namespace PortalMirage.Business;
 public class ReportService(
     IMachineBreakdownRepository machineBreakdownRepository,
     IHandoverRepository handoverRepository,
-    IKitValidationRepository kitValidationRepository) // 1. INJECT REPO
+    IKitValidationRepository kitValidationRepository,
+    IRepeatSampleLogRepository repeatSampleLogRepository) // 1. INJECT REPO
     : IReportService
 {
     public async Task<IEnumerable<MachineBreakdownReportDto>> GetMachineBreakdownReportAsync(DateTime startDate, DateTime endDate, string? machineName, string? status)
@@ -23,9 +24,14 @@ public class ReportService(
         return await handoverRepository.GetReportDataAsync(startDate, endDate, shift, priority, status);
     }
 
-    // 2. ADD NEW METHOD
     public async Task<IEnumerable<KitValidationReportDto>> GetKitValidationReportAsync(DateTime startDate, DateTime endDate, string? kitName, string? status)
     {
         return await kitValidationRepository.GetReportDataAsync(startDate, endDate, kitName, status);
+    }
+
+    // 2. ADD NEW METHOD
+    public async Task<IEnumerable<RepeatSampleReportDto>> GetRepeatSampleReportAsync(DateTime startDate, DateTime endDate, string? reason, string? department)
+    {
+        return await repeatSampleLogRepository.GetReportDataAsync(startDate, endDate, reason, department);
     }
 }

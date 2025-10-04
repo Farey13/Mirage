@@ -45,5 +45,16 @@ namespace PortalMirage.Api.Controllers
             var reportData = await reportService.GetHandoverReportAsync(startDate, endDate, shift, priority, status);
             return Ok(reportData);
         }
+
+        [HttpGet("repeat-samples")] // ADD THIS NEW ENDPOINT
+        public async Task<IActionResult> GetRepeatSampleReport(
+             [FromQuery] DateTime startDate,
+             [FromQuery] DateTime endDate,
+             [FromQuery] string? reason,
+             [FromQuery] string? department)
+        {
+            var reportData = await reportService.GetRepeatSampleReportAsync(startDate, endDate, reason, department);
+            return Ok(reportData);
+        }
     }
 }

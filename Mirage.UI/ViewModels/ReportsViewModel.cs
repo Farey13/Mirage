@@ -19,7 +19,7 @@ public partial class ReportsViewModel : ObservableObject
     private readonly DispatcherTimer _timer;
 
     [ObservableProperty] private string _selectedReport = "Machine Breakdowns";
-    public ObservableCollection<string> AvailableReports { get; } = new() { "Machine Breakdowns", "Handover Summary", "Kit Validation Log" };
+    public ObservableCollection<string> AvailableReports { get; } = new() { "Machine Breakdowns", "Handover Summary", "Kit Validation Log", "Repeat Sample Log" };
 
     [ObservableProperty] private DateTime _startDate = DateTime.Today;
     [ObservableProperty] private DateTime _endDate = DateTime.Today;
@@ -41,12 +41,20 @@ public partial class ReportsViewModel : ObservableObject
     public ObservableCollection<string> PriorityOptions { get; } = new();
     public ObservableCollection<string> HandoverStatusOptions { get; } = new() { "All", "Pending", "Received" };
 
-    // --- NEW: Kit Validation Report Properties ---
+    // --- Kit Validation Report Properties ---
     [ObservableProperty] private string? _selectedKitName;
     [ObservableProperty] private string? _selectedKitStatus = "All";
     public ObservableCollection<KitValidationReportDto> KitValidationReportData { get; } = new();
     public ObservableCollection<string> KitNameOptions { get; } = new();
     public ObservableCollection<string> KitStatusOptions { get; } = new() { "All", "Accepted", "Rejected" };
+
+    // --- NEW: Repeat Sample Report Properties ---
+    [ObservableProperty] private string? _selectedReason;
+    [ObservableProperty] private string? _selectedDepartment;
+    public ObservableCollection<RepeatSampleReportDto> RepeatSampleReportData { get; } = new();
+    public ObservableCollection<string> ReasonOptions { get; } = new();
+    public ObservableCollection<string> DepartmentOptions { get; } = new();
+
 
     public ReportsViewModel()
     {
@@ -73,26 +81,32 @@ public partial class ReportsViewModel : ObservableObject
         if (string.IsNullOrEmpty(AuthToken)) return;
         try
         {
+            // Machine Names
             var machineNameItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "MachineName");
-            MachineNames.Clear();
-            MachineNames.Add("All");
+            MachineNames.Clear(); MachineNames.Add("All");
             foreach (var item in machineNameItems) MachineNames.Add(item.ItemValue);
 
+            // Shifts
             var shiftItems = await _apiClient.GetAllShiftsAsync(AuthToken);
-            ShiftOptions.Clear();
-            ShiftOptions.Add("All");
+            ShiftOptions.Clear(); ShiftOptions.Add("All");
             foreach (var shift in shiftItems) ShiftOptions.Add(shift.ShiftName);
 
-            PriorityOptions.Clear();
-            PriorityOptions.Add("All");
-            PriorityOptions.Add("Normal");
-            PriorityOptions.Add("Urgent");
+            // Priorities
+            PriorityOptions.Clear(); PriorityOptions.Add("All"); PriorityOptions.Add("Normal"); PriorityOptions.Add("Urgent");
 
-            // NEW: Load Kit Name options
+            // Kit Names
             var kitNameItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "KitName");
-            KitNameOptions.Clear();
-            KitNameOptions.Add("All");
+            KitNameOptions.Clear(); KitNameOptions.Add("All");
             foreach (var item in kitNameItems) KitNameOptions.Add(item.ItemValue);
+
+            // NEW: Repeat Sample Filters
+            var reasonItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "RepeatReason");
+            ReasonOptions.Clear(); ReasonOptions.Add("All");
+            foreach (var item in reasonItems) ReasonOptions.Add(item.ItemValue);
+
+            var departmentItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "Department");
+            DepartmentOptions.Clear(); DepartmentOptions.Add("All");
+            foreach (var item in departmentItems) DepartmentOptions.Add(item.ItemValue);
         }
         catch (Exception ex) { MessageBox.Show($"Failed to load filter options: {ex.Message}"); }
     }
@@ -102,15 +116,10 @@ public partial class ReportsViewModel : ObservableObject
     {
         switch (SelectedReport)
         {
-            case "Machine Breakdowns":
-                await GenerateMachineBreakdownReport();
-                break;
-            case "Handover Summary":
-                await GenerateHandoverReport();
-                break;
-            case "Kit Validation Log":
-                await GenerateKitValidationReport();
-                break;
+            case "Machine Breakdowns": await GenerateMachineBreakdownReport(); break;
+            case "Handover Summary": await GenerateHandoverReport(); break;
+            case "Kit Validation Log": await GenerateKitValidationReport(); break;
+            case "Repeat Sample Log": await GenerateRepeatSampleReport(); break;
         }
     }
 
@@ -119,18 +128,11 @@ public partial class ReportsViewModel : ObservableObject
     {
         StartDate = DateTime.Today;
         EndDate = DateTime.Today;
-        // Clear all filter types
-        SelectedMachineName = null;
-        SelectedBreakdownStatus = "All";
-        SelectedShift = null;
-        SelectedPriority = null;
-        SelectedHandoverStatus = "All";
-        SelectedKitName = null;
-        SelectedKitStatus = "All";
-        // Clear all data grids
-        MachineBreakdownReportData.Clear();
-        HandoverReportData.Clear();
-        KitValidationReportData.Clear();
+        // Clear all filters and data
+        SelectedMachineName = null; SelectedBreakdownStatus = "All"; MachineBreakdownReportData.Clear();
+        SelectedShift = null; SelectedPriority = null; SelectedHandoverStatus = "All"; HandoverReportData.Clear();
+        SelectedKitName = null; SelectedKitStatus = "All"; KitValidationReportData.Clear();
+        SelectedReason = null; SelectedDepartment = null; RepeatSampleReportData.Clear();
     }
 
     private async Task GenerateMachineBreakdownReport()
@@ -200,7 +202,6 @@ public partial class ReportsViewModel : ObservableObject
         finally { IsLoading = false; }
     }
 
-    // NEW: Method for Kit Validation Report
     private async Task GenerateKitValidationReport()
     {
         if (string.IsNullOrEmpty(AuthToken)) return;
@@ -221,6 +222,35 @@ public partial class ReportsViewModel : ObservableObject
             foreach (var item in reportData) KitValidationReportData.Add(item);
 
             if (!KitValidationReportData.Any())
+            {
+                MessageBox.Show("No records found for the selected criteria.", "Report Generated");
+            }
+        }
+        catch (Exception ex) { MessageBox.Show($"Failed to generate report: {ex.Message}"); }
+        finally { IsLoading = false; }
+    }
+
+    // NEW: Method for Repeat Sample Report
+    private async Task GenerateRepeatSampleReport()
+    {
+        if (string.IsNullOrEmpty(AuthToken)) return;
+        if (StartDate > EndDate)
+        {
+            MessageBox.Show("Start date cannot be after end date.", "Invalid Date Range");
+            return;
+        }
+
+        IsLoading = true;
+        RepeatSampleReportData.Clear();
+        try
+        {
+            var reasonFilter = SelectedReason == "All" ? null : SelectedReason;
+            var departmentFilter = SelectedDepartment == "All" ? null : SelectedDepartment;
+
+            var reportData = await _apiClient.GetRepeatSampleReportAsync(AuthToken, StartDate, EndDate, reasonFilter, departmentFilter);
+            foreach (var item in reportData) RepeatSampleReportData.Add(item);
+
+            if (!RepeatSampleReportData.Any())
             {
                 MessageBox.Show("No records found for the selected criteria.", "Report Generated");
             }
