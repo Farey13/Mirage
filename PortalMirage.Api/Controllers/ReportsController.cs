@@ -21,5 +21,17 @@ namespace PortalMirage.Api.Controllers
             var reportData = await reportService.GetMachineBreakdownReportAsync(startDate, endDate, machineName, status);
             return Ok(reportData);
         }
+
+        [HttpGet("handovers")] // ADD THIS NEW ENDPOINT
+        public async Task<IActionResult> GetHandoverReport(
+            [FromQuery] DateTime startDate,
+            [FromQuery] DateTime endDate,
+            [FromQuery] string? shift,
+            [FromQuery] string? priority,
+            [FromQuery] string? status)
+        {
+            var reportData = await reportService.GetHandoverReportAsync(startDate, endDate, shift, priority, status);
+            return Ok(reportData);
+        }
     }
 }

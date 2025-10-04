@@ -1,4 +1,5 @@
-﻿using PortalMirage.Core.Models;
+﻿using PortalMirage.Core.Dtos;
+using PortalMirage.Core.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -15,4 +16,8 @@ public interface IHandoverRepository
     Task<bool> DeactivateAsync(int handoverId, int userId, string reason);
 
     Task<int> GetPendingCountAsync(); // ADD THIS LINE
+
+    Task<IEnumerable<HandoverReportDto>> GetReportDataAsync(DateTime startDate, DateTime endDate, string? shift, string? priority, string? status); // ADD THIS LINE
+
+
 }

@@ -13,3 +13,13 @@ public record MachineBreakdownReportDto(
     string? ResolutionNotes,
     int? DowntimeMinutes
 );
+public record HandoverReportDto(
+    DateTime GivenDateTime,
+    string GivenByUsername,
+    string Shift,
+    string Priority,
+    string HandoverNotes,
+    bool IsReceived,
+    DateTime? ReceivedDateTime,
+    string? ReceivedByUsername
+);
