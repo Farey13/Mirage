@@ -185,6 +185,14 @@ public interface IPortalMirageApi
         [Query] string? machineName,
         [Query] string? status);
 
+    [Get("/api/reports/kit-validations")] // ADD THIS NEW METHOD
+    System.Threading.Tasks.Task<List<KitValidationReportDto>> GetKitValidationReportAsync(
+        [Header("Authorization")] string token,
+        [Query] DateTime startDate,
+        [Query] DateTime endDate,
+        [Query] string? kitName,
+        [Query] string? status);
+
     [Get("/api/reports/handovers")] // ADD THIS NEW METHOD
     System.Threading.Tasks.Task<List<HandoverReportDto>> GetHandoverReportAsync(
         [Header("Authorization")] string token,

@@ -19,7 +19,7 @@ public partial class ReportsViewModel : ObservableObject
     private readonly DispatcherTimer _timer;
 
     [ObservableProperty] private string _selectedReport = "Machine Breakdowns";
-    public ObservableCollection<string> AvailableReports { get; } = new() { "Machine Breakdowns", "Handover Summary" };
+    public ObservableCollection<string> AvailableReports { get; } = new() { "Machine Breakdowns", "Handover Summary", "Kit Validation Log" };
 
     [ObservableProperty] private DateTime _startDate = DateTime.Today;
     [ObservableProperty] private DateTime _endDate = DateTime.Today;
@@ -32,7 +32,7 @@ public partial class ReportsViewModel : ObservableObject
     public ObservableCollection<string> MachineNames { get; } = new();
     public ObservableCollection<string> BreakdownStatusOptions { get; } = new() { "All", "Pending", "Resolved" };
 
-    // --- NEW: Handover Report Properties ---
+    // --- Handover Report Properties ---
     [ObservableProperty] private string? _selectedShift;
     [ObservableProperty] private string? _selectedPriority;
     [ObservableProperty] private string? _selectedHandoverStatus = "All";
@@ -41,6 +41,13 @@ public partial class ReportsViewModel : ObservableObject
     public ObservableCollection<string> PriorityOptions { get; } = new();
     public ObservableCollection<string> HandoverStatusOptions { get; } = new() { "All", "Pending", "Received" };
 
+    // --- NEW: Kit Validation Report Properties ---
+    [ObservableProperty] private string? _selectedKitName;
+    [ObservableProperty] private string? _selectedKitStatus = "All";
+    public ObservableCollection<KitValidationReportDto> KitValidationReportData { get; } = new();
+    public ObservableCollection<string> KitNameOptions { get; } = new();
+    public ObservableCollection<string> KitStatusOptions { get; } = new() { "All", "Accepted", "Rejected" };
+
     public ReportsViewModel()
     {
         _apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
@@ -48,18 +55,13 @@ public partial class ReportsViewModel : ObservableObject
 
         _ = LoadFilterOptionsAsync();
 
-        // Initialize and start the timer
-        _timer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMinutes(1)
-        };
+        _timer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
         _timer.Tick += Timer_Tick;
         _timer.Start();
     }
 
     private void Timer_Tick(object? sender, EventArgs e)
     {
-        // Every minute, loop through the unresolved items and call the public update method.
         foreach (var item in MachineBreakdownReportData.Where(b => !b.IsResolved))
         {
             item.UpdateCalculatedProperties();
@@ -74,9 +76,8 @@ public partial class ReportsViewModel : ObservableObject
             var machineNameItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "MachineName");
             MachineNames.Clear();
             MachineNames.Add("All");
-            foreach (var item in machineNameItems.Select(i => i.ItemValue)) MachineNames.Add(item);
+            foreach (var item in machineNameItems) MachineNames.Add(item.ItemValue);
 
-            // NEW: Load Handover filter options
             var shiftItems = await _apiClient.GetAllShiftsAsync(AuthToken);
             ShiftOptions.Clear();
             ShiftOptions.Add("All");
@@ -86,6 +87,12 @@ public partial class ReportsViewModel : ObservableObject
             PriorityOptions.Add("All");
             PriorityOptions.Add("Normal");
             PriorityOptions.Add("Urgent");
+
+            // NEW: Load Kit Name options
+            var kitNameItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "KitName");
+            KitNameOptions.Clear();
+            KitNameOptions.Add("All");
+            foreach (var item in kitNameItems) KitNameOptions.Add(item.ItemValue);
         }
         catch (Exception ex) { MessageBox.Show($"Failed to load filter options: {ex.Message}"); }
     }
@@ -93,7 +100,6 @@ public partial class ReportsViewModel : ObservableObject
     [RelayCommand]
     private async Task GenerateReport()
     {
-        // NEW: Switch to call the correct method based on selection
         switch (SelectedReport)
         {
             case "Machine Breakdowns":
@@ -102,7 +108,29 @@ public partial class ReportsViewModel : ObservableObject
             case "Handover Summary":
                 await GenerateHandoverReport();
                 break;
+            case "Kit Validation Log":
+                await GenerateKitValidationReport();
+                break;
         }
+    }
+
+    [RelayCommand]
+    private void ClearFilters()
+    {
+        StartDate = DateTime.Today;
+        EndDate = DateTime.Today;
+        // Clear all filter types
+        SelectedMachineName = null;
+        SelectedBreakdownStatus = "All";
+        SelectedShift = null;
+        SelectedPriority = null;
+        SelectedHandoverStatus = "All";
+        SelectedKitName = null;
+        SelectedKitStatus = "All";
+        // Clear all data grids
+        MachineBreakdownReportData.Clear();
+        HandoverReportData.Clear();
+        KitValidationReportData.Clear();
     }
 
     private async Task GenerateMachineBreakdownReport()
@@ -143,7 +171,6 @@ public partial class ReportsViewModel : ObservableObject
         }
     }
 
-    // NEW: Method to generate the Handover Report
     private async Task GenerateHandoverReport()
     {
         if (string.IsNullOrEmpty(AuthToken)) return;
@@ -173,18 +200,33 @@ public partial class ReportsViewModel : ObservableObject
         finally { IsLoading = false; }
     }
 
-    [RelayCommand]
-    private void ClearFilters()
+    // NEW: Method for Kit Validation Report
+    private async Task GenerateKitValidationReport()
     {
-        StartDate = DateTime.Today;
-        EndDate = DateTime.Today;
-        SelectedMachineName = null;
-        SelectedBreakdownStatus = "All";
-        SelectedShift = null;
-        SelectedPriority = null;
-        SelectedHandoverStatus = "All";
-        MachineBreakdownReportData.Clear();
-        HandoverReportData.Clear();
+        if (string.IsNullOrEmpty(AuthToken)) return;
+        if (StartDate > EndDate)
+        {
+            MessageBox.Show("Start date cannot be after end date.", "Invalid Date Range");
+            return;
+        }
+
+        IsLoading = true;
+        KitValidationReportData.Clear();
+        try
+        {
+            var kitNameFilter = SelectedKitName == "All" ? null : SelectedKitName;
+            var statusFilter = SelectedKitStatus == "All" ? null : SelectedKitStatus;
+
+            var reportData = await _apiClient.GetKitValidationReportAsync(AuthToken, StartDate, EndDate, kitNameFilter, statusFilter);
+            foreach (var item in reportData) KitValidationReportData.Add(item);
+
+            if (!KitValidationReportData.Any())
+            {
+                MessageBox.Show("No records found for the selected criteria.", "Report Generated");
+            }
+        }
+        catch (Exception ex) { MessageBox.Show($"Failed to generate report: {ex.Message}"); }
+        finally { IsLoading = false; }
     }
 
     [RelayCommand]

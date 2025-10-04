@@ -50,3 +50,12 @@ public record HandoverReportDto(
     DateTime? ReceivedDateTime,
     string? ReceivedByUsername
 );
+public record KitValidationReportDto(
+    DateTime ValidationDateTime,
+    string KitName,
+    string KitLotNumber,
+    DateTime KitExpiryDate,
+    string ValidationStatus,
+    string? Comments,
+    string ValidatedByUsername
+);

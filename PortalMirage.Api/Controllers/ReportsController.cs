@@ -21,6 +21,18 @@ namespace PortalMirage.Api.Controllers
             var reportData = await reportService.GetMachineBreakdownReportAsync(startDate, endDate, machineName, status);
             return Ok(reportData);
         }
+        [HttpGet("kit-validations")] // ADD THIS NEW ENDPOINT
+        public async Task<IActionResult> GetKitValidationReport(
+        [FromQuery] DateTime startDate,
+        [FromQuery] DateTime endDate,
+        [FromQuery] string? kitName,
+        [FromQuery] string? status)
+        {
+            var reportData = await reportService.GetKitValidationReportAsync(startDate, endDate, kitName, status);
+            return Ok(reportData);
+        }
+
+
 
         [HttpGet("handovers")] // ADD THIS NEW ENDPOINT
         public async Task<IActionResult> GetHandoverReport(
