@@ -1,6 +1,11 @@
 ﻿using Dapper;
+using PortalMirage.Core.Dtos;
 using PortalMirage.Core.Models;
 using PortalMirage.Data.Abstractions;
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace PortalMirage.Data;
 
@@ -92,5 +97,56 @@ public class MachineBreakdownRepository(IDbConnectionFactory connectionFactory) 
                        """;
         var rowsAffected = await connection.ExecuteAsync(sql, new { BreakdownId = breakdownId, UserId = userId, Reason = reason });
         return rowsAffected > 0;
+    }
+
+    public async Task<IEnumerable<MachineBreakdownReportDto>> GetReportDataAsync(DateTime startDate, DateTime endDate, string? machineName, string? status)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        var inclusiveEndDate = endDate.Date.AddDays(1);
+
+        var sqlBuilder = new StringBuilder(@"
+            SELECT 
+                mb.ReportedDateTime,
+                mb.MachineName,
+                mb.BreakdownReason,
+                reporter.FullName AS ReportedByUsername,
+                mb.IsResolved,
+                mb.ResolvedDateTime,
+                resolver.FullName AS ResolvedByUsername,
+                mb.ResolutionNotes,
+                mb.DowntimeMinutes
+            FROM MachineBreakdowns mb
+            LEFT JOIN Users reporter ON mb.ReportedByUserID = reporter.UserID
+            LEFT JOIN Users resolver ON mb.ResolvedByUserID = resolver.UserID
+            WHERE mb.IsActive = 1 
+              AND mb.ReportedDateTime >= @StartDate 
+              AND mb.ReportedDateTime < @InclusiveEndDate
+        ");
+
+        var parameters = new DynamicParameters();
+        parameters.Add("StartDate", startDate.Date);
+        parameters.Add("InclusiveEndDate", inclusiveEndDate);
+
+        if (!string.IsNullOrEmpty(machineName))
+        {
+            sqlBuilder.Append(" AND mb.MachineName = @MachineName");
+            parameters.Add("MachineName", machineName);
+        }
+
+        if (!string.IsNullOrEmpty(status))
+        {
+            if (status == "Pending")
+            {
+                sqlBuilder.Append(" AND mb.IsResolved = 0");
+            }
+            else if (status == "Resolved")
+            {
+                sqlBuilder.Append(" AND mb.IsResolved = 1");
+            }
+        }
+
+        sqlBuilder.Append(" ORDER BY mb.ReportedDateTime DESC;");
+
+        return await connection.QueryAsync<MachineBreakdownReportDto>(sqlBuilder.ToString(), parameters);
     }
 }
