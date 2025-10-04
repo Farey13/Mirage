@@ -5,6 +5,9 @@ using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Models;
 using System.Linq;
 using PortalMirage.Core.Dtos;
+using System.Threading.Tasks; // Add this using
+using System.Collections.Generic; // Add this using
+using System; // Add this using
 
 namespace PortalMirage.Api.Controllers
 {
@@ -13,7 +16,36 @@ namespace PortalMirage.Api.Controllers
     [Authorize]
     public class KitValidationsController(IKitValidationService kitValidationService, IUserService userService) : ControllerBase
     {
-        // ... Create method remains the same ...
+        // ADD THIS ENTIRE METHOD
+        [HttpPost]
+        public async Task<ActionResult<KitValidationResponse>> Create([FromBody] CreateKitValidationRequest request)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var logToCreate = new KitValidation
+            {
+                KitName = request.KitName,
+                KitLotNumber = request.KitLotNumber,
+                KitExpiryDate = request.KitExpiryDate,
+                ValidationStatus = request.ValidationStatus,
+                Comments = request.Comments,
+                ValidatedByUserID = userId
+            };
+
+            var newLog = await kitValidationService.CreateAsync(logToCreate);
+            var user = await userService.GetUserByIdAsync(userId);
+            var response = new KitValidationResponse(
+                newLog.ValidationID,
+                newLog.KitName,
+                newLog.KitLotNumber,
+                newLog.KitExpiryDate,
+                newLog.ValidationStatus,
+                newLog.Comments,
+                newLog.ValidationDateTime,
+                newLog.ValidatedByUserID,
+                user?.FullName ?? "Unknown"
+            );
+            return Ok(response);
+        }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<KitValidationResponse>>> GetByDateRange([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
