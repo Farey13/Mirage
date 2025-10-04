@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Threading;
 
 namespace Mirage.UI.ViewModels;
 
@@ -15,6 +16,7 @@ public partial class ReportsViewModel : ObservableObject
 {
     public static string? AuthToken { get; set; }
     private readonly IPortalMirageApi _apiClient;
+    private readonly DispatcherTimer _timer;
 
     [ObservableProperty] private string _selectedReport = "Machine Breakdowns";
     public ObservableCollection<string> AvailableReports { get; } = new() { "Machine Breakdowns", "Handover Summary" };
@@ -45,6 +47,23 @@ public partial class ReportsViewModel : ObservableObject
         if (string.IsNullOrEmpty(AuthToken)) AuthToken = UserManagementViewModel.AuthToken;
 
         _ = LoadFilterOptionsAsync();
+
+        // Initialize and start the timer
+        _timer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMinutes(1)
+        };
+        _timer.Tick += Timer_Tick;
+        _timer.Start();
+    }
+
+    private void Timer_Tick(object? sender, EventArgs e)
+    {
+        // Every minute, loop through the unresolved items and call the public update method.
+        foreach (var item in MachineBreakdownReportData.Where(b => !b.IsResolved))
+        {
+            item.UpdateCalculatedProperties();
+        }
     }
 
     private async Task LoadFilterOptionsAsync()
