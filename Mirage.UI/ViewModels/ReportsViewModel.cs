@@ -12,6 +12,9 @@ using System.Windows.Threading;
 
 namespace Mirage.UI.ViewModels;
 
+// Helper record for Shift filter dropdown
+public record ShiftFilterItem(int Id, string Name);
+
 public partial class ReportsViewModel : ObservableObject
 {
     public static string? AuthToken { get; set; }
@@ -19,41 +22,52 @@ public partial class ReportsViewModel : ObservableObject
     private readonly DispatcherTimer _timer;
 
     [ObservableProperty] private string _selectedReport = "Machine Breakdowns";
-    public ObservableCollection<string> AvailableReports { get; } = new() { "Machine Breakdowns", "Handover Summary", "Kit Validation Log", "Repeat Sample Log" };
+    public ObservableCollection<string> AvailableReports { get; } = new() { "Machine Breakdowns", "Handover Summary", "Kit Validation Log", "Repeat Sample Log", "Daily Task Compliance" };
 
     [ObservableProperty] private DateTime _startDate = DateTime.Today;
     [ObservableProperty] private DateTime _endDate = DateTime.Today;
     [ObservableProperty] private bool _isLoading;
 
-    // --- Machine Breakdown Properties ---
+    // --- Report-specific properties ---
+    // Machine Breakdown
     [ObservableProperty] private string? _selectedMachineName;
     [ObservableProperty] private string? _selectedBreakdownStatus = "All";
     public ObservableCollection<MachineBreakdownReportDto> MachineBreakdownReportData { get; } = new();
     public ObservableCollection<string> MachineNames { get; } = new();
     public ObservableCollection<string> BreakdownStatusOptions { get; } = new() { "All", "Pending", "Resolved" };
 
-    // --- Handover Report Properties ---
+    // Handover
     [ObservableProperty] private string? _selectedShift;
     [ObservableProperty] private string? _selectedPriority;
     [ObservableProperty] private string? _selectedHandoverStatus = "All";
     public ObservableCollection<HandoverReportDto> HandoverReportData { get; } = new();
-    public ObservableCollection<string> ShiftOptions { get; } = new();
-    public ObservableCollection<string> PriorityOptions { get; } = new();
+    public ObservableCollection<string> HandoverShiftOptions { get; } = new(); // Renamed to avoid conflict
+    public ObservableCollection<string> PriorityOptions { get; } = new() { "All", "Normal", "Urgent" };
     public ObservableCollection<string> HandoverStatusOptions { get; } = new() { "All", "Pending", "Received" };
 
-    // --- Kit Validation Report Properties ---
+    // Kit Validation
     [ObservableProperty] private string? _selectedKitName;
     [ObservableProperty] private string? _selectedKitStatus = "All";
     public ObservableCollection<KitValidationReportDto> KitValidationReportData { get; } = new();
     public ObservableCollection<string> KitNameOptions { get; } = new();
     public ObservableCollection<string> KitStatusOptions { get; } = new() { "All", "Accepted", "Rejected" };
 
-    // --- NEW: Repeat Sample Report Properties ---
+    // Repeat Sample
     [ObservableProperty] private string? _selectedReason;
     [ObservableProperty] private string? _selectedDepartment;
     public ObservableCollection<RepeatSampleReportDto> RepeatSampleReportData { get; } = new();
     public ObservableCollection<string> ReasonOptions { get; } = new();
     public ObservableCollection<string> DepartmentOptions { get; } = new();
+
+    // --- NEW: Daily Task Compliance Properties ---
+    [ObservableProperty] private ShiftFilterItem? _selectedTaskShift;
+    [ObservableProperty] private string? _selectedTaskStatus = "All";
+    public ObservableCollection<DailyTaskComplianceReportItemDto> DailyTaskReportData { get; } = new();
+    public ObservableCollection<ShiftFilterItem> TaskShiftOptions { get; } = new();
+    public ObservableCollection<string> TaskStatusOptions { get; } = new() { "All", "Pending", "Completed", "Incomplete", "Not Available" };
+    [ObservableProperty] private int _totalTasks;
+    [ObservableProperty] private int _completedTasks;
+    public double CompletionPercentage => TotalTasks > 0 ? (double)CompletedTasks / TotalTasks * 100 : 0;
 
 
     public ReportsViewModel()
@@ -86,10 +100,15 @@ public partial class ReportsViewModel : ObservableObject
             MachineNames.Clear(); MachineNames.Add("All");
             foreach (var item in machineNameItems) MachineNames.Add(item.ItemValue);
 
-            // Shifts
+            // Shifts - Updated for both Handover and Daily Task Compliance
             var shiftItems = await _apiClient.GetAllShiftsAsync(AuthToken);
-            ShiftOptions.Clear(); ShiftOptions.Add("All");
-            foreach (var shift in shiftItems) ShiftOptions.Add(shift.ShiftName);
+            HandoverShiftOptions.Clear(); HandoverShiftOptions.Add("All");
+            TaskShiftOptions.Clear(); TaskShiftOptions.Add(new ShiftFilterItem(0, "All")); // Special item for "All"
+            foreach (var shift in shiftItems)
+            {
+                HandoverShiftOptions.Add(shift.ShiftName);
+                TaskShiftOptions.Add(new ShiftFilterItem(shift.ShiftID, shift.ShiftName));
+            }
 
             // Priorities
             PriorityOptions.Clear(); PriorityOptions.Add("All"); PriorityOptions.Add("Normal"); PriorityOptions.Add("Urgent");
@@ -99,7 +118,7 @@ public partial class ReportsViewModel : ObservableObject
             KitNameOptions.Clear(); KitNameOptions.Add("All");
             foreach (var item in kitNameItems) KitNameOptions.Add(item.ItemValue);
 
-            // NEW: Repeat Sample Filters
+            // Repeat Sample Filters
             var reasonItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "RepeatReason");
             ReasonOptions.Clear(); ReasonOptions.Add("All");
             foreach (var item in reasonItems) ReasonOptions.Add(item.ItemValue);
@@ -120,6 +139,7 @@ public partial class ReportsViewModel : ObservableObject
             case "Handover Summary": await GenerateHandoverReport(); break;
             case "Kit Validation Log": await GenerateKitValidationReport(); break;
             case "Repeat Sample Log": await GenerateRepeatSampleReport(); break;
+            case "Daily Task Compliance": await GenerateDailyTaskComplianceReport(); break;
         }
     }
 
@@ -128,11 +148,37 @@ public partial class ReportsViewModel : ObservableObject
     {
         StartDate = DateTime.Today;
         EndDate = DateTime.Today;
-        // Clear all filters and data
-        SelectedMachineName = null; SelectedBreakdownStatus = "All"; MachineBreakdownReportData.Clear();
-        SelectedShift = null; SelectedPriority = null; SelectedHandoverStatus = "All"; HandoverReportData.Clear();
-        SelectedKitName = null; SelectedKitStatus = "All"; KitValidationReportData.Clear();
-        SelectedReason = null; SelectedDepartment = null; RepeatSampleReportData.Clear();
+
+        // Clear all report data
+        MachineBreakdownReportData.Clear();
+        HandoverReportData.Clear();
+        KitValidationReportData.Clear();
+        RepeatSampleReportData.Clear();
+        DailyTaskReportData.Clear();
+
+        // Reset summary stats for daily tasks
+        TotalTasks = 0;
+        CompletedTasks = 0;
+        OnPropertyChanged(nameof(CompletionPercentage));
+
+        // Reset all filters
+        SelectedMachineName = null;
+        SelectedBreakdownStatus = "All";
+        SelectedShift = null;
+        SelectedPriority = null;
+        SelectedHandoverStatus = "All";
+        SelectedKitName = null;
+        SelectedKitStatus = "All";
+        SelectedReason = null;
+        SelectedDepartment = null;
+        SelectedTaskShift = null;
+        SelectedTaskStatus = "All";
+    }
+
+    [RelayCommand]
+    private void PrintReport()
+    {
+        MessageBox.Show("Print functionality will be implemented in a future step.", "Coming Soon");
     }
 
     private async Task GenerateMachineBreakdownReport()
@@ -230,7 +276,6 @@ public partial class ReportsViewModel : ObservableObject
         finally { IsLoading = false; }
     }
 
-    // NEW: Method for Repeat Sample Report
     private async Task GenerateRepeatSampleReport()
     {
         if (string.IsNullOrEmpty(AuthToken)) return;
@@ -259,9 +304,33 @@ public partial class ReportsViewModel : ObservableObject
         finally { IsLoading = false; }
     }
 
-    [RelayCommand]
-    private void PrintReport()
+    // NEW: Method for Daily Task Compliance Report
+    private async Task GenerateDailyTaskComplianceReport()
     {
-        MessageBox.Show("Print functionality will be implemented in a future step.", "Coming Soon");
+        if (string.IsNullOrEmpty(AuthToken)) return;
+        if (StartDate > EndDate) { MessageBox.Show("Start date cannot be after end date."); return; }
+
+        IsLoading = true;
+        DailyTaskReportData.Clear();
+        TotalTasks = 0;
+        CompletedTasks = 0;
+        try
+        {
+            var shiftIdFilter = SelectedTaskShift?.Id == 0 ? (int?)null : SelectedTaskShift?.Id;
+            var statusFilter = SelectedTaskStatus == "All" ? null : SelectedTaskStatus;
+
+            var reportData = await _apiClient.GetDailyTaskComplianceReportAsync(AuthToken, StartDate, EndDate, shiftIdFilter, statusFilter);
+
+            foreach (var item in reportData.Items) DailyTaskReportData.Add(item);
+
+            // Update summary stats
+            TotalTasks = reportData.TotalTasks;
+            CompletedTasks = reportData.CompletedTasks;
+            OnPropertyChanged(nameof(CompletionPercentage)); // Notify UI to update the percentage
+
+            if (!DailyTaskReportData.Any()) { MessageBox.Show("No records found for the selected criteria."); }
+        }
+        catch (Exception ex) { MessageBox.Show($"Failed to generate report: {ex.Message}"); }
+        finally { IsLoading = false; }
     }
 }

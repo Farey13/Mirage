@@ -4,6 +4,8 @@ using PortalMirage.Data.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using PortalMirage.Core.Dtos;
+using System.Text;
 
 namespace PortalMirage.Data;
 
@@ -108,5 +110,47 @@ public class DailyTaskLogRepository(IDbConnectionFactory connectionFactory) : ID
             Reason = reason,
             AdminUserId = adminUserId
         });
+    }
+
+    public async Task<IEnumerable<DailyTaskComplianceReportItemDto>> GetComplianceReportDataAsync(DateTime startDate, DateTime endDate, int? shiftId, string? status)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        var inclusiveEndDate = endDate.Date.AddDays(1);
+
+        var sqlBuilder = new StringBuilder(@"
+            SELECT 
+                dtl.LogDate,
+                t.TaskName,
+                s.ShiftName,
+                dtl.Status,
+                dtl.CompletedDateTime,
+                u.FullName AS CompletedByUsername,
+                dtl.Comments
+            FROM DailyTaskLogs dtl
+            INNER JOIN Tasks t ON dtl.TaskID = t.TaskID
+            LEFT JOIN Shifts s ON t.ShiftID = s.ShiftID
+            LEFT JOIN Users u ON dtl.CompletedByUserID = u.UserID
+            WHERE dtl.LogDate >= @StartDate AND dtl.LogDate < @InclusiveEndDate
+        ");
+
+        var parameters = new DynamicParameters();
+        parameters.Add("StartDate", startDate.Date);
+        parameters.Add("InclusiveEndDate", inclusiveEndDate);
+
+        if (shiftId.HasValue)
+        {
+            sqlBuilder.Append(" AND t.ShiftID = @ShiftID");
+            parameters.Add("ShiftID", shiftId.Value);
+        }
+
+        if (!string.IsNullOrEmpty(status) && status != "All")
+        {
+            sqlBuilder.Append(" AND dtl.Status = @Status");
+            parameters.Add("Status", status);
+        }
+
+        sqlBuilder.Append(" ORDER BY dtl.LogDate, s.StartTime;");
+
+        return await connection.QueryAsync<DailyTaskComplianceReportItemDto>(sqlBuilder.ToString(), parameters);
     }
 }

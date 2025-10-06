@@ -209,6 +209,14 @@ public interface IPortalMirageApi
         [Query] DateTime endDate,
         [Query] string? reason,
         [Query] string? department);
+
+[Get("/api/reports/daily-task-compliance")] // ADD THIS NEW METHOD
+    System.Threading.Tasks.Task<DailyTaskComplianceReportDto> GetDailyTaskComplianceReportAsync(
+        [Header("Authorization")] string token,
+        [Query] DateTime startDate,
+        [Query] DateTime endDate,
+        [Query] int? shiftId,
+        [Query] string? status);
 }
 
 
