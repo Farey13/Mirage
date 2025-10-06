@@ -56,5 +56,15 @@ namespace PortalMirage.Api.Controllers
             var reportData = await reportService.GetRepeatSampleReportAsync(startDate, endDate, reason, department);
             return Ok(reportData);
         }
+        [HttpGet("daily-task-compliance")] // ADD THIS NEW ENDPOINT
+        public async Task<IActionResult> GetDailyTaskComplianceReport(
+    [FromQuery] DateTime startDate,
+    [FromQuery] DateTime endDate,
+    [FromQuery] int? shiftId,
+    [FromQuery] string? status)
+        {
+            var reportData = await reportService.GetDailyTaskComplianceReportAsync(startDate, endDate, shiftId, status);
+            return Ok(reportData);
+        }
     }
 }

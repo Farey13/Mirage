@@ -60,6 +60,22 @@ public record KitValidationReportDto(
     string ValidatedByUsername
 );
 
+public record DailyTaskComplianceReportItemDto(
+    DateTime LogDate,
+    string TaskName,
+    string ShiftName,
+    string Status,
+    DateTime? CompletedDateTime,
+    string? CompletedByUsername,
+    string? Comments
+);
+
+public record DailyTaskComplianceReportDto(
+    List<DailyTaskComplianceReportItemDto> Items,
+    int TotalTasks,
+    int CompletedTasks
+);
+
 public record RepeatSampleReportDto(
     DateTime LogDateTime,
     string? PatientIdCardNumber,
