@@ -22,7 +22,7 @@ public partial class ReportsViewModel : ObservableObject
     private readonly DispatcherTimer _timer;
 
     [ObservableProperty] private string _selectedReport = "Machine Breakdowns";
-    public ObservableCollection<string> AvailableReports { get; } = new() { "Machine Breakdowns", "Handover Summary", "Kit Validation Log", "Repeat Sample Log", "Daily Task Compliance", "Media Sterility Log", "Sample Storage Log" };
+    public ObservableCollection<string> AvailableReports { get; } = new() { "Machine Breakdowns", "Handover Summary", "Kit Validation Log", "Repeat Sample Log", "Daily Task Compliance", "Media Sterility Log", "Sample Storage Log", "Calibration Log" };
 
     [ObservableProperty] private DateTime _startDate = DateTime.Today;
     [ObservableProperty] private DateTime _endDate = DateTime.Today;
@@ -76,12 +76,19 @@ public partial class ReportsViewModel : ObservableObject
     public ObservableCollection<string> MediaNameOptions { get; } = new();
     public ObservableCollection<string> MediaStatusOptions { get; } = new() { "All", "Passed", "Failed" };
 
-    // --- NEW: Sample Storage Report Properties ---
+    // Sample Storage Report Properties
     [ObservableProperty] private string? _selectedTestName;
     [ObservableProperty] private string? _selectedSampleStatus = "All";
     public ObservableCollection<SampleStorageReportDto> SampleStorageReportData { get; } = new();
     public ObservableCollection<string> TestNameOptions { get; } = new();
     public ObservableCollection<string> SampleStatusOptions { get; } = new() { "All", "Pending", "Test Done" };
+
+    // --- NEW: Calibration Log Report Properties ---
+    [ObservableProperty] private string? _selectedCalibrationTestName;
+    [ObservableProperty] private string? _selectedQcResult = "All";
+    public ObservableCollection<CalibrationReportDto> CalibrationReportData { get; } = new();
+    public ObservableCollection<string> CalibrationTestNameOptions { get; } = new();
+    public ObservableCollection<string> QcResultOptions { get; } = new() { "All", "Passed", "Failed" };
 
     public ReportsViewModel()
     {
@@ -145,10 +152,15 @@ public partial class ReportsViewModel : ObservableObject
             MediaNameOptions.Clear(); MediaNameOptions.Add("All");
             foreach (var item in mediaNameItems) MediaNameOptions.Add(item.ItemValue);
 
-            // NEW: Load Test Name options
+            // Load Test Name options for Sample Storage
             var testNameItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "TestName");
             TestNameOptions.Clear(); TestNameOptions.Add("All");
             foreach (var item in testNameItems) TestNameOptions.Add(item.ItemValue);
+
+            // NEW: Load Test Name options for Calibration Log
+            var calibrationTestNameItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "TestName");
+            CalibrationTestNameOptions.Clear(); CalibrationTestNameOptions.Add("All");
+            foreach (var item in calibrationTestNameItems) CalibrationTestNameOptions.Add(item.ItemValue);
         }
         catch (Exception ex) { MessageBox.Show($"Failed to load filter options: {ex.Message}"); }
     }
@@ -165,6 +177,7 @@ public partial class ReportsViewModel : ObservableObject
             case "Daily Task Compliance": await GenerateDailyTaskComplianceReport(); break;
             case "Media Sterility Log": await GenerateMediaSterilityReport(); break;
             case "Sample Storage Log": await GenerateSampleStorageReport(); break;
+            case "Calibration Log": await GenerateCalibrationReport(); break;
         }
     }
 
@@ -182,6 +195,7 @@ public partial class ReportsViewModel : ObservableObject
         DailyTaskReportData.Clear();
         MediaSterilityReportData.Clear();
         SampleStorageReportData.Clear();
+        CalibrationReportData.Clear();
 
         // Reset summary stats for daily tasks
         TotalTasks = 0;
@@ -204,6 +218,8 @@ public partial class ReportsViewModel : ObservableObject
         SelectedMediaStatus = "All";
         SelectedTestName = null;
         SelectedSampleStatus = "All";
+        SelectedCalibrationTestName = null;
+        SelectedQcResult = "All";
     }
 
     [RelayCommand]
@@ -386,7 +402,7 @@ public partial class ReportsViewModel : ObservableObject
         finally { IsLoading = false; }
     }
 
-    // NEW: Method for Sample Storage Report
+    // Method for Sample Storage Report
     private async Task GenerateSampleStorageReport()
     {
         if (string.IsNullOrEmpty(AuthToken)) return;
@@ -403,6 +419,28 @@ public partial class ReportsViewModel : ObservableObject
             foreach (var item in reportData) SampleStorageReportData.Add(item);
 
             if (!SampleStorageReportData.Any()) { MessageBox.Show("No records found for the selected criteria."); }
+        }
+        catch (Exception ex) { MessageBox.Show($"Failed to generate report: {ex.Message}"); }
+        finally { IsLoading = false; }
+    }
+
+    // NEW: Method for Calibration Report
+    private async Task GenerateCalibrationReport()
+    {
+        if (string.IsNullOrEmpty(AuthToken)) return;
+        if (StartDate > EndDate) { MessageBox.Show("Start date cannot be after end date."); return; }
+
+        IsLoading = true;
+        CalibrationReportData.Clear();
+        try
+        {
+            var testNameFilter = SelectedCalibrationTestName == "All" ? null : SelectedCalibrationTestName;
+            var qcResultFilter = SelectedQcResult == "All" ? null : SelectedQcResult;
+
+            var reportData = await _apiClient.GetCalibrationReportAsync(AuthToken, StartDate, EndDate, testNameFilter, qcResultFilter);
+            foreach (var item in reportData) CalibrationReportData.Add(item);
+
+            if (!CalibrationReportData.Any()) { MessageBox.Show("No records found for the selected criteria."); }
         }
         catch (Exception ex) { MessageBox.Show($"Failed to generate report: {ex.Message}"); }
         finally { IsLoading = false; }

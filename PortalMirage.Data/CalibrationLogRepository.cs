@@ -1,6 +1,8 @@
 ﻿using Dapper;
 using PortalMirage.Core.Models;
+using PortalMirage.Core.Dtos;
 using PortalMirage.Data.Abstractions;
+using System.Text;
 
 namespace PortalMirage.Data;
 
@@ -40,5 +42,45 @@ public class CalibrationLogRepository(IDbConnectionFactory connectionFactory) : 
         const string sql = "SELECT * FROM CalibrationLogs WHERE IsActive = 1 AND CalibrationDateTime >= @StartDate AND CalibrationDateTime < @InclusiveEndDate ORDER BY CalibrationDateTime DESC";
 
         return await connection.QueryAsync<CalibrationLog>(sql, new { StartDate = startDate.Date, InclusiveEndDate = inclusiveEndDate });
+    }
+
+    public async Task<IEnumerable<CalibrationReportDto>> GetReportDataAsync(DateTime startDate, DateTime endDate, string? testName, string? qcResult)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        var inclusiveEndDate = endDate.Date.AddDays(1);
+
+        var sqlBuilder = new StringBuilder(@"
+            SELECT 
+                c.CalibrationDateTime,
+                c.TestName,
+                c.QcResult,
+                c.Reason,
+                u.FullName AS PerformedByUsername
+            FROM CalibrationLogs c
+            LEFT JOIN Users u ON c.PerformedByUserID = u.UserID
+            WHERE c.IsActive = 1 
+              AND c.CalibrationDateTime >= @StartDate 
+              AND c.CalibrationDateTime < @InclusiveEndDate
+        ");
+
+        var parameters = new DynamicParameters();
+        parameters.Add("StartDate", startDate.Date);
+        parameters.Add("InclusiveEndDate", inclusiveEndDate);
+
+        if (!string.IsNullOrEmpty(testName) && testName != "All")
+        {
+            sqlBuilder.Append(" AND c.TestName = @TestName");
+            parameters.Add("TestName", testName);
+        }
+
+        if (!string.IsNullOrEmpty(qcResult) && qcResult != "All")
+        {
+            sqlBuilder.Append(" AND c.QcResult = @QcResult");
+            parameters.Add("QcResult", qcResult);
+        }
+
+        sqlBuilder.Append(" ORDER BY c.CalibrationDateTime DESC;");
+
+        return await connection.QueryAsync<CalibrationReportDto>(sqlBuilder.ToString(), parameters);
     }
 }

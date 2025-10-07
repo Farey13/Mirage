@@ -13,7 +13,32 @@ namespace PortalMirage.Api.Controllers
     [Authorize]
     public class CalibrationLogsController(ICalibrationLogService calibrationLogService, IUserService userService) : ControllerBase
     {
-        // ... CreateLog method remains the same ...
+        // ADD THIS ENTIRE METHOD
+        [HttpPost]
+        public async Task<ActionResult<CalibrationLogResponse>> Create([FromBody] CreateCalibrationLogRequest request)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var logToCreate = new CalibrationLog
+            {
+                TestName = request.TestName,
+                QcResult = request.QcResult,
+                Reason = request.Reason,
+                PerformedByUserID = userId
+            };
+
+            var newLog = await calibrationLogService.CreateAsync(logToCreate);
+            var user = await userService.GetUserByIdAsync(userId);
+            var response = new CalibrationLogResponse(
+                newLog.CalibrationID,
+                newLog.TestName,
+                newLog.QcResult,
+                newLog.Reason,
+                newLog.CalibrationDateTime,
+                newLog.PerformedByUserID,
+                user?.FullName ?? "Unknown"
+            );
+            return Ok(response);
+        }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<CalibrationLogResponse>>> GetLogsByDateRange([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)

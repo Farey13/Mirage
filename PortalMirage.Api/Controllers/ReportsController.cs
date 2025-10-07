@@ -57,6 +57,18 @@ namespace PortalMirage.Api.Controllers
             return Ok(reportData);
         }
 
+
+        [HttpGet("calibrations")] // ADD THIS NEW ENDPOINT
+        public async Task<IActionResult> GetCalibrationReport(
+    [FromQuery] DateTime startDate,
+    [FromQuery] DateTime endDate,
+    [FromQuery] string? testName,
+    [FromQuery] string? qcResult)
+        {
+            var reportData = await reportService.GetCalibrationReportAsync(startDate, endDate, testName, qcResult);
+            return Ok(reportData);
+        }
+
         [HttpGet("sample-storage")] // ADD THIS NEW ENDPOINT
         public async Task<IActionResult> GetSampleStorageReport(
     [FromQuery] DateTime startDate,

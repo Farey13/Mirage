@@ -107,3 +107,11 @@ public record SampleStorageReportDto(
     DateTime? TestDoneDateTime,
     string? TestDoneByUsername
 );
+
+public record CalibrationReportDto(
+    DateTime CalibrationDateTime,
+    string TestName,
+    string QcResult,
+    string? Reason,
+    string PerformedByUsername
+);

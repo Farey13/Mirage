@@ -1,4 +1,5 @@
-﻿using PortalMirage.Core.Models;
+﻿using PortalMirage.Core.Dtos;
+using PortalMirage.Core.Models;
 
 namespace PortalMirage.Data.Abstractions;
 
@@ -9,6 +10,6 @@ public interface ICalibrationLogRepository
 
     Task<bool> DeactivateAsync(int logId, int userId, string reason);
 
-    
+    Task<IEnumerable<CalibrationReportDto>> GetReportDataAsync(DateTime startDate, DateTime endDate, string? testName, string? qcResult); // ADD THIS
 
 }
