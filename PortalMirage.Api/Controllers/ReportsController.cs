@@ -46,6 +46,17 @@ namespace PortalMirage.Api.Controllers
             return Ok(reportData);
         }
 
+        [HttpGet("media-sterility")] // ADD THIS NEW ENDPOINT
+        public async Task<IActionResult> GetMediaSterilityReport(
+    [FromQuery] DateTime startDate,
+    [FromQuery] DateTime endDate,
+    [FromQuery] string? mediaName,
+    [FromQuery] string? status)
+        {
+            var reportData = await reportService.GetMediaSterilityReportAsync(startDate, endDate, mediaName, status);
+            return Ok(reportData);
+        }
+
         [HttpGet("repeat-samples")] // ADD THIS NEW ENDPOINT
         public async Task<IActionResult> GetRepeatSampleReport(
              [FromQuery] DateTime startDate,

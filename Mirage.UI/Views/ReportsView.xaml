@@ -177,6 +177,36 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
+
+            <!-- Media Sterility Log Report Filter Panel -->
+            <Border Background="{DynamicResource MahApps.Brushes.Gray9}" CornerRadius="5" Padding="15" Margin="0,0,0,15">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedReport}" Value="Media Sterility Log">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <StackPanel>
+                    <TextBlock Text="Media Sterility Log Report" FontSize="18" FontWeight="Bold"/>
+                    <Separator Margin="0,10"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Label Content="Date Range:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <DatePicker SelectedDate="{Binding StartDate}" Margin="5,0"/>
+                        <Label Content="to" VerticalAlignment="Center"/>
+                        <DatePicker SelectedDate="{Binding EndDate}" Margin="5,0"/>
+
+                        <ComboBox ItemsSource="{Binding MediaNameOptions}" SelectedItem="{Binding SelectedMediaName}" mah:TextBoxHelper.Watermark="All Media" Width="180" Margin="20,0,0,0"/>
+                        <ComboBox ItemsSource="{Binding MediaStatusOptions}" SelectedItem="{Binding SelectedMediaStatus}" mah:TextBoxHelper.Watermark="All Statuses" Width="150" Margin="5,0,0,0"/>
+
+                        <Button Content="Generate Report" Command="{Binding GenerateReportCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}" Margin="20,0,0,0"/>
+                        <Button Content="Clear Filters" Command="{Binding ClearFiltersCommand}" Margin="5,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
         </StackPanel>
 
         <Grid Grid.Row="2">
@@ -323,6 +353,29 @@
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
+
+            <!-- Media Sterility Log Report Data Grid -->
+            <DataGrid ItemsSource="{Binding MediaSterilityReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
+                <DataGrid.Style>
+                    <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedReport}" Value="Media Sterility Log">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.Style>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Checked On" Binding="{Binding CheckDateTime, StringFormat='g'}" Width="1.5*"/>
+                    <DataGridTextColumn Header="Media Name" Binding="{Binding MediaName}" Width="2*"/>
+                    <DataGridTextColumn Header="Lot Number" Binding="{Binding MediaLotNumber}" Width="*"/>
+                    <DataGridTextColumn Header="Result 37°C" Binding="{Binding Result37C}" Width="*"/>
+                    <DataGridTextColumn Header="Result 25°C" Binding="{Binding Result25C}" Width="*"/>
+                    <DataGridTextColumn Header="Overall Status" Binding="{Binding OverallStatus}" Width="*"/>
+                    <DataGridTextColumn Header="Performed By" Binding="{Binding PerformedByUsername}" Width="1.5*"/>
+                </DataGrid.Columns>
+            </DataGrid>
         </Grid>
     </Grid>
 </UserControl>

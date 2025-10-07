@@ -15,19 +15,22 @@ public class ReportService : IReportService
     private readonly IKitValidationRepository _kitValidationRepository;
     private readonly IRepeatSampleLogRepository _repeatSampleLogRepository;
     private readonly IDailyTaskLogRepository _dailyTaskLogRepository;
+    private readonly IMediaSterilityCheckRepository _mediaSterilityCheckRepository;
 
     public ReportService(
         IMachineBreakdownRepository machineBreakdownRepository,
         IHandoverRepository handoverRepository,
         IKitValidationRepository kitValidationRepository,
         IRepeatSampleLogRepository repeatSampleLogRepository,
-        IDailyTaskLogRepository dailyTaskLogRepository)
+        IDailyTaskLogRepository dailyTaskLogRepository,
+        IMediaSterilityCheckRepository mediaSterilityCheckRepository) // 1. INJECT REPO
     {
         _machineBreakdownRepository = machineBreakdownRepository;
         _handoverRepository = handoverRepository;
         _kitValidationRepository = kitValidationRepository;
         _repeatSampleLogRepository = repeatSampleLogRepository;
         _dailyTaskLogRepository = dailyTaskLogRepository;
+        _mediaSterilityCheckRepository = mediaSterilityCheckRepository;
     }
 
     public async Task<DailyTaskComplianceReportDto> GetDailyTaskComplianceReportAsync(DateTime startDate, DateTime endDate, int? shiftId, string? status)
@@ -55,5 +58,11 @@ public class ReportService : IReportService
     public async Task<IEnumerable<RepeatSampleReportDto>> GetRepeatSampleReportAsync(DateTime startDate, DateTime endDate, string? reason, string? department)
     {
         return await _repeatSampleLogRepository.GetReportDataAsync(startDate, endDate, reason, department);
+    }
+
+    // 2. ADD NEW METHOD
+    public async Task<IEnumerable<MediaSterilityReportDto>> GetMediaSterilityReportAsync(DateTime startDate, DateTime endDate, string? mediaName, string? status)
+    {
+        return await _mediaSterilityCheckRepository.GetReportDataAsync(startDate, endDate, mediaName, status);
     }
 }
