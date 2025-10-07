@@ -85,3 +85,15 @@ public record RepeatSampleReportDto(
     string? InformedPerson,
     string LoggedByUsername
 );
+
+public record MediaSterilityReportDto(
+    DateTime CheckDateTime,
+    string MediaName,
+    string MediaLotNumber,
+    string? MediaQuantity,
+    string Result37C,
+    string Result25C,
+    string OverallStatus,
+    string? Comments,
+    string PerformedByUsername
+);
