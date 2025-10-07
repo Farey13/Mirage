@@ -16,6 +16,7 @@ public class ReportService : IReportService
     private readonly IRepeatSampleLogRepository _repeatSampleLogRepository;
     private readonly IDailyTaskLogRepository _dailyTaskLogRepository;
     private readonly IMediaSterilityCheckRepository _mediaSterilityCheckRepository;
+    private readonly ISampleStorageRepository _sampleStorageRepository;
 
     public ReportService(
         IMachineBreakdownRepository machineBreakdownRepository,
@@ -23,7 +24,8 @@ public class ReportService : IReportService
         IKitValidationRepository kitValidationRepository,
         IRepeatSampleLogRepository repeatSampleLogRepository,
         IDailyTaskLogRepository dailyTaskLogRepository,
-        IMediaSterilityCheckRepository mediaSterilityCheckRepository) // 1. INJECT REPO
+        IMediaSterilityCheckRepository mediaSterilityCheckRepository,
+        ISampleStorageRepository sampleStorageRepository) // 1. INJECT REPO
     {
         _machineBreakdownRepository = machineBreakdownRepository;
         _handoverRepository = handoverRepository;
@@ -31,6 +33,7 @@ public class ReportService : IReportService
         _repeatSampleLogRepository = repeatSampleLogRepository;
         _dailyTaskLogRepository = dailyTaskLogRepository;
         _mediaSterilityCheckRepository = mediaSterilityCheckRepository;
+        _sampleStorageRepository = sampleStorageRepository;
     }
 
     public async Task<DailyTaskComplianceReportDto> GetDailyTaskComplianceReportAsync(DateTime startDate, DateTime endDate, int? shiftId, string? status)
@@ -60,9 +63,14 @@ public class ReportService : IReportService
         return await _repeatSampleLogRepository.GetReportDataAsync(startDate, endDate, reason, department);
     }
 
-    // 2. ADD NEW METHOD
     public async Task<IEnumerable<MediaSterilityReportDto>> GetMediaSterilityReportAsync(DateTime startDate, DateTime endDate, string? mediaName, string? status)
     {
         return await _mediaSterilityCheckRepository.GetReportDataAsync(startDate, endDate, mediaName, status);
+    }
+
+    // 2. ADD NEW METHOD
+    public async Task<IEnumerable<SampleStorageReportDto>> GetSampleStorageReportAsync(DateTime startDate, DateTime endDate, string? testName, string? status)
+    {
+        return await _sampleStorageRepository.GetReportDataAsync(startDate, endDate, testName, status);
     }
 }

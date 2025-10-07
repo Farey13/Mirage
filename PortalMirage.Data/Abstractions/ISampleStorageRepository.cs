@@ -1,4 +1,5 @@
-﻿using PortalMirage.Core.Models;
+﻿using PortalMirage.Core.Dtos;
+using PortalMirage.Core.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -15,4 +16,6 @@ public interface ISampleStorageRepository
     Task<bool> DeactivateAsync(int storageId, int userId, string reason); // This is the corrected signature
 
     Task<int> GetPendingCountAsync(); // ADD THIS LINE
+
+    Task<IEnumerable<SampleStorageReportDto>> GetReportDataAsync(DateTime startDate, DateTime endDate, string? testName, string? status);
 }

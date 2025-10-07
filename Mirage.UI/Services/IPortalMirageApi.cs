@@ -225,6 +225,14 @@ public interface IPortalMirageApi
         [Query] DateTime endDate,
         [Query] string? mediaName,
         [Query] string? status);
+
+    [Get("/api/reports/sample-storage")] // ADD THIS NEW METHOD
+    System.Threading.Tasks.Task<List<SampleStorageReportDto>> GetSampleStorageReportAsync(
+        [Header("Authorization")] string token,
+        [Query] DateTime startDate,
+        [Query] DateTime endDate,
+        [Query] string? testName,
+        [Query] string? status);
 }
 
 
