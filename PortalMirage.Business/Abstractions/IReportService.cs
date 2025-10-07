@@ -16,4 +16,6 @@ public interface IReportService
     Task<IEnumerable<MediaSterilityReportDto>> GetMediaSterilityReportAsync(DateTime startDate, DateTime endDate, string? mediaName, string? status); // ADD THIS
 
     Task<IEnumerable<SampleStorageReportDto>> GetSampleStorageReportAsync(DateTime startDate, DateTime endDate, string? testName, string? status);
+
+    Task<IEnumerable<CalibrationReportDto>> GetCalibrationReportAsync(DateTime startDate, DateTime endDate, string? testName, string? qcResult); // ADD THIS
 }

@@ -17,6 +17,7 @@ public class ReportService : IReportService
     private readonly IDailyTaskLogRepository _dailyTaskLogRepository;
     private readonly IMediaSterilityCheckRepository _mediaSterilityCheckRepository;
     private readonly ISampleStorageRepository _sampleStorageRepository;
+    private readonly ICalibrationLogRepository _calibrationLogRepository;
 
     public ReportService(
         IMachineBreakdownRepository machineBreakdownRepository,
@@ -25,7 +26,8 @@ public class ReportService : IReportService
         IRepeatSampleLogRepository repeatSampleLogRepository,
         IDailyTaskLogRepository dailyTaskLogRepository,
         IMediaSterilityCheckRepository mediaSterilityCheckRepository,
-        ISampleStorageRepository sampleStorageRepository) // 1. INJECT REPO
+        ISampleStorageRepository sampleStorageRepository,
+        ICalibrationLogRepository calibrationLogRepository) // 1. INJECT REPO
     {
         _machineBreakdownRepository = machineBreakdownRepository;
         _handoverRepository = handoverRepository;
@@ -34,6 +36,7 @@ public class ReportService : IReportService
         _dailyTaskLogRepository = dailyTaskLogRepository;
         _mediaSterilityCheckRepository = mediaSterilityCheckRepository;
         _sampleStorageRepository = sampleStorageRepository;
+        _calibrationLogRepository = calibrationLogRepository;
     }
 
     public async Task<DailyTaskComplianceReportDto> GetDailyTaskComplianceReportAsync(DateTime startDate, DateTime endDate, int? shiftId, string? status)
@@ -68,9 +71,14 @@ public class ReportService : IReportService
         return await _mediaSterilityCheckRepository.GetReportDataAsync(startDate, endDate, mediaName, status);
     }
 
-    // 2. ADD NEW METHOD
     public async Task<IEnumerable<SampleStorageReportDto>> GetSampleStorageReportAsync(DateTime startDate, DateTime endDate, string? testName, string? status)
     {
         return await _sampleStorageRepository.GetReportDataAsync(startDate, endDate, testName, status);
+    }
+
+    // 2. ADD NEW METHOD
+    public async Task<IEnumerable<CalibrationReportDto>> GetCalibrationReportAsync(DateTime startDate, DateTime endDate, string? testName, string? qcResult)
+    {
+        return await _calibrationLogRepository.GetReportDataAsync(startDate, endDate, testName, qcResult);
     }
 }

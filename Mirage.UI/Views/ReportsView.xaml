@@ -223,6 +223,35 @@
                 </StackPanel>
             </Border>
 
+            <Border Background="{DynamicResource MahApps.Brushes.Gray9}" CornerRadius="5" Padding="15" Margin="0,0,0,15">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedReport}" Value="Calibration Log">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <StackPanel>
+                    <TextBlock Text="Calibration Log Report" FontSize="18" FontWeight="Bold"/>
+                    <Separator Margin="0,10"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Label Content="Date Range:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <DatePicker SelectedDate="{Binding StartDate}" Margin="5,0"/>
+                        <Label Content="to" VerticalAlignment="Center"/>
+                        <DatePicker SelectedDate="{Binding EndDate}" Margin="5,0"/>
+
+                        <ComboBox ItemsSource="{Binding CalibrationTestNameOptions}" SelectedItem="{Binding SelectedCalibrationTestName}" mah:TextBoxHelper.Watermark="All Tests/Instruments" Width="200" Margin="20,0,0,0"/>
+                        <ComboBox ItemsSource="{Binding QcResultOptions}" SelectedItem="{Binding SelectedQcResult}" mah:TextBoxHelper.Watermark="All Results" Width="150" Margin="5,0,0,0"/>
+
+                        <Button Content="Generate Report" Command="{Binding GenerateReportCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}" Margin="20,0,0,0"/>
+                        <Button Content="Clear Filters" Command="{Binding ClearFiltersCommand}" Margin="5,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
         </StackPanel>
 
         <Grid Grid.Row="2">
@@ -407,6 +436,26 @@
                     <DataGridTextColumn Header="Stored By" Binding="{Binding StoredByUsername}" Width="*"/>
                     <DataGridTextColumn Header="Completed On" Binding="{Binding TestDoneDateTime, StringFormat='g'}" Width="1.5*"/>
                     <DataGridTextColumn Header="Completed By" Binding="{Binding TestDoneByUsername}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <DataGrid ItemsSource="{Binding CalibrationReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
+                <DataGrid.Style>
+                    <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedReport}" Value="Calibration Log">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.Style>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Calibrated On" Binding="{Binding CalibrationDateTime, StringFormat='g'}" Width="1.5*"/>
+                    <DataGridTextColumn Header="Test/Instrument" Binding="{Binding TestName}" Width="2*"/>
+                    <DataGridTextColumn Header="QC Result" Binding="{Binding QcResult}" Width="*"/>
+                    <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*"/>
+                    <DataGridTextColumn Header="Performed By" Binding="{Binding PerformedByUsername}" Width="1.5*"/>
                 </DataGrid.Columns>
             </DataGrid>
 
