@@ -57,6 +57,17 @@ namespace PortalMirage.Api.Controllers
             return Ok(reportData);
         }
 
+        [HttpGet("sample-storage")] // ADD THIS NEW ENDPOINT
+        public async Task<IActionResult> GetSampleStorageReport(
+    [FromQuery] DateTime startDate,
+    [FromQuery] DateTime endDate,
+    [FromQuery] string? testName,
+    [FromQuery] string? status)
+        {
+            var reportData = await reportService.GetSampleStorageReportAsync(startDate, endDate, testName, status);
+            return Ok(reportData);
+        }
+
         [HttpGet("repeat-samples")] // ADD THIS NEW ENDPOINT
         public async Task<IActionResult> GetRepeatSampleReport(
              [FromQuery] DateTime startDate,

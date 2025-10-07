@@ -14,4 +14,6 @@ public interface IReportService
     Task<DailyTaskComplianceReportDto> GetDailyTaskComplianceReportAsync(DateTime startDate, DateTime endDate, int? shiftId, string? status);
 
     Task<IEnumerable<MediaSterilityReportDto>> GetMediaSterilityReportAsync(DateTime startDate, DateTime endDate, string? mediaName, string? status); // ADD THIS
+
+    Task<IEnumerable<SampleStorageReportDto>> GetSampleStorageReportAsync(DateTime startDate, DateTime endDate, string? testName, string? status);
 }

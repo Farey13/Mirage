@@ -79,11 +79,9 @@
                         <DatePicker SelectedDate="{Binding StartDate}" Margin="5,0"/>
                         <Label Content="to" VerticalAlignment="Center"/>
                         <DatePicker SelectedDate="{Binding EndDate}" Margin="5,0"/>
-
                         <ComboBox ItemsSource="{Binding ShiftOptions}" SelectedItem="{Binding SelectedShift}" mah:TextBoxHelper.Watermark="All Shifts" Width="150" Margin="20,0,0,0"/>
                         <ComboBox ItemsSource="{Binding PriorityOptions}" SelectedItem="{Binding SelectedPriority}" mah:TextBoxHelper.Watermark="All Priorities" Width="150" Margin="5,0,0,0"/>
                         <ComboBox ItemsSource="{Binding HandoverStatusOptions}" SelectedItem="{Binding SelectedHandoverStatus}" mah:TextBoxHelper.Watermark="All Statuses" Width="150" Margin="5,0,0,0"/>
-
                         <Button Content="Generate Report" Command="{Binding GenerateReportCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}" Margin="20,0,0,0"/>
                         <Button Content="Clear Filters" Command="{Binding ClearFiltersCommand}" Margin="5,0,0,0"/>
                     </StackPanel>
@@ -109,10 +107,8 @@
                         <DatePicker SelectedDate="{Binding StartDate}" Margin="5,0"/>
                         <Label Content="to" VerticalAlignment="Center"/>
                         <DatePicker SelectedDate="{Binding EndDate}" Margin="5,0"/>
-
                         <ComboBox ItemsSource="{Binding KitNameOptions}" SelectedItem="{Binding SelectedKitName}" mah:TextBoxHelper.Watermark="All Kits" Width="180" Margin="20,0,0,0"/>
                         <ComboBox ItemsSource="{Binding KitStatusOptions}" SelectedItem="{Binding SelectedKitStatus}" mah:TextBoxHelper.Watermark="All Statuses" Width="150" Margin="5,0,0,0"/>
-
                         <Button Content="Generate Report" Command="{Binding GenerateReportCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}" Margin="20,0,0,0"/>
                         <Button Content="Clear Filters" Command="{Binding ClearFiltersCommand}" Margin="5,0,0,0"/>
                     </StackPanel>
@@ -138,17 +134,14 @@
                         <DatePicker SelectedDate="{Binding StartDate}" Margin="5,0"/>
                         <Label Content="to" VerticalAlignment="Center"/>
                         <DatePicker SelectedDate="{Binding EndDate}" Margin="5,0"/>
-
                         <ComboBox ItemsSource="{Binding ReasonOptions}" SelectedItem="{Binding SelectedReason}" mah:TextBoxHelper.Watermark="All Reasons" Width="180" Margin="20,0,0,0"/>
                         <ComboBox ItemsSource="{Binding DepartmentOptions}" SelectedItem="{Binding SelectedDepartment}" mah:TextBoxHelper.Watermark="All Departments" Width="150" Margin="5,0,0,0"/>
-
                         <Button Content="Generate Report" Command="{Binding GenerateReportCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}" Margin="20,0,0,0"/>
                         <Button Content="Clear Filters" Command="{Binding ClearFiltersCommand}" Margin="5,0,0,0"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
 
-            <!-- Daily Task Compliance Report Filter Panel -->
             <Border Background="{DynamicResource MahApps.Brushes.Gray9}" CornerRadius="5" Padding="15" Margin="0,0,0,15">
                 <Border.Style>
                     <Style TargetType="Border">
@@ -168,17 +161,14 @@
                         <DatePicker SelectedDate="{Binding StartDate}" Margin="5,0"/>
                         <Label Content="to" VerticalAlignment="Center"/>
                         <DatePicker SelectedDate="{Binding EndDate}" Margin="5,0"/>
-
                         <ComboBox ItemsSource="{Binding TaskShiftOptions}" SelectedItem="{Binding SelectedTaskShift}" DisplayMemberPath="Name" mah:TextBoxHelper.Watermark="All Shifts" Width="180" Margin="20,0,0,0"/>
                         <ComboBox ItemsSource="{Binding TaskStatusOptions}" SelectedItem="{Binding SelectedTaskStatus}" mah:TextBoxHelper.Watermark="All Statuses" Width="150" Margin="5,0,0,0"/>
-
                         <Button Content="Generate Report" Command="{Binding GenerateReportCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}" Margin="20,0,0,0"/>
                         <Button Content="Clear Filters" Command="{Binding ClearFiltersCommand}" Margin="5,0,0,0"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
 
-            <!-- Media Sterility Log Report Filter Panel -->
             <Border Background="{DynamicResource MahApps.Brushes.Gray9}" CornerRadius="5" Padding="15" Margin="0,0,0,15">
                 <Border.Style>
                     <Style TargetType="Border">
@@ -198,15 +188,41 @@
                         <DatePicker SelectedDate="{Binding StartDate}" Margin="5,0"/>
                         <Label Content="to" VerticalAlignment="Center"/>
                         <DatePicker SelectedDate="{Binding EndDate}" Margin="5,0"/>
-
                         <ComboBox ItemsSource="{Binding MediaNameOptions}" SelectedItem="{Binding SelectedMediaName}" mah:TextBoxHelper.Watermark="All Media" Width="180" Margin="20,0,0,0"/>
                         <ComboBox ItemsSource="{Binding MediaStatusOptions}" SelectedItem="{Binding SelectedMediaStatus}" mah:TextBoxHelper.Watermark="All Statuses" Width="150" Margin="5,0,0,0"/>
-
                         <Button Content="Generate Report" Command="{Binding GenerateReportCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}" Margin="20,0,0,0"/>
                         <Button Content="Clear Filters" Command="{Binding ClearFiltersCommand}" Margin="5,0,0,0"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
+
+            <Border Background="{DynamicResource MahApps.Brushes.Gray9}" CornerRadius="5" Padding="15" Margin="0,0,0,15">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedReport}" Value="Sample Storage Log">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <StackPanel>
+                    <TextBlock Text="Sample Storage Log Report" FontSize="18" FontWeight="Bold"/>
+                    <Separator Margin="0,10"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Label Content="Date Range:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <DatePicker SelectedDate="{Binding StartDate}" Margin="5,0"/>
+                        <Label Content="to" VerticalAlignment="Center"/>
+                        <DatePicker SelectedDate="{Binding EndDate}" Margin="5,0"/>
+                        <ComboBox ItemsSource="{Binding TestNameOptions}" SelectedItem="{Binding SelectedTestName}" mah:TextBoxHelper.Watermark="All Tests" Width="180" Margin="20,0,0,0"/>
+                        <ComboBox ItemsSource="{Binding SampleStatusOptions}" SelectedItem="{Binding SelectedSampleStatus}" mah:TextBoxHelper.Watermark="All Statuses" Width="150" Margin="5,0,0,0"/>
+                        <Button Content="Generate Report" Command="{Binding GenerateReportCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}" Margin="20,0,0,0"/>
+                        <Button Content="Clear Filters" Command="{Binding ClearFiltersCommand}" Margin="5,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
         </StackPanel>
 
         <Grid Grid.Row="2">
@@ -313,7 +329,6 @@
                 </DataGrid.Columns>
             </DataGrid>
 
-            <!-- Daily Task Compliance Report Data Grid -->
             <Grid>
                 <Grid.Style>
                     <Style TargetType="Grid">
@@ -329,7 +344,6 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-
                 <Border Grid.Row="0" Background="{DynamicResource MahApps.Brushes.Gray9}" CornerRadius="5" Padding="15" Margin="0,0,0,10">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <TextBlock Text="Total Tasks:" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -340,7 +354,6 @@
                         <TextBlock Text="{Binding CompletionPercentage, StringFormat=P1}" FontWeight="Bold" FontSize="16" Margin="5,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource MahApps.Brushes.Accent}"/>
                     </StackPanel>
                 </Border>
-
                 <DataGrid Grid.Row="1" ItemsSource="{Binding DailyTaskReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Date" Binding="{Binding LogDate, StringFormat='d'}" Width="*"/>
@@ -354,7 +367,6 @@
                 </DataGrid>
             </Grid>
 
-            <!-- Media Sterility Log Report Data Grid -->
             <DataGrid ItemsSource="{Binding MediaSterilityReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
                 <DataGrid.Style>
                     <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
@@ -376,6 +388,28 @@
                     <DataGridTextColumn Header="Performed By" Binding="{Binding PerformedByUsername}" Width="1.5*"/>
                 </DataGrid.Columns>
             </DataGrid>
+
+            <DataGrid ItemsSource="{Binding SampleStorageReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
+                <DataGrid.Style>
+                    <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedReport}" Value="Sample Storage Log">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.Style>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Stored On" Binding="{Binding StorageDateTime, StringFormat='g'}" Width="1.5*"/>
+                    <DataGridTextColumn Header="Sample ID" Binding="{Binding PatientSampleID}" Width="*"/>
+                    <DataGridTextColumn Header="Test Name" Binding="{Binding TestName}" Width="1.5*"/>
+                    <DataGridTextColumn Header="Stored By" Binding="{Binding StoredByUsername}" Width="*"/>
+                    <DataGridTextColumn Header="Completed On" Binding="{Binding TestDoneDateTime, StringFormat='g'}" Width="1.5*"/>
+                    <DataGridTextColumn Header="Completed By" Binding="{Binding TestDoneByUsername}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
         </Grid>
     </Grid>
 </UserControl>

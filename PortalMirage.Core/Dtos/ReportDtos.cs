@@ -97,3 +97,13 @@ public record MediaSterilityReportDto(
     string? Comments,
     string PerformedByUsername
 );
+
+public record SampleStorageReportDto(
+    DateTime StorageDateTime,
+    string PatientSampleID,
+    string TestName,
+    string StoredByUsername,
+    bool IsTestDone,
+    DateTime? TestDoneDateTime,
+    string? TestDoneByUsername
+);

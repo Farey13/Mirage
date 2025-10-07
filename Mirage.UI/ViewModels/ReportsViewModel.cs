@@ -22,7 +22,7 @@ public partial class ReportsViewModel : ObservableObject
     private readonly DispatcherTimer _timer;
 
     [ObservableProperty] private string _selectedReport = "Machine Breakdowns";
-    public ObservableCollection<string> AvailableReports { get; } = new() { "Machine Breakdowns", "Handover Summary", "Kit Validation Log", "Repeat Sample Log", "Daily Task Compliance", "Media Sterility Log" };
+    public ObservableCollection<string> AvailableReports { get; } = new() { "Machine Breakdowns", "Handover Summary", "Kit Validation Log", "Repeat Sample Log", "Daily Task Compliance", "Media Sterility Log", "Sample Storage Log" };
 
     [ObservableProperty] private DateTime _startDate = DateTime.Today;
     [ObservableProperty] private DateTime _endDate = DateTime.Today;
@@ -69,12 +69,19 @@ public partial class ReportsViewModel : ObservableObject
     [ObservableProperty] private int _completedTasks;
     public double CompletionPercentage => TotalTasks > 0 ? (double)CompletedTasks / TotalTasks * 100 : 0;
 
-    // --- NEW: Media Sterility Report Properties ---
+    // Media Sterility Report Properties
     [ObservableProperty] private string? _selectedMediaName;
     [ObservableProperty] private string? _selectedMediaStatus = "All";
     public ObservableCollection<MediaSterilityReportDto> MediaSterilityReportData { get; } = new();
     public ObservableCollection<string> MediaNameOptions { get; } = new();
     public ObservableCollection<string> MediaStatusOptions { get; } = new() { "All", "Passed", "Failed" };
+
+    // --- NEW: Sample Storage Report Properties ---
+    [ObservableProperty] private string? _selectedTestName;
+    [ObservableProperty] private string? _selectedSampleStatus = "All";
+    public ObservableCollection<SampleStorageReportDto> SampleStorageReportData { get; } = new();
+    public ObservableCollection<string> TestNameOptions { get; } = new();
+    public ObservableCollection<string> SampleStatusOptions { get; } = new() { "All", "Pending", "Test Done" };
 
     public ReportsViewModel()
     {
@@ -133,10 +140,15 @@ public partial class ReportsViewModel : ObservableObject
             DepartmentOptions.Clear(); DepartmentOptions.Add("All");
             foreach (var item in departmentItems) DepartmentOptions.Add(item.ItemValue);
 
-            // NEW: Load Media Name options
+            // Load Media Name options
             var mediaNameItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "MediaName");
             MediaNameOptions.Clear(); MediaNameOptions.Add("All");
             foreach (var item in mediaNameItems) MediaNameOptions.Add(item.ItemValue);
+
+            // NEW: Load Test Name options
+            var testNameItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "TestName");
+            TestNameOptions.Clear(); TestNameOptions.Add("All");
+            foreach (var item in testNameItems) TestNameOptions.Add(item.ItemValue);
         }
         catch (Exception ex) { MessageBox.Show($"Failed to load filter options: {ex.Message}"); }
     }
@@ -152,6 +164,7 @@ public partial class ReportsViewModel : ObservableObject
             case "Repeat Sample Log": await GenerateRepeatSampleReport(); break;
             case "Daily Task Compliance": await GenerateDailyTaskComplianceReport(); break;
             case "Media Sterility Log": await GenerateMediaSterilityReport(); break;
+            case "Sample Storage Log": await GenerateSampleStorageReport(); break;
         }
     }
 
@@ -168,6 +181,7 @@ public partial class ReportsViewModel : ObservableObject
         RepeatSampleReportData.Clear();
         DailyTaskReportData.Clear();
         MediaSterilityReportData.Clear();
+        SampleStorageReportData.Clear();
 
         // Reset summary stats for daily tasks
         TotalTasks = 0;
@@ -188,6 +202,8 @@ public partial class ReportsViewModel : ObservableObject
         SelectedTaskStatus = "All";
         SelectedMediaName = null;
         SelectedMediaStatus = "All";
+        SelectedTestName = null;
+        SelectedSampleStatus = "All";
     }
 
     [RelayCommand]
@@ -348,7 +364,7 @@ public partial class ReportsViewModel : ObservableObject
         finally { IsLoading = false; }
     }
 
-    // NEW: Method for Media Sterility Report
+    // Method for Media Sterility Report
     private async Task GenerateMediaSterilityReport()
     {
         if (string.IsNullOrEmpty(AuthToken)) return;
@@ -365,6 +381,28 @@ public partial class ReportsViewModel : ObservableObject
             foreach (var item in reportData) MediaSterilityReportData.Add(item);
 
             if (!MediaSterilityReportData.Any()) { MessageBox.Show("No records found for the selected criteria."); }
+        }
+        catch (Exception ex) { MessageBox.Show($"Failed to generate report: {ex.Message}"); }
+        finally { IsLoading = false; }
+    }
+
+    // NEW: Method for Sample Storage Report
+    private async Task GenerateSampleStorageReport()
+    {
+        if (string.IsNullOrEmpty(AuthToken)) return;
+        if (StartDate > EndDate) { MessageBox.Show("Start date cannot be after end date."); return; }
+
+        IsLoading = true;
+        SampleStorageReportData.Clear();
+        try
+        {
+            var testNameFilter = SelectedTestName == "All" ? null : SelectedTestName;
+            var statusFilter = SelectedSampleStatus == "All" ? null : SelectedSampleStatus;
+
+            var reportData = await _apiClient.GetSampleStorageReportAsync(AuthToken, StartDate, EndDate, testNameFilter, statusFilter);
+            foreach (var item in reportData) SampleStorageReportData.Add(item);
+
+            if (!SampleStorageReportData.Any()) { MessageBox.Show("No records found for the selected criteria."); }
         }
         catch (Exception ex) { MessageBox.Show($"Failed to generate report: {ex.Message}"); }
         finally { IsLoading = false; }

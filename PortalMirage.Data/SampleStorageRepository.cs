@@ -1,6 +1,8 @@
 ﻿using Dapper;
 using PortalMirage.Core.Models;
+using PortalMirage.Core.Dtos;
 using PortalMirage.Data.Abstractions;
+using System.Text;
 
 namespace PortalMirage.Data;
 
@@ -89,5 +91,48 @@ public class SampleStorageRepository(IDbConnectionFactory connectionFactory) : I
                        """;
         var rowsAffected = await connection.ExecuteAsync(sql, new { StorageId = storageId, UserId = userId, Reason = reason });
         return rowsAffected > 0;
+    }
+
+    public async Task<IEnumerable<SampleStorageReportDto>> GetReportDataAsync(DateTime startDate, DateTime endDate, string? testName, string? status)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        var inclusiveEndDate = endDate.Date.AddDays(1);
+
+        var sqlBuilder = new StringBuilder(@"
+            SELECT 
+                ss.StorageDateTime,
+                ss.PatientSampleID,
+                ss.TestName,
+                u_stored.FullName AS StoredByUsername,
+                ss.IsTestDone,
+                ss.TestDoneDateTime,
+                u_done.FullName AS TestDoneByUsername
+            FROM SampleStorage ss
+            LEFT JOIN Users u_stored ON ss.StoredByUserID = u_stored.UserID
+            LEFT JOIN Users u_done ON ss.TestDoneByUserID = u_done.UserID
+            WHERE ss.IsActive = 1 
+              AND ss.StorageDateTime >= @StartDate 
+              AND ss.StorageDateTime < @InclusiveEndDate
+        ");
+
+        var parameters = new DynamicParameters();
+        parameters.Add("StartDate", startDate.Date);
+        parameters.Add("InclusiveEndDate", inclusiveEndDate);
+
+        if (!string.IsNullOrEmpty(testName) && testName != "All")
+        {
+            sqlBuilder.Append(" AND ss.TestName = @TestName");
+            parameters.Add("TestName", testName);
+        }
+
+        if (!string.IsNullOrEmpty(status))
+        {
+            if (status == "Pending") sqlBuilder.Append(" AND ss.IsTestDone = 0");
+            else if (status == "Test Done") sqlBuilder.Append(" AND ss.IsTestDone = 1");
+        }
+
+        sqlBuilder.Append(" ORDER BY ss.StorageDateTime DESC;");
+
+        return await connection.QueryAsync<SampleStorageReportDto>(sqlBuilder.ToString(), parameters);
     }
 }
