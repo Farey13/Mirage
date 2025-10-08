@@ -13,7 +13,18 @@ public class RepeatSampleLogService(
 {
     public async Task<RepeatSampleLog> CreateAsync(RepeatSampleLog repeatSampleLog)
     {
-        return await repeatSampleLogRepository.CreateAsync(repeatSampleLog);
+        var newLog = await repeatSampleLogRepository.CreateAsync(repeatSampleLog);
+
+        // ADDED: Log the creation event
+        await auditLogService.LogAsync(
+            userId: newLog.LoggedByUserID,
+            actionType: "Create",
+            moduleName: "RepeatSampleLog",
+            recordId: newLog.RepeatID.ToString(),
+            newValue: $"Patient: {newLog.PatientName}, Reason: {newLog.ReasonText}"
+        );
+
+        return newLog;
     }
 
     public async Task<IEnumerable<RepeatSampleLog>> GetByDateRangeAsync(DateTime startDate, DateTime endDate)

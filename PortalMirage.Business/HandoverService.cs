@@ -1,6 +1,9 @@
 ﻿using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Models;
 using PortalMirage.Data.Abstractions;
+using System.Threading.Tasks;
+using System;
+using System.Collections.Generic;
 
 namespace PortalMirage.Business;
 
@@ -10,7 +13,18 @@ public class HandoverService(
 {
     public async Task<Handover> CreateAsync(Handover handover)
     {
-        return await handoverRepository.CreateAsync(handover);
+        var newHandover = await handoverRepository.CreateAsync(handover);
+
+        // ADDED: Log the creation event
+        await auditLogService.LogAsync(
+            userId: newHandover.GivenByUserID,
+            actionType: "Create",
+            moduleName: "Handover",
+            recordId: newHandover.HandoverID.ToString(),
+            newValue: newHandover.HandoverNotes
+        );
+
+        return newHandover;
     }
 
     public async Task<IEnumerable<Handover>> GetPendingAsync(DateTime startDate, DateTime endDate)
@@ -38,7 +52,18 @@ public class HandoverService(
             return true; // Already received, so the state is correct.
         }
 
-        return await handoverRepository.MarkAsReceivedAsync(handoverId, userId);
+        var success = await handoverRepository.MarkAsReceivedAsync(handoverId, userId);
+        if (success)
+        {
+            // ADDED: Log the receive event
+            await auditLogService.LogAsync(
+                userId: userId,
+                actionType: "Receive",
+                moduleName: "Handover",
+                recordId: handoverId.ToString()
+            );
+        }
+        return success;
     }
 
     public async Task<bool> DeactivateAsync(int handoverId, int userId, string reason)
@@ -58,9 +83,9 @@ public class HandoverService(
         }
         return success;
     }
+
     public async Task<Handover?> GetByIdAsync(int handoverId)
     {
         return await handoverRepository.GetByIdAsync(handoverId);
     }
-
 }

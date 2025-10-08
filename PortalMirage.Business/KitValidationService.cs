@@ -1,6 +1,9 @@
 ﻿using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Models;
 using PortalMirage.Data.Abstractions;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using System;
 
 namespace PortalMirage.Business;
 
@@ -11,7 +14,18 @@ public class KitValidationService(
     public async Task<KitValidation> CreateAsync(KitValidation kitValidation)
     {
         // In the future, any business rules (like checking for duplicate lot numbers) would go here.
-        return await kitValidationRepository.CreateAsync(kitValidation);
+        var newValidation = await kitValidationRepository.CreateAsync(kitValidation);
+
+        // ADDED: Log the creation event
+        await auditLogService.LogAsync(
+            userId: newValidation.ValidatedByUserID,
+            actionType: "Create",
+            moduleName: "KitValidation",
+            recordId: newValidation.ValidationID.ToString(),
+            newValue: $"Kit: {newValidation.KitName}, Lot: {newValidation.KitLotNumber}, Status: {newValidation.ValidationStatus}"
+        );
+
+        return newValidation;
     }
 
     public async Task<IEnumerable<KitValidation>> GetByDateRangeAsync(DateTime startDate, DateTime endDate)

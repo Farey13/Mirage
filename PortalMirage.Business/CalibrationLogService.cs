@@ -1,6 +1,9 @@
 ﻿using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Models;
 using PortalMirage.Data.Abstractions;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace PortalMirage.Business;
 
@@ -12,7 +15,18 @@ public class CalibrationLogService(
     {
         // In the future, any business rules (like validation) would go here.
         // For now, we pass it directly to the repository.
-        return await calibrationLogRepository.CreateAsync(calibrationLog);
+        var newLog = await calibrationLogRepository.CreateAsync(calibrationLog);
+
+        // ADDED: Log the creation event
+        await auditLogService.LogAsync(
+            userId: newLog.PerformedByUserID,
+            actionType: "Create",
+            moduleName: "CalibrationLog",
+            recordId: newLog.CalibrationID.ToString(),
+            newValue: $"Test: {newLog.TestName}, Result: {newLog.QcResult}"
+        );
+
+        return newLog;
     }
 
     public async Task<IEnumerable<CalibrationLog>> GetByDateRangeAsync(DateTime startDate, DateTime endDate)

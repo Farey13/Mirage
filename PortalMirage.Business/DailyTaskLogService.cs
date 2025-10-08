@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TaskModel = PortalMirage.Core.Models.Task;
-using PortalMirage.Core.Models; 
+using PortalMirage.Core.Models;
 
 namespace PortalMirage.Business;
 
@@ -73,13 +73,14 @@ public class DailyTaskLogService(
         if (updatedLog is null)
             return null;
 
-        // Audit the status change
+        // ADDED: Enhanced audit logging with more descriptive message
         await auditLogService.LogAsync(
-            userId,
-            AuditActions.UpdateStatus,
-            nameof(DailyTaskLog),
-            logId.ToString(),
-            newValue: $"Status changed to {status} with comment: {comment ?? "No comment"}");
+            userId: userId,
+            actionType: AuditActions.UpdateStatus,
+            moduleName: "DailyTaskLog",
+            recordId: logId.ToString(),
+            newValue: $"Status set to '{status}'. Comment: {comment ?? "N/A"}"
+        );
 
         return await MapToTaskLogDetailDto(updatedLog, userId);
     }
@@ -95,6 +96,7 @@ public class DailyTaskLogService(
         var extendedLog = await dailyTaskLogRepository.ExtendDeadlineAsync(logId, newDeadline, reason, adminUserId);
         if (extendedLog is not null)
         {
+            // This was already here and is correct
             await auditLogService.LogAsync(
                 adminUserId,
                 AuditActions.ExtendDeadline,
@@ -134,6 +136,7 @@ public class DailyTaskLogService(
         var updatedLog = await dailyTaskLogRepository.OverrideLockAsync(logId, overrideUntil, reason, adminUserId);
         if (updatedLog is not null)
         {
+            // This was already here and is correct
             await auditLogService.LogAsync(
                 adminUserId,
                 AuditActions.OverrideLock,
