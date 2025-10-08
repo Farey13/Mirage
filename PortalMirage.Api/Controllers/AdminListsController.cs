@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Dtos;
 using PortalMirage.Core.Models;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace PortalMirage.Api.Controllers
@@ -18,19 +21,20 @@ namespace PortalMirage.Api.Controllers
             var items = await adminListService.GetAllAsync();
             return Ok(items);
         }
+
         [HttpGet("types")]
         public IActionResult GetListTypes()
         {
             // This hard-coded list is the single source of truth for our list types.
             var listTypes = new List<string>
-    {
-        "MachineName",
-        "TestName",
-        "KitName",
-        "MediaName",
-        "RepeatReason",
-        "Department"
-    };
+            {
+                "MachineName",
+                "TestName",
+                "KitName",
+                "MediaName",
+                "RepeatReason",
+                "Department"
+            };
             return Ok(listTypes.OrderBy(t => t));
         }
 
@@ -44,14 +48,15 @@ namespace PortalMirage.Api.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateAdminListItemRequest request)
         {
+            var actorUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!); // Get admin's ID
             var newItem = new AdminListItem
             {
                 ListType = request.ListType,
                 ItemValue = request.ItemValue,
-                Description = request.Description, // Add this
+                Description = request.Description,
                 IsActive = true
             };
-            var createdItem = await adminListService.CreateAsync(newItem);
+            var createdItem = await adminListService.CreateAsync(newItem, actorUserId); // Pass the ID
             return Ok(createdItem);
         }
 
@@ -60,16 +65,17 @@ namespace PortalMirage.Api.Controllers
         {
             if (id != request.ItemID) return BadRequest("ID mismatch");
 
+            var actorUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!); // Get admin's ID
             var itemToUpdate = new AdminListItem
             {
                 ItemID = request.ItemID,
                 ItemValue = request.ItemValue,
-                Description = request.Description, // Add this
+                Description = request.Description,
                 IsActive = request.IsActive,
-                ListType = ""
+                ListType = "" // ListType is not updated, so it can be empty here
             };
 
-            var updatedItem = await adminListService.UpdateAsync(itemToUpdate);
+            var updatedItem = await adminListService.UpdateAsync(itemToUpdate, actorUserId); // Pass the ID
             return Ok(updatedItem);
         }
     }

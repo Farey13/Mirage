@@ -2,6 +2,9 @@
 using PortalMirage.Core.Models;
 using PortalMirage.Data;
 using PortalMirage.Data.Abstractions;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace PortalMirage.Business;
 
@@ -11,7 +14,18 @@ public class MachineBreakdownService(
 {
     public async Task<MachineBreakdown> CreateAsync(MachineBreakdown breakdown)
     {
-        return await machineBreakdownRepository.CreateAsync(breakdown);
+        var newBreakdown = await machineBreakdownRepository.CreateAsync(breakdown);
+
+        // ADDED: Log the creation event
+        await auditLogService.LogAsync(
+            userId: newBreakdown.ReportedByUserID,
+            actionType: "Create",
+            moduleName: "MachineBreakdown",
+            recordId: newBreakdown.BreakdownID.ToString(),
+            newValue: $"Machine: {newBreakdown.MachineName}, Reason: {newBreakdown.BreakdownReason}"
+        );
+
+        return newBreakdown;
     }
 
     public async Task<IEnumerable<MachineBreakdown>> GetPendingByDateRangeAsync(DateTime startDate, DateTime endDate)
@@ -34,7 +48,19 @@ public class MachineBreakdownService(
             return true; // Already resolved, so the state is correct.
         }
 
-        return await machineBreakdownRepository.MarkAsResolvedAsync(breakdownId, userId, resolutionNotes);
+        var success = await machineBreakdownRepository.MarkAsResolvedAsync(breakdownId, userId, resolutionNotes);
+        if (success)
+        {
+            // ADDED: Log the resolve event
+            await auditLogService.LogAsync(
+                userId: userId,
+                actionType: "Resolve",
+                moduleName: "MachineBreakdown",
+                recordId: breakdownId.ToString(),
+                newValue: resolutionNotes
+            );
+        }
+        return success;
     }
 
     public async Task<IEnumerable<MachineBreakdown>> GetResolvedByDateRangeAsync(DateTime startDate, DateTime endDate)

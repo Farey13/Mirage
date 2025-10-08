@@ -1,6 +1,9 @@
 ﻿using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Models;
 using PortalMirage.Data.Abstractions;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace PortalMirage.Business;
 
@@ -10,7 +13,18 @@ public class SampleStorageService(
 {
     public async Task<SampleStorage> CreateAsync(SampleStorage sampleStorage)
     {
-        return await sampleStorageRepository.CreateAsync(sampleStorage);
+        var newSample = await sampleStorageRepository.CreateAsync(sampleStorage);
+
+        // ADDED: Log the creation event
+        await auditLogService.LogAsync(
+            userId: newSample.StoredByUserID,
+            actionType: "Create",
+            moduleName: "SampleStorage",
+            recordId: newSample.StorageID.ToString(),
+            newValue: $"Sample ID: {newSample.PatientSampleID}, Test: {newSample.TestName}"
+        );
+
+        return newSample;
     }
 
     public async Task<IEnumerable<SampleStorage>> GetPendingByDateRangeAsync(DateTime startDate, DateTime endDate)
@@ -39,10 +53,21 @@ public class SampleStorageService(
         }
 
         // 3. If it exists and is not done, then update it.
-        return await sampleStorageRepository.MarkAsDoneAsync(storageId, userId);
+        var success = await sampleStorageRepository.MarkAsDoneAsync(storageId, userId);
+        if (success)
+        {
+            // ADDED: Log the "test done" event
+            await auditLogService.LogAsync(
+                userId: userId,
+                actionType: "Update",
+                moduleName: "SampleStorage",
+                recordId: storageId.ToString(),
+                newValue: "Marked as Test Done"
+            );
+        }
+        return success;
     }
 
-    // Replace the DeactivateAsync method
     public async Task<bool> DeactivateAsync(int storageId, int userId, string reason)
     {
         var success = await sampleStorageRepository.DeactivateAsync(storageId, userId, reason);

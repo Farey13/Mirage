@@ -24,7 +24,18 @@ public class MediaSterilityCheckService(
             sterilityCheck.OverallStatus = "Passed";
         }
 
-        return await sterilityCheckRepository.CreateAsync(sterilityCheck);
+        var newCheck = await sterilityCheckRepository.CreateAsync(sterilityCheck);
+
+        // ADDED: Log the creation event
+        await auditLogService.LogAsync(
+            userId: newCheck.PerformedByUserID,
+            actionType: "Create",
+            moduleName: "MediaSterilityCheck",
+            recordId: newCheck.SterilityCheckID.ToString(),
+            newValue: $"Media: {newCheck.MediaName}, Lot: {newCheck.MediaLotNumber}, Status: {newCheck.OverallStatus}"
+        );
+
+        return newCheck;
     }
 
     public async Task<IEnumerable<MediaSterilityCheck>> GetByDateRangeAsync(DateTime startDate, DateTime endDate)
