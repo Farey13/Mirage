@@ -18,14 +18,15 @@ namespace PortalMirage.Api.Controllers
         IUserService userService,
         IRoleService roleService,
         IUserRoleService userRoleService,
-        IAuditLogService auditLogService) : ControllerBase // 1. Add the service to the constructor's parameter list
+        IAuditLogService auditLogService) : ControllerBase
     {
-        private readonly IAuditLogService _auditLogService = auditLogService; // 2. Add a private field and assign the parameter
+        private readonly IAuditLogService _auditLogService = auditLogService;
 
         [HttpPost("users/create")]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
         {
-            var newUser = await userService.RegisterUserAsync(request.Username, request.Password, request.FullName);
+            var actorUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var newUser = await userService.RegisterUserAsync(request.Username, request.Password, request.FullName, actorUserId);
 
             if (newUser is null)
             {
@@ -72,27 +73,26 @@ namespace PortalMirage.Api.Controllers
             return Ok(response);
         }
 
-        [HttpPost("users/reset-password")] // NEW ENDPOINT
+        [HttpPost("users/reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
         {
-            var adminUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var success = await userService.ResetPasswordAsync(request.Username, request.NewPassword);
+            var actorUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var success = await userService.ResetPasswordAsync(request.Username, request.NewPassword, actorUserId);
 
             if (!success)
             {
                 return NotFound("User not found.");
             }
 
-            // 3. Use the audit log service
-            await _auditLogService.LogAsync(adminUserId, "ResetPassword", "UserManagement", newValue: $"Admin user ID {adminUserId} reset password for {request.Username}");
-
+            // The audit log is now handled by the service, so we don't need to log it here.
             return Ok("Password has been reset successfully.");
         }
 
         [HttpPost("assign-role")]
         public async Task<IActionResult> AssignRole([FromBody] AssignRoleRequest request)
         {
-            var success = await userRoleService.AssignRoleToUserAsync(request.Username, request.RoleName);
+            var actorUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var success = await userRoleService.AssignRoleToUserAsync(request.Username, request.RoleName, actorUserId);
 
             if (!success)
             {
@@ -105,7 +105,8 @@ namespace PortalMirage.Api.Controllers
         [HttpPost("remove-role")]
         public async Task<IActionResult> RemoveRoleFromUser([FromBody] AssignRoleRequest request)
         {
-            var success = await userRoleService.RemoveRoleFromUserAsync(request.Username, request.RoleName);
+            var actorUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var success = await userRoleService.RemoveRoleFromUserAsync(request.Username, request.RoleName, actorUserId);
             if (!success)
             {
                 return BadRequest("Failed to remove role from user.");
