@@ -1,13 +1,14 @@
 ﻿using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Models;
 using PortalMirage.Data.Abstractions;
+using System.Collections.Generic;
 using Task = System.Threading.Tasks.Task;
 
 namespace PortalMirage.Business;
 
 public class UserService(IUserRepository userRepository, IAuditLogService auditLogService) : IUserService
 {
-    public async Task<User?> RegisterUserAsync(string username, string password, string fullName)
+    public async Task<User?> RegisterUserAsync(string username, string password, string fullName, int actorUserId)
     {
         // 1. Business Rule: Check if the username already exists
         var existingUser = await userRepository.GetByUsernameAsync(username);
@@ -31,6 +32,9 @@ public class UserService(IUserRepository userRepository, IAuditLogService auditL
 
         // 4. Pass the new user to the data layer to be saved
         var createdUser = await userRepository.CreateAsync(userToCreate);
+
+        // 5. Log the user creation event
+        await auditLogService.LogAsync(actorUserId, "Create", "UserManagement", createdUser.UserID.ToString(), newValue: $"Created new user '{createdUser.Username}'");
 
         return createdUser;
     }
@@ -64,7 +68,7 @@ public class UserService(IUserRepository userRepository, IAuditLogService auditL
         return await userRepository.GetAllAsync();
     }
 
-    public async Task<bool> ResetPasswordAsync(string username, string newPassword)
+    public async Task<bool> ResetPasswordAsync(string username, string newPassword, int actorUserId)
     {
         var user = await userRepository.GetByUsernameAsync(username);
         if (user is null)
@@ -77,9 +81,9 @@ public class UserService(IUserRepository userRepository, IAuditLogService auditL
 
         if (success)
         {
-            // Log this critical security event. The user performing the reset is captured by the controller.
+            // Log this critical security event with the actual admin user ID
             await auditLogService.LogAsync(
-                userId: null, // User ID of the actor will be added by the controller
+                userId: actorUserId,
                 actionType: "ResetPassword",
                 moduleName: "UserManagement",
                 recordId: user.UserID.ToString(),
