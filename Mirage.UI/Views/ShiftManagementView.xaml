@@ -6,9 +6,7 @@
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
              mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="900">
-    <UserControl.DataContext>
-        <viewModels:ShiftManagementViewModel/>
-    </UserControl.DataContext>
+    
     <Grid Margin="10">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="2*"/>

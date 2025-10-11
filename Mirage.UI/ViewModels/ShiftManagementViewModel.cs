@@ -2,7 +2,6 @@
 using CommunityToolkit.Mvvm.Input;
 using Mirage.UI.Services;
 using PortalMirage.Core.Dtos;
-using Refit;
 using System;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
@@ -12,8 +11,8 @@ namespace Mirage.UI.ViewModels;
 
 public partial class ShiftManagementViewModel : ObservableObject
 {
-    public static string? AuthToken { get; set; }
     private readonly IPortalMirageApi _apiClient;
+    private readonly IAuthService _authService;
 
     public ObservableCollection<ShiftResponse> Shifts { get; } = new();
 
@@ -22,22 +21,19 @@ public partial class ShiftManagementViewModel : ObservableObject
 
     [ObservableProperty]
     private string _editShiftName = string.Empty;
-
     [ObservableProperty]
-    private DateTime? _editStartTime; // Use DateTime? for TimePicker
-
+    private DateTime? _editStartTime;
     [ObservableProperty]
-    private DateTime? _editEndTime;   // Use DateTime? for TimePicker
-
+    private DateTime? _editEndTime;
     [ObservableProperty]
     private int _editGracePeriodHours;
-
     [ObservableProperty]
     private bool _isEditing;
 
-    public ShiftManagementViewModel()
+    public ShiftManagementViewModel(IPortalMirageApi apiClient, IAuthService authService)
     {
-        _apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
+        _apiClient = apiClient;
+        _authService = authService;
         LoadShifts();
     }
 
@@ -46,10 +42,12 @@ public partial class ShiftManagementViewModel : ObservableObject
     [RelayCommand]
     private async System.Threading.Tasks.Task LoadShiftsAsync()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         try
         {
-            var shifts = await _apiClient.GetAllShiftsAsync(AuthToken);
+            var shifts = await _apiClient.GetAllShiftsAsync(authToken);
             Shifts.Clear();
             foreach (var shift in shifts) Shifts.Add(shift);
         }
@@ -62,11 +60,8 @@ public partial class ShiftManagementViewModel : ObservableObject
         {
             IsEditing = true;
             EditShiftName = value.ShiftName;
-
-            // Convert TimeOnly to DateTime for TimePicker binding
             EditStartTime = DateTime.Today.Add(value.StartTime.ToTimeSpan());
             EditEndTime = DateTime.Today.Add(value.EndTime.ToTimeSpan());
-
             EditGracePeriodHours = value.GracePeriodHours;
         }
         else
@@ -81,18 +76,16 @@ public partial class ShiftManagementViewModel : ObservableObject
         SelectedShift = null;
         IsEditing = true;
         EditShiftName = "New Shift";
-
-        // Set default times as DateTime for TimePicker
         EditStartTime = DateTime.Today.Add(new TimeSpan(8, 0, 0));
         EditEndTime = DateTime.Today.Add(new TimeSpan(16, 0, 0));
-
         EditGracePeriodHours = 2;
     }
 
     [RelayCommand]
     private async System.Threading.Tasks.Task SaveShift()
     {
-        if (string.IsNullOrEmpty(AuthToken) || string.IsNullOrWhiteSpace(EditShiftName))
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken) || string.IsNullOrWhiteSpace(EditShiftName))
         {
             MessageBox.Show("Shift Name cannot be empty.");
             return;
@@ -106,19 +99,18 @@ public partial class ShiftManagementViewModel : ObservableObject
 
         try
         {
-            // Extract TimeOnly from DateTime for API request
             var startTime = TimeOnly.FromTimeSpan(EditStartTime.Value.TimeOfDay);
             var endTime = TimeOnly.FromTimeSpan(EditEndTime.Value.TimeOfDay);
 
             if (SelectedShift is null) // Creating a new shift
             {
                 var request = new CreateShiftRequest(EditShiftName, startTime, endTime, EditGracePeriodHours);
-                await _apiClient.CreateShiftAsync(AuthToken, request);
+                await _apiClient.CreateShiftAsync(authToken, request);
             }
             else // Updating an existing shift
             {
                 var request = new UpdateShiftRequest(SelectedShift.ShiftID, EditShiftName, startTime, endTime, EditGracePeriodHours, true);
-                await _apiClient.UpdateShiftAsync(AuthToken, SelectedShift.ShiftID, request);
+                await _apiClient.UpdateShiftAsync(authToken, SelectedShift.ShiftID, request);
             }
 
             IsEditing = false;
@@ -129,9 +121,10 @@ public partial class ShiftManagementViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task DeleteShift()
+    private async System.Threading.Tasks.Task DeleteShift()
     {
-        if (SelectedShift is null || string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (SelectedShift is null || string.IsNullOrEmpty(authToken)) return;
 
         if (MessageBox.Show($"Are you sure you want to deactivate the '{SelectedShift.ShiftName}' shift?", "Confirm Deactivation", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.No)
         {
@@ -140,7 +133,7 @@ public partial class ShiftManagementViewModel : ObservableObject
 
         try
         {
-            await _apiClient.DeactivateShiftAsync(AuthToken, SelectedShift.ShiftID);
+            await _apiClient.DeactivateShiftAsync(authToken, SelectedShift.ShiftID);
             await LoadShiftsAsync();
         }
         catch (Exception ex) { MessageBox.Show($"Failed to deactivate shift: {ex.Message}"); }

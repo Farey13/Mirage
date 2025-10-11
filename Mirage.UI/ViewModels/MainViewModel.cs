@@ -16,41 +16,58 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private NavigationItem? _selectedMenuItem;
 
-    // ADDED: New property for the bottom menu items (Settings)
     [ObservableProperty]
     private NavigationItem? _selectedOptionsMenuItem;
 
-    private readonly Dictionary<Type, ObservableObject> _viewModelInstances = new();
+    private readonly Dictionary<Type, object> _viewModelInstances = new();
 
     public ObservableCollection<NavigationItem> MenuItems { get; } = new();
     public ObservableCollection<NavigationItem> OptionsMenuItems { get; } = new();
 
-    public MainViewModel()
+    public MainViewModel(
+        DashboardViewModel dashboardViewModel,
+        LogbooksViewModel logbooksViewModel,
+        ReportsViewModel reportsViewModel,
+        AdminViewModel adminViewModel,
+        SettingsViewModel settingsViewModel,
+        RepeatSampleViewModel repeatSampleViewModel,
+        KitValidationViewModel kitValidationViewModel,
+        CalibrationLogViewModel calibrationLogViewModel,
+        SampleStorageViewModel sampleStorageViewModel,
+        HandoverViewModel handoverViewModel,
+        MachineBreakdownViewModel machineBreakdownViewModel,
+        MediaSterilityViewModel mediaSterilityViewModel,
+        DailyTaskLogViewModel dailyTaskLogViewModel)
     {
-        // Instantiate all our main ViewModels once and store them
-        _viewModelInstances.Add(typeof(DashboardViewModel), new DashboardViewModel());
-        _viewModelInstances.Add(typeof(LogbooksViewModel), new LogbooksViewModel());
-        _viewModelInstances.Add(typeof(ReportsViewModel), new ReportsViewModel());
-        _viewModelInstances.Add(typeof(AdminViewModel), new AdminViewModel());
-        _viewModelInstances.Add(typeof(SettingsViewModel), new SettingsViewModel());
+        // Add ALL ViewModels to our dictionary
+        _viewModelInstances.Add(typeof(DashboardViewModel), dashboardViewModel);
+        _viewModelInstances.Add(typeof(LogbooksViewModel), logbooksViewModel);
+        _viewModelInstances.Add(typeof(ReportsViewModel), reportsViewModel);
+        _viewModelInstances.Add(typeof(AdminViewModel), adminViewModel);
+        _viewModelInstances.Add(typeof(SettingsViewModel), settingsViewModel);
+        _viewModelInstances.Add(typeof(RepeatSampleViewModel), repeatSampleViewModel);
+        _viewModelInstances.Add(typeof(KitValidationViewModel), kitValidationViewModel);
+        _viewModelInstances.Add(typeof(CalibrationLogViewModel), calibrationLogViewModel);
+        _viewModelInstances.Add(typeof(SampleStorageViewModel), sampleStorageViewModel);
+        _viewModelInstances.Add(typeof(HandoverViewModel), handoverViewModel);
+        _viewModelInstances.Add(typeof(MachineBreakdownViewModel), machineBreakdownViewModel);
+        _viewModelInstances.Add(typeof(MediaSterilityViewModel), mediaSterilityViewModel);
+        _viewModelInstances.Add(typeof(DailyTaskLogViewModel), dailyTaskLogViewModel);
 
-        // Create the menu items with your preferred emoji icons
-        MenuItems.Add(new NavigationItem("🏠", "Dashboard", typeof(DashboardViewModel)));
-        MenuItems.Add(new NavigationItem("📖", "Logbooks", typeof(LogbooksViewModel)));
-        MenuItems.Add(new NavigationItem("📈", "Reports", typeof(ReportsViewModel)));
-        MenuItems.Add(new NavigationItem("🛠️", "Admin", typeof(AdminViewModel)));
+        // --- Menu Items ---
+        // These emojis should be universally available
+        MenuItems.Add(new NavigationItem("🖼️", "Dashboard", typeof(DashboardViewModel)));
+        MenuItems.Add(new NavigationItem("📚", "Logbooks", typeof(LogbooksViewModel)));
+        MenuItems.Add(new NavigationItem("📊", "Reports", typeof(ReportsViewModel)));
+        MenuItems.Add(new NavigationItem("⚙️", "Admin", typeof(AdminViewModel)));
 
-        // ADDED: Options menu items (bottom menu)
-        OptionsMenuItems.Add(new NavigationItem("⚙️", "Settings", typeof(SettingsViewModel)));
+        OptionsMenuItems.Add(new NavigationItem("🔧", "Settings", typeof(SettingsViewModel)));
 
-        // Set the default starting page
         SelectedMenuItem = MenuItems[0];
     }
 
-    // This method handles clicks on the TOP menu items
     partial void OnSelectedMenuItemChanged(NavigationItem? value)
     {
-        // When a main item is selected, clear the options item selection
         if (value != null)
         {
             SelectedOptionsMenuItem = null;
@@ -58,10 +75,8 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    // ADDED: This method handles clicks on the BOTTOM menu items
     partial void OnSelectedOptionsMenuItemChanged(NavigationItem? value)
     {
-        // When an options item is selected, clear the main item selection
         if (value != null)
         {
             SelectedMenuItem = null;
@@ -69,35 +84,49 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    // REFACTORED: Unified navigation logic for both menu types
     private void NavigateToView(NavigationItem item)
     {
         if (_viewModelInstances.TryGetValue(item.DestinationViewModel, out var vm))
         {
-            // Create a new instance of the View
-            if (Activator.CreateInstance(item.ViewType) is FrameworkElement view)
+            var viewType = Type.GetType(item.DestinationViewModel.FullName!.Replace("ViewModel", "View"));
+            if (viewType != null && Activator.CreateInstance(viewType) is FrameworkElement view)
             {
-                // Set its DataContext to our persistent ViewModel
                 view.DataContext = vm;
                 CurrentView = view;
-            }
 
-            // If the new view is the dashboard, tell its ViewModel to load data.
-            if (vm is DashboardViewModel dvm)
-            {
-                _ = dvm.LoadSummaryAsync();
+                if (vm is DashboardViewModel dvm)
+                {
+                    _ = dvm.LoadSummaryAsync();
+                }
             }
         }
     }
 
     [RelayCommand]
-    private void NavigateTo(Type viewType)
+    private void NavigateTo(Type? viewType)
     {
-        if (viewType != null)
+        if (viewType is null) return;
+
+        // --- THIS IS THE CORRECTED LOGIC ---
+        // It correctly converts "Mirage.UI.Views.HandoverView"
+        // to "Mirage.UI.ViewModels.HandoverViewModel"
+        // without the old bug.
+        var tempName = viewType.FullName!.Replace(".Views.", ".ViewModels.");
+        var viewModelTypeName = tempName.Substring(0, tempName.Length - "View".Length) + "ViewModel";
+        // ------------------------------------
+
+        var viewModelType = Type.GetType(viewModelTypeName);
+
+        if (viewModelType != null && _viewModelInstances.TryGetValue(viewModelType, out var vm))
         {
-            CurrentView = Activator.CreateInstance(viewType);
-            SelectedMenuItem = null;
-            SelectedOptionsMenuItem = null;
+            if (Activator.CreateInstance(viewType) is FrameworkElement view)
+            {
+                view.DataContext = vm;
+                CurrentView = view;
+
+                SelectedMenuItem = null;
+                SelectedOptionsMenuItem = null;
+            }
         }
     }
 }

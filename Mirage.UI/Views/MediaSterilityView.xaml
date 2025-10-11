@@ -8,9 +8,7 @@
              xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="1000">
-    <UserControl.DataContext>
-        <viewModels:MediaSterilityViewModel/>
-    </UserControl.DataContext>
+    
 
     <UserControl.Resources>
         <Style x:Key="StandardActionButtonStyle" TargetType="Button" BasedOn="{StaticResource MahApps.Styles.Button.Flat}">

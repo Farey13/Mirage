@@ -2,7 +2,6 @@
 using CommunityToolkit.Mvvm.Input;
 using Mirage.UI.Services;
 using PortalMirage.Core.Dtos;
-using Refit;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -14,8 +13,8 @@ namespace Mirage.UI.ViewModels;
 
 public partial class MasterListViewModel : ObservableObject
 {
-    public static string? AuthToken { get; set; }
     private readonly IPortalMirageApi _apiClient;
+    private readonly IAuthService _authService;
 
     private List<AdminListItemDto> _allItems = new();
     public ObservableCollection<AdminListItemDto> FilteredItems { get; } = new();
@@ -23,42 +22,39 @@ public partial class MasterListViewModel : ObservableObject
 
     [ObservableProperty]
     private AdminListItemDto? _selectedItem;
-
     [ObservableProperty]
     private string? _selectedListType;
-
     [ObservableProperty]
     private string _searchFilter = string.Empty;
-
     [ObservableProperty]
     private string _editItemValue = string.Empty;
-
     [ObservableProperty]
     private string? _editDescription;
-
     [ObservableProperty]
     private bool _isItemActive = true;
-
     [ObservableProperty]
     private bool _isEditing;
 
     public int ItemCount => FilteredItems.Count;
 
-    public MasterListViewModel()
+    public MasterListViewModel(IPortalMirageApi apiClient, IAuthService authService)
     {
-        _apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
+        _apiClient = apiClient;
+        _authService = authService;
         _ = LoadAllItemsAsync();
     }
 
     [RelayCommand]
-    private async Task LoadAllItemsAsync()
+    private async System.Threading.Tasks.Task LoadAllItemsAsync()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         try
         {
-            var itemsTask = _apiClient.GetAllListItemsAsync(AuthToken);
-            var typesTask = _apiClient.GetListTypesAsync(AuthToken);
-            await Task.WhenAll(itemsTask, typesTask);
+            var itemsTask = _apiClient.GetAllListItemsAsync(authToken);
+            var typesTask = _apiClient.GetListTypesAsync(authToken);
+            await System.Threading.Tasks.Task.WhenAll(itemsTask, typesTask);
 
             _allItems = await itemsTask;
             var types = await typesTask;
@@ -133,9 +129,10 @@ public partial class MasterListViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task SaveItem()
+    private async System.Threading.Tasks.Task SaveItem()
     {
-        if (string.IsNullOrEmpty(AuthToken) || string.IsNullOrWhiteSpace(EditItemValue) || SelectedListType is null)
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken) || string.IsNullOrWhiteSpace(EditItemValue) || SelectedListType is null)
             return;
 
         try
@@ -143,12 +140,12 @@ public partial class MasterListViewModel : ObservableObject
             if (SelectedItem is null) // Create new
             {
                 var request = new CreateAdminListItemRequest(SelectedListType, EditItemValue, EditDescription);
-                await _apiClient.CreateListItemAsync(AuthToken, request);
+                await _apiClient.CreateListItemAsync(authToken, request);
             }
             else // Update existing
             {
                 var request = new UpdateAdminListItemRequest(SelectedItem.ItemID, EditItemValue, EditDescription, IsItemActive);
-                await _apiClient.UpdateListItemAsync(AuthToken, SelectedItem.ItemID, request);
+                await _apiClient.UpdateListItemAsync(authToken, SelectedItem.ItemID, request);
             }
             await LoadAllItemsAsync();
         }

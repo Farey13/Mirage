@@ -13,8 +13,8 @@ namespace Mirage.UI.ViewModels;
 
 public partial class MachineBreakdownViewModel : ObservableObject
 {
-    public static string? AuthToken { get; set; }
     private readonly IPortalMirageApi _apiClient;
+    private readonly IAuthService _authService;
 
     [ObservableProperty] private string? _selectedMachineName;
     [ObservableProperty] private string _breakdownReason = string.Empty;
@@ -22,7 +22,6 @@ public partial class MachineBreakdownViewModel : ObservableObject
     [ObservableProperty] private DateTime _endDate = DateTime.Today;
 
     private string _activeView = "Pending";
-
     public bool IsPendingViewActive
     {
         get => _activeView == "Pending";
@@ -37,7 +36,6 @@ public partial class MachineBreakdownViewModel : ObservableObject
             }
         }
     }
-
     public bool IsResolvedViewActive
     {
         get => _activeView == "Resolved";
@@ -56,25 +54,18 @@ public partial class MachineBreakdownViewModel : ObservableObject
     [ObservableProperty] private bool _isResolveFlyoutOpen;
     [ObservableProperty] private MachineBreakdownResponse? _selectedBreakdownToResolve;
     [ObservableProperty] private string _resolutionNotes = string.Empty;
-
-    // Properties for the "Deactivate" Flyout
-    [ObservableProperty]
-    private bool _isDeleteFlyoutOpen;
-
-    [ObservableProperty]
-    private MachineBreakdownResponse? _selectedBreakdownToDelete;
-
-    [ObservableProperty]
-    private string _deactivationReason = string.Empty;
+    [ObservableProperty] private bool _isDeleteFlyoutOpen;
+    [ObservableProperty] private MachineBreakdownResponse? _selectedBreakdownToDelete;
+    [ObservableProperty] private string _deactivationReason = string.Empty;
 
     public ObservableCollection<MachineBreakdownResponse> PendingBreakdowns { get; } = new();
     public ObservableCollection<MachineBreakdownResponse> ResolvedBreakdowns { get; } = new();
     public ObservableCollection<string> MachineNames { get; } = new();
 
-    public MachineBreakdownViewModel()
+    public MachineBreakdownViewModel(IPortalMirageApi apiClient, IAuthService authService)
     {
-        _apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
-   
+        _apiClient = apiClient;
+        _authService = authService;
         MachineNames.Add("Vitros 250");
         MachineNames.Add("Abbott Architect");
         MachineNames.Add("Sysmex XN-1000");
@@ -82,20 +73,22 @@ public partial class MachineBreakdownViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task Search()
+    private async System.Threading.Tasks.Task Search()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         try
         {
             if (_activeView == "Pending")
             {
-                var breakdowns = await _apiClient.GetPendingBreakdownsAsync(AuthToken, StartDate, EndDate);
+                var breakdowns = await _apiClient.GetPendingBreakdownsAsync(authToken, StartDate, EndDate);
                 PendingBreakdowns.Clear();
                 foreach (var b in breakdowns) PendingBreakdowns.Add(b);
             }
             else // Resolved
             {
-                var breakdowns = await _apiClient.GetResolvedBreakdownsAsync(AuthToken, StartDate, EndDate);
+                var breakdowns = await _apiClient.GetResolvedBreakdownsAsync(authToken, StartDate, EndDate);
                 ResolvedBreakdowns.Clear();
                 foreach (var b in breakdowns) ResolvedBreakdowns.Add(b);
             }
@@ -104,9 +97,10 @@ public partial class MachineBreakdownViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task Submit()
+    private async System.Threading.Tasks.Task Submit()
     {
-        if (string.IsNullOrEmpty(AuthToken) || string.IsNullOrEmpty(SelectedMachineName) || string.IsNullOrEmpty(BreakdownReason))
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken) || string.IsNullOrEmpty(SelectedMachineName) || string.IsNullOrEmpty(BreakdownReason))
         {
             MessageBox.Show("Machine Name and Reason are required.");
             return;
@@ -114,13 +108,9 @@ public partial class MachineBreakdownViewModel : ObservableObject
         try
         {
             var request = new CreateMachineBreakdownRequest(SelectedMachineName, BreakdownReason);
-            await _apiClient.CreateBreakdownAsync(AuthToken, request);
-
-            // Clear the form
+            await _apiClient.CreateBreakdownAsync(authToken, request);
             SelectedMachineName = null;
             BreakdownReason = string.Empty;
-
-            // Ensure we are on the pending view and refresh it
             IsPendingViewActive = true;
         }
         catch (Exception ex) { MessageBox.Show($"Failed to submit breakdown: {ex.Message}"); }
@@ -135,19 +125,21 @@ public partial class MachineBreakdownViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task ConfirmResolve()
+    private async System.Threading.Tasks.Task ConfirmResolve()
     {
         if (SelectedBreakdownToResolve is null || string.IsNullOrWhiteSpace(ResolutionNotes))
         {
             MessageBox.Show("Resolution notes cannot be empty.");
             return;
         }
-        if (string.IsNullOrEmpty(AuthToken)) return;
+
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         try
         {
             var request = new ResolveBreakdownRequest(ResolutionNotes);
-            await _apiClient.MarkBreakdownAsResolvedAsync(AuthToken, SelectedBreakdownToResolve.BreakdownID, request);
-
+            await _apiClient.MarkBreakdownAsResolvedAsync(authToken, SelectedBreakdownToResolve.BreakdownID, request);
             PendingBreakdowns.Remove(SelectedBreakdownToResolve);
             IsResolveFlyoutOpen = false;
         }
@@ -163,25 +155,26 @@ public partial class MachineBreakdownViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task ConfirmDeactivation()
+    private async System.Threading.Tasks.Task ConfirmDeactivation()
     {
         if (SelectedBreakdownToDelete is null || string.IsNullOrWhiteSpace(DeactivationReason))
         {
             MessageBox.Show("A reason is required for deactivation.");
             return;
         }
-        if (string.IsNullOrEmpty(AuthToken)) return;
+
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         try
         {
             var request = new DeactivateMachineBreakdownRequest(DeactivationReason);
-            await _apiClient.DeactivateBreakdownAsync(AuthToken, SelectedBreakdownToDelete.BreakdownID, request);
-
+            await _apiClient.DeactivateBreakdownAsync(authToken, SelectedBreakdownToDelete.BreakdownID, request);
             IsDeleteFlyoutOpen = false;
-            await Search(); // Refresh the current list
+            await Search();
         }
         catch (ApiException ex)
         {
-            // Check for FORBIDDEN (403) OR the INTERNAL SERVER ERROR (500)
             if (ex.StatusCode == System.Net.HttpStatusCode.Forbidden ||
                 ex.StatusCode == System.Net.HttpStatusCode.InternalServerError)
             {

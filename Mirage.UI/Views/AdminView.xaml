@@ -3,29 +3,34 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:Mirage.UI.Views"
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
              xmlns:views="clr-namespace:Mirage.UI.Views"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="1000">
 
-    <UserControl.DataContext>
-        <viewModels:AdminViewModel/>
-    </UserControl.DataContext>
-
     <UserControl.Resources>
+        <!-- DataTemplates for proper MVVM View-ViewModel association -->
+        <DataTemplate DataType="{x:Type viewModels:UserManagementViewModel}">
+            <views:UserManagementView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewModels:ShiftManagementViewModel}">
+            <views:ShiftManagementView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewModels:MasterListViewModel}">
+            <views:MasterListView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewModels:AuditLogViewModel}">
+            <views:AuditLogView />
+        </DataTemplate>
+
+        <!-- Nice styling from old code -->
         <Style x:Key="CompactTabItem" TargetType="TabItem" BasedOn="{StaticResource MahApps.Styles.TabItem}">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="16,10"/>
             <Setter Property="Margin" Value="1,0"/>
             <Setter Property="MinWidth" Value="0"/>
-            <Setter Property="BorderThickness" Value="0"/>
-        </Style>
-
-        <Style x:Key="SingleLineTabControl" TargetType="TabControl" BasedOn="{StaticResource MahApps.Styles.TabControl}">
-            <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
         </Style>
     </UserControl.Resources>
@@ -41,6 +46,7 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
+                <!-- Header from old code -->
                 <Border Grid.Row="0" 
                         Background="{DynamicResource MahApps.Brushes.Control.Background}"
                         CornerRadius="6,6,0,0"
@@ -65,28 +71,36 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Dynamic tabs from new code -->
                 <TabControl Grid.Row="1"
-                            Style="{StaticResource SingleLineTabControl}"
+                            ItemsSource="{Binding TabItems}"
+                            SelectedItem="{Binding SelectedTab}"
+                            Style="{StaticResource MahApps.Styles.TabControl}"
                             TabStripPlacement="Top"
                             mah:TabControlHelper.UnderlineBrush="{DynamicResource MahApps.Brushes.Accent}"
                             mah:TabControlHelper.UnderlineSelectedBrush="{DynamicResource MahApps.Brushes.Accent3}"
                             mah:TabControlHelper.UnderlinePlacement="Bottom">
 
-                    <TabItem Header="👥 Users" Style="{StaticResource CompactTabItem}">
-                        <views:UserManagementView Margin="8"/>
-                    </TabItem>
+                    <TabControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding Icon}"
+                                           FontSize="16"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,8,0"/>
+                                <TextBlock Text="{Binding Header}" 
+                                           FontSize="14" 
+                                           FontWeight="SemiBold" 
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </TabControl.ItemTemplate>
 
-                    <TabItem Header="⏰ Shifts" Style="{StaticResource CompactTabItem}">
-                        <views:ShiftManagementView Margin="8"/>
-                    </TabItem>
-
-                    <TabItem Header="📋 Master" Style="{StaticResource CompactTabItem}">
-                        <views:MasterListView Margin="8"/>
-                    </TabItem>
-
-                    <TabItem Header="📊 Audit" Style="{StaticResource CompactTabItem}">
-                        <views:AuditLogView Margin="8"/>
-                    </TabItem>
+                    <TabControl.ContentTemplate>
+                        <DataTemplate>
+                            <ContentPresenter Content="{Binding ViewModel}" Margin="8" />
+                        </DataTemplate>
+                    </TabControl.ContentTemplate>
                 </TabControl>
             </Grid>
         </Border>

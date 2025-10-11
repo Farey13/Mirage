@@ -14,8 +14,8 @@ namespace Mirage.UI.ViewModels;
 
 public partial class UserManagementViewModel : ObservableObject
 {
-    public static string? AuthToken { get; set; }
     private readonly IPortalMirageApi _apiClient;
+    private readonly IAuthService _authService;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanAssignRole))]
@@ -29,24 +29,16 @@ public partial class UserManagementViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(AssignRoleCommand))]
     private RoleResponse? _selectedRoleToAssign;
 
-    // Properties for the "Create User" Flyout
     [ObservableProperty]
     private bool _isCreateUserFlyoutOpen;
-
     [ObservableProperty]
     private string _newUsername = string.Empty;
-
     [ObservableProperty]
     private string _newFullName = string.Empty;
-
-    // --- Properties for the "Manage Roles" Flyout ---
     [ObservableProperty]
     private bool _isManageRolesFlyoutOpen;
-
     [ObservableProperty]
     private string _newRoleName = string.Empty;
-
-    // --- Properties for the Reset Password Flyout ---
     [ObservableProperty]
     private bool _isResetPasswordFlyoutOpen;
 
@@ -57,23 +49,26 @@ public partial class UserManagementViewModel : ObservableObject
     public ObservableCollection<RoleResponse> AllRoles { get; } = new();
     public ObservableCollection<RoleResponse> SelectedUserRoles { get; } = new();
 
-    public UserManagementViewModel()
+    public UserManagementViewModel(IPortalMirageApi apiClient, IAuthService authService)
     {
-        _apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
+        _apiClient = apiClient;
+        _authService = authService;
         _ = LoadDataAsync();
     }
 
     [RelayCommand]
-    private async Task LoadDataAsync()
+    private async System.Threading.Tasks.Task LoadDataAsync()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         try
         {
-            var users = await _apiClient.GetAllUsersAsync(AuthToken);
+            var users = await _apiClient.GetAllUsersAsync(authToken);
             Users.Clear();
             foreach (var user in users) Users.Add(user);
 
-            var roles = await _apiClient.GetAllRolesAsync(AuthToken);
+            var roles = await _apiClient.GetAllRolesAsync(authToken);
             AllRoles.Clear();
             foreach (var role in roles) AllRoles.Add(role);
         }
@@ -88,13 +83,15 @@ public partial class UserManagementViewModel : ObservableObject
         _ = LoadRolesForSelectedUserAsync();
     }
 
-    private async Task LoadRolesForSelectedUserAsync()
+    private async System.Threading.Tasks.Task LoadRolesForSelectedUserAsync()
     {
         SelectedUserRoles.Clear();
-        if (SelectedUser is null || string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (SelectedUser is null || string.IsNullOrEmpty(authToken)) return;
+
         try
         {
-            var roles = await _apiClient.GetRolesForUserAsync(AuthToken, SelectedUser.Username);
+            var roles = await _apiClient.GetRolesForUserAsync(authToken, SelectedUser.Username);
             foreach (var role in roles) SelectedUserRoles.Add(role);
         }
         catch (Exception ex)
@@ -104,9 +101,11 @@ public partial class UserManagementViewModel : ObservableObject
     }
 
     [RelayCommand(CanExecute = nameof(CanAssignRole))]
-    private async Task AssignRole()
+    private async System.Threading.Tasks.Task AssignRole()
     {
-        if (SelectedUser is null || SelectedRoleToAssign is null || string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (SelectedUser is null || SelectedRoleToAssign is null || string.IsNullOrEmpty(authToken)) return;
+
         if (SelectedUserRoles.Any(r => r.RoleID == SelectedRoleToAssign.RoleID))
         {
             MessageBox.Show("User already has this role.");
@@ -115,7 +114,7 @@ public partial class UserManagementViewModel : ObservableObject
         try
         {
             var request = new AssignRoleRequest(SelectedUser.Username, SelectedRoleToAssign.RoleName);
-            await _apiClient.AssignRoleAsync(AuthToken, request);
+            await _apiClient.AssignRoleAsync(authToken, request);
             await LoadRolesForSelectedUserAsync();
         }
         catch (Exception ex)
@@ -125,15 +124,17 @@ public partial class UserManagementViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task RemoveRole(RoleResponse roleToRemove)
+    private async System.Threading.Tasks.Task RemoveRole(RoleResponse roleToRemove)
     {
-        if (SelectedUser is null || roleToRemove is null || string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (SelectedUser is null || roleToRemove is null || string.IsNullOrEmpty(authToken)) return;
+
         if (MessageBox.Show($"Are you sure you want to remove the '{roleToRemove.RoleName}' role from {SelectedUser.Username}?", "Confirm Removal", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.No) return;
 
         try
         {
             var request = new AssignRoleRequest(SelectedUser.Username, roleToRemove.RoleName);
-            await _apiClient.RemoveRoleFromUserAsync(AuthToken, request);
+            await _apiClient.RemoveRoleFromUserAsync(authToken, request);
             await LoadRolesForSelectedUserAsync();
         }
         catch (Exception ex)
@@ -142,42 +143,31 @@ public partial class UserManagementViewModel : ObservableObject
         }
     }
 
-    // --- Updated Commands with Toggle Logic ---
     [RelayCommand]
     private void CreateUser()
     {
-        // If this flyout is already open, just close it and do nothing else.
         if (IsCreateUserFlyoutOpen)
         {
             IsCreateUserFlyoutOpen = false;
             return;
         }
-
-        // Close any other open flyouts before opening this one.
         IsManageRolesFlyoutOpen = false;
         IsResetPasswordFlyoutOpen = false;
-
-        // Clear fields and open the flyout.
         NewUsername = string.Empty;
         NewFullName = string.Empty;
         IsCreateUserFlyoutOpen = true;
     }
 
     [RelayCommand]
-    private async Task ManageRoles()
+    private async System.Threading.Tasks.Task ManageRoles()
     {
-        // If this flyout is already open, just close it and do nothing else.
         if (IsManageRolesFlyoutOpen)
         {
             IsManageRolesFlyoutOpen = false;
             return;
         }
-
-        // Close any other open flyouts before opening this one.
         IsCreateUserFlyoutOpen = false;
         IsResetPasswordFlyoutOpen = false;
-
-        // We already have the roles in AllRoles, just ensure it's up to date
         await LoadDataAsync();
         IsManageRolesFlyoutOpen = true;
     }
@@ -185,44 +175,37 @@ public partial class UserManagementViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanManageSelectedUser))]
     private void ResetPassword()
     {
-        // If this flyout is already open, just close it and do nothing else.
         if (IsResetPasswordFlyoutOpen)
         {
             IsResetPasswordFlyoutOpen = false;
             return;
         }
-
-        // Close any other open flyouts before opening this one.
         IsCreateUserFlyoutOpen = false;
         IsManageRolesFlyoutOpen = false;
-
         IsResetPasswordFlyoutOpen = true;
     }
 
     [RelayCommand]
-    private async Task SaveNewUser(object parameter)
+    private async System.Threading.Tasks.Task SaveNewUser(object parameter)
     {
-        // Read the password directly from the PasswordBox control
         if (parameter is not PasswordBox passwordBox) return;
         var password = passwordBox.Password;
+        var authToken = _authService.GetToken();
 
-        if (string.IsNullOrWhiteSpace(NewUsername) || string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(NewFullName))
+        if (string.IsNullOrEmpty(authToken) || string.IsNullOrWhiteSpace(NewUsername) || string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(NewFullName))
         {
-            MessageBox.Show("Username, Password, and Full Name are all required.", "Missing Information");
+            ShowMessageBox("Username, Password, and Full Name are all required.", "Missing Information", MessageBoxImage.Warning);
             return;
         }
 
         try
         {
             var request = new CreateUserRequest(NewUsername, password, NewFullName);
-            await _apiClient.CreateUserAsync(AuthToken!, request);
+            await _apiClient.CreateUserAsync(authToken, request);
 
             IsCreateUserFlyoutOpen = false;
             await LoadDataAsync();
-
             ShowMessageBox($"User '{NewUsername}' created successfully!", "Success", MessageBoxImage.Information);
-
-            // Clear the password box
             passwordBox.Password = string.Empty;
         }
         catch (ApiException ex)
@@ -244,23 +227,22 @@ public partial class UserManagementViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task CreateNewRole()
+    private async System.Threading.Tasks.Task CreateNewRole()
     {
         if (string.IsNullOrWhiteSpace(NewRoleName))
         {
             MessageBox.Show("Role name cannot be empty.", "Missing Information");
             return;
         }
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
 
         try
         {
             var request = new CreateRoleRequest(NewRoleName);
-            var newRole = await _apiClient.CreateRoleAsync(AuthToken!, request);
-
-            // Add to the list and clear the textbox
+            var newRole = await _apiClient.CreateRoleAsync(authToken, request);
             AllRoles.Add(newRole);
             NewRoleName = string.Empty;
-
             MessageBox.Show($"Role '{newRole.RoleName}' created successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (ApiException ex)
@@ -281,13 +263,13 @@ public partial class UserManagementViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task ConfirmResetPassword(object parameter)
+    private async System.Threading.Tasks.Task ConfirmResetPassword(object parameter)
     {
-        // Read the password directly from the PasswordBox control
         if (parameter is not PasswordBox passwordBox) return;
         var newPassword = passwordBox.Password;
+        var authToken = _authService.GetToken();
 
-        if (SelectedUser is null || string.IsNullOrWhiteSpace(newPassword))
+        if (SelectedUser is null || string.IsNullOrWhiteSpace(newPassword) || string.IsNullOrEmpty(authToken))
         {
             ShowMessageBox("Please enter a new password.", "Missing Information", MessageBoxImage.Warning);
             return;
@@ -296,11 +278,9 @@ public partial class UserManagementViewModel : ObservableObject
         try
         {
             var request = new ResetPasswordRequest(SelectedUser.Username, newPassword);
-            await _apiClient.ResetPasswordAsync(AuthToken!, request);
+            await _apiClient.ResetPasswordAsync(authToken, request);
             IsResetPasswordFlyoutOpen = false;
             ShowMessageBox($"Password for {SelectedUser.Username} has been reset successfully.", "Success", MessageBoxImage.Information);
-
-            // Clear the password box
             passwordBox.Password = string.Empty;
         }
         catch (Exception ex)
@@ -315,7 +295,6 @@ public partial class UserManagementViewModel : ObservableObject
         IsResetPasswordFlyoutOpen = false;
     }
 
-    // Helper method for consistent message boxes
     private void ShowMessageBox(string message, string caption, MessageBoxImage image)
     {
         MessageBox.Show(message, caption, MessageBoxButton.OK, image);

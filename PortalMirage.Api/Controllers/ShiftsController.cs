@@ -3,13 +3,14 @@ using Microsoft.AspNetCore.Mvc;
 using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Dtos;
 using PortalMirage.Core.Models;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace PortalMirage.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin")] // This entire controller is for Admins only
+    [Authorize(Roles = "Admin")]
     public class ShiftsController(IShiftService shiftService) : ControllerBase
     {
         [HttpGet]
@@ -22,6 +23,7 @@ namespace PortalMirage.Api.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateShiftRequest request)
         {
+            var actorUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var newShift = new Shift
             {
                 ShiftName = request.ShiftName,
@@ -30,7 +32,7 @@ namespace PortalMirage.Api.Controllers
                 GracePeriodHours = request.GracePeriodHours,
                 IsActive = true
             };
-            var createdShift = await shiftService.CreateAsync(newShift);
+            var createdShift = await shiftService.CreateAsync(newShift, actorUserId);
             return Ok(createdShift);
         }
 
@@ -39,6 +41,7 @@ namespace PortalMirage.Api.Controllers
         {
             if (id != request.ShiftID) return BadRequest("ID mismatch");
 
+            var actorUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var shiftToUpdate = await shiftService.GetByIdAsync(id);
             if (shiftToUpdate is null) return NotFound();
 
@@ -48,16 +51,16 @@ namespace PortalMirage.Api.Controllers
             shiftToUpdate.GracePeriodHours = request.GracePeriodHours;
             shiftToUpdate.IsActive = request.IsActive;
 
-            var updatedShift = await shiftService.UpdateAsync(shiftToUpdate);
+            var updatedShift = await shiftService.UpdateAsync(shiftToUpdate, actorUserId);
             return Ok(updatedShift);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Deactivate(int id)
         {
-            // We will add auditing here later if needed
-            await shiftService.DeactivateAsync(id);
-            return NoContent(); // Standard response for a successful delete
+            var actorUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            await shiftService.DeactivateAsync(id, actorUserId);
+            return NoContent();
         }
     }
 }

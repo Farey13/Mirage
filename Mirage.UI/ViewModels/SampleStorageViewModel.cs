@@ -13,8 +13,8 @@ namespace Mirage.UI.ViewModels;
 
 public partial class SampleStorageViewModel : ObservableObject
 {
-    public static string? AuthToken { get; set; }
     private readonly IPortalMirageApi _apiClient;
+    private readonly IAuthService _authService;
 
     [ObservableProperty] private string _newPatientSampleId = string.Empty;
     [ObservableProperty] private string _newTestName = string.Empty;
@@ -51,7 +51,6 @@ public partial class SampleStorageViewModel : ObservableObject
         }
     }
 
-    // Properties for the "Delete" Flyout
     [ObservableProperty] private bool _isDeleteFlyoutOpen;
     [ObservableProperty] private SampleStorageResponse? _selectedSampleToDelete;
     [ObservableProperty] private string _deactivationReason = string.Empty;
@@ -59,21 +58,24 @@ public partial class SampleStorageViewModel : ObservableObject
     public ObservableCollection<SampleStorageResponse> PendingSamples { get; } = new();
     public ObservableCollection<SampleStorageResponse> CompletedSamples { get; } = new();
 
-    public SampleStorageViewModel()
+    public SampleStorageViewModel(IPortalMirageApi apiClient, IAuthService authService)
     {
-        _apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
+        _apiClient = apiClient;
+        _authService = authService;
         SearchCommand.Execute(null);
     }
 
     [RelayCommand]
-    private async Task Search()
+    private async System.Threading.Tasks.Task Search()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         if (_activeView == "Pending")
         {
             try
             {
-                var samples = await _apiClient.GetPendingSamplesAsync(AuthToken, StartDate, EndDate);
+                var samples = await _apiClient.GetPendingSamplesAsync(authToken, StartDate, EndDate);
                 PendingSamples.Clear();
                 foreach (var sample in samples) PendingSamples.Add(sample);
             }
@@ -83,7 +85,7 @@ public partial class SampleStorageViewModel : ObservableObject
         {
             try
             {
-                var samples = await _apiClient.GetCompletedSamplesAsync(AuthToken, StartDate, EndDate);
+                var samples = await _apiClient.GetCompletedSamplesAsync(authToken, StartDate, EndDate);
                 CompletedSamples.Clear();
                 foreach (var sample in samples) CompletedSamples.Add(sample);
             }
@@ -92,9 +94,10 @@ public partial class SampleStorageViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task Add()
+    private async System.Threading.Tasks.Task Add()
     {
-        if (string.IsNullOrEmpty(AuthToken) || string.IsNullOrEmpty(NewPatientSampleId) || string.IsNullOrEmpty(NewTestName))
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken) || string.IsNullOrEmpty(NewPatientSampleId) || string.IsNullOrEmpty(NewTestName))
         {
             MessageBox.Show("Patient Sample ID and Test Name are required.");
             return;
@@ -102,7 +105,7 @@ public partial class SampleStorageViewModel : ObservableObject
         try
         {
             var request = new CreateSampleStorageRequest(NewPatientSampleId, NewTestName);
-            await _apiClient.CreateSampleAsync(AuthToken, request);
+            await _apiClient.CreateSampleAsync(authToken, request);
             NewPatientSampleId = string.Empty;
             NewTestName = string.Empty;
             await Search();
@@ -111,12 +114,14 @@ public partial class SampleStorageViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task MarkAsDone(int storageId)
+    private async System.Threading.Tasks.Task MarkAsDone(int storageId)
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         try
         {
-            await _apiClient.MarkSampleAsDoneAsync(AuthToken, storageId);
+            await _apiClient.MarkSampleAsDoneAsync(authToken, storageId);
             var itemToRemove = PendingSamples.FirstOrDefault(s => s.StorageID == storageId);
             if (itemToRemove != null)
             {
@@ -135,23 +140,26 @@ public partial class SampleStorageViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task ConfirmDeactivation()
+    private async System.Threading.Tasks.Task ConfirmDeactivation()
     {
         if (SelectedSampleToDelete is null || string.IsNullOrWhiteSpace(DeactivationReason))
         {
             MessageBox.Show("A reason is required for deletion.");
             return;
         }
-        if (string.IsNullOrEmpty(AuthToken)) return;
+
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         try
         {
             var request = new DeactivateSampleStorageRequest(DeactivationReason);
-            await _apiClient.DeactivateSampleAsync(AuthToken, SelectedSampleToDelete.StorageID, request);
+            await _apiClient.DeactivateSampleAsync(authToken, SelectedSampleToDelete.StorageID, request);
 
             IsDeleteFlyoutOpen = false;
-            await Search(); // Refresh the current list
+            await Search();
         }
-        catch (ApiException ex) // This specifically catches errors from the API
+        catch (ApiException ex)
         {
             if (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
             {
@@ -162,7 +170,7 @@ public partial class SampleStorageViewModel : ObservableObject
                 MessageBox.Show($"An error occurred communicating with the server: {ex.StatusCode}");
             }
         }
-        catch (Exception ex) // This catches other errors like no network connection
+        catch (Exception ex)
         {
             MessageBox.Show($"An error occurred: {ex.Message}");
         }

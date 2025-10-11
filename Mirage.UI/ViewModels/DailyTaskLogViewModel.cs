@@ -14,59 +14,68 @@ namespace Mirage.UI.ViewModels;
 
 public partial class DailyTaskLogViewModel : ObservableObject
 {
-    public static string? AuthToken { get; set; }
     private readonly IPortalMirageApi _apiClient;
+    private readonly IAuthService _authService;
 
     [ObservableProperty]
     private DateTime _selectedDate = DateTime.Today;
-
     [ObservableProperty]
     private bool _isNaFlyoutOpen;
-
     [ObservableProperty]
     private TaskLogDetailDto? _selectedTaskForNa;
-
     [ObservableProperty]
     private string _naReason = string.Empty;
 
     public ObservableCollection<TaskLogDetailDto> MorningTasks { get; } = new();
     public ObservableCollection<TaskLogDetailDto> EveningTasks { get; } = new();
 
-    public DailyTaskLogViewModel()
+    public DailyTaskLogViewModel(IPortalMirageApi apiClient, IAuthService authService)
     {
-        _apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
+        _apiClient = apiClient;
+        _authService = authService;
         LoadInitialTasks();
     }
 
     private async void LoadInitialTasks() => await LoadTasksAsync();
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task LoadTasksAsync()
+    private async System.Threading.Tasks. Task LoadTasksAsync()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         try
         {
-            var tasks = await _apiClient.GetTasksForDateAsync(AuthToken, SelectedDate);
+            var tasks = await _apiClient.GetTasksForDateAsync(authToken, SelectedDate);
             MorningTasks.Clear();
             EveningTasks.Clear();
             foreach (var task in tasks.Where(t => t.TaskCategory == "Morning")) MorningTasks.Add(task);
             foreach (var task in tasks.Where(t => t.TaskCategory == "Evening")) EveningTasks.Add(task);
         }
-        catch (Exception ex) { MessageBox.Show($"Failed to load tasks: {ex.Message}"); }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to load tasks: {ex.Message}");
+        }
     }
 
     [RelayCommand]
     private async System.Threading.Tasks.Task ToggleCompletedStatus(TaskLogDetailDto task)
     {
-        if (string.IsNullOrEmpty(AuthToken) || task is null) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken) || task is null) return;
+
         var newStatus = task.Status == "Completed" ? "Pending" : "Completed";
+
         try
         {
             var request = new UpdateTaskStatusRequest(newStatus, task.Comments);
-            await _apiClient.UpdateTaskStatusAsync(AuthToken, task.LogID, request);
+            await _apiClient.UpdateTaskStatusAsync(authToken, task.LogID, request);
             await LoadTasksAsync();
         }
-        catch (Exception ex) { MessageBox.Show($"Failed to update status: {ex.Message}"); }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to update status: {ex.Message}");
+        }
     }
 
     [RelayCommand]
@@ -85,14 +94,20 @@ public partial class DailyTaskLogViewModel : ObservableObject
             MessageBox.Show("A reason is required to mark as N/A.");
             return;
         }
-        if (string.IsNullOrEmpty(AuthToken)) return;
+
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         try
         {
             var request = new UpdateTaskStatusRequest("Not Available", NaReason);
-            await _apiClient.UpdateTaskStatusAsync(AuthToken, SelectedTaskForNa.LogID, request);
+            await _apiClient.UpdateTaskStatusAsync(authToken, SelectedTaskForNa.LogID, request);
             IsNaFlyoutOpen = false;
             await LoadTasksAsync();
         }
-        catch (Exception ex) { MessageBox.Show($"Failed to update status: {ex.Message}"); }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to update status: {ex.Message}");
+        }
     }
 }
