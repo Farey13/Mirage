@@ -11,9 +11,7 @@
     WindowStartupLocation="CenterScreen"
     TitleCharacterCasing="Normal">
 
-    <mah:MetroWindow.DataContext>
-        <viewModels:MainViewModel />
-    </mah:MetroWindow.DataContext>
+    
 
     <mah:HamburgerMenu
         x:Name="HamburgerMenuControl"

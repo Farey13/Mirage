@@ -10,9 +10,7 @@
                  WindowStartupLocation="CenterScreen"
                  WindowStyle="None" ResizeMode="NoResize">
 
-    <mah:MetroWindow.DataContext>
-        <viewModels:LoginViewModel/>
-    </mah:MetroWindow.DataContext>
+    
 
     <Grid>
         <Grid.ColumnDefinitions>

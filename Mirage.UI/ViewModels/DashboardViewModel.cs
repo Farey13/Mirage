@@ -1,9 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using Mirage.UI.Services;
 using Mirage.UI.Views;
-using PortalMirage.Core.Dtos;
-using Refit;
 using System;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
@@ -16,16 +13,12 @@ public partial class DashboardItem : ObservableObject
 {
     [ObservableProperty]
     private string _label;
-
     [ObservableProperty]
     private int _count;
-
     [ObservableProperty]
     private string _icon;
-
     [ObservableProperty]
     private Brush _accentColor;
-
     [ObservableProperty]
     private Type _targetView;
 
@@ -40,25 +33,19 @@ public partial class DashboardItem : ObservableObject
 
 public partial class DashboardViewModel : ObservableObject
 {
-    public static string? AuthToken { get; set; }
     private readonly IPortalMirageApi _apiClient;
+    private readonly IAuthService _authService;
 
     [ObservableProperty]
     private bool _isLoading;
 
     public ObservableCollection<DashboardItem> DashboardItems { get; } = new();
 
-    public DashboardViewModel()
+    public DashboardViewModel(IPortalMirageApi apiClient, IAuthService authService)
     {
-        _apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
-        if (string.IsNullOrEmpty(AuthToken))
-        {
-            AuthToken = UserManagementViewModel.AuthToken;
-        }
-
+        _apiClient = apiClient;
+        _authService = authService;
         InitializeDashboardItems();
-
-        // The event subscription and initial load call are REMOVED from here.
     }
 
     private void InitializeDashboardItems()
@@ -66,25 +53,25 @@ public partial class DashboardViewModel : ObservableObject
         DashboardItems.Add(new DashboardItem("Pending Handovers", "\uE8AB", new SolidColorBrush((Color)ColorConverter.ConvertFromString("#007AFF")), typeof(HandoverView)));
         DashboardItems.Add(new DashboardItem("Unresolved Breakdowns", "\uE99A", new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF9500")), typeof(MachineBreakdownView)));
         DashboardItems.Add(new DashboardItem("Pending Daily Tasks", "\uECC8", new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF3B30")), typeof(DailyTaskLogView)));
-        DashboardItems.Add(new DashboardItem("Pending Samples", "\uE728", new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34C759")), typeof(SampleStorageView))); // ADD THIS LINE
+        DashboardItems.Add(new DashboardItem("Pending Samples", "\uE728", new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34C759")), typeof(SampleStorageView)));
     }
 
-    public async Task LoadSummaryAsync()
+    // Using the full namespace as you correctly pointed out
+    public async System.Threading.Tasks.Task LoadSummaryAsync()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
 
         IsLoading = true;
         try
         {
-            var summary = await _apiClient.GetDashboardSummaryAsync(AuthToken);
-
-            // Update dashboard items - UI will auto-update due to ObservableObject
-            if (DashboardItems.Count >= 4) // Update this check from 3 to 4
+            var summary = await _apiClient.GetDashboardSummaryAsync(authToken);
+            if (DashboardItems.Count >= 4)
             {
                 DashboardItems[0].Count = summary.PendingHandoversCount;
                 DashboardItems[1].Count = summary.UnresolvedBreakdownsCount;
                 DashboardItems[2].Count = summary.PendingDailyTasksCount;
-                DashboardItems[3].Count = summary.PendingSamplesCount; // Add this line
+                DashboardItems[3].Count = summary.PendingSamplesCount;
             }
         }
         catch (Exception ex)

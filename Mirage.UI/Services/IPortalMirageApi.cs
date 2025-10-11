@@ -3,6 +3,7 @@ using PortalMirage.Core.Models;
 using Refit;
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 
 namespace Mirage.UI.Services;
 
@@ -160,8 +161,8 @@ public interface IPortalMirageApi
 
     // === Audit Log ===
     [Get("/api/auditlogs")]
-    System.Threading.Tasks.Task<List<AuditLogDto>> GetAuditLogsAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
-
+    // This is the correct, final version
+    System.Threading.Tasks.Task<List<PortalMirage.Core.Dtos.AuditLogDto>> GetAuditLogsAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
     // === Admin User Management ===
     [Post("/api/admin/users/create")]
     System.Threading.Tasks.Task<UserResponse> CreateUserAsync([Header("Authorization")] string token, [Body] CreateUserRequest request);

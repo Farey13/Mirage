@@ -12,23 +12,20 @@ using System.Windows.Threading;
 
 namespace Mirage.UI.ViewModels;
 
-// Helper record for Shift filter dropdown
 public record ShiftFilterItem(int Id, string Name);
 
 public partial class ReportsViewModel : ObservableObject
 {
-    public static string? AuthToken { get; set; }
     private readonly IPortalMirageApi _apiClient;
+    private readonly IAuthService _authService;
     private readonly DispatcherTimer _timer;
 
     [ObservableProperty] private string _selectedReport = "Machine Breakdowns";
     public ObservableCollection<string> AvailableReports { get; } = new() { "Machine Breakdowns", "Handover Summary", "Kit Validation Log", "Repeat Sample Log", "Daily Task Compliance", "Media Sterility Log", "Sample Storage Log", "Calibration Log" };
-
     [ObservableProperty] private DateTime _startDate = DateTime.Today;
     [ObservableProperty] private DateTime _endDate = DateTime.Today;
     [ObservableProperty] private bool _isLoading;
 
-    // --- Report-specific properties ---
     // Machine Breakdown
     [ObservableProperty] private string? _selectedMachineName;
     [ObservableProperty] private string? _selectedBreakdownStatus = "All";
@@ -41,7 +38,7 @@ public partial class ReportsViewModel : ObservableObject
     [ObservableProperty] private string? _selectedPriority;
     [ObservableProperty] private string? _selectedHandoverStatus = "All";
     public ObservableCollection<HandoverReportDto> HandoverReportData { get; } = new();
-    public ObservableCollection<string> HandoverShiftOptions { get; } = new(); // Renamed to avoid conflict
+    public ObservableCollection<string> HandoverShiftOptions { get; } = new();
     public ObservableCollection<string> PriorityOptions { get; } = new() { "All", "Normal", "Urgent" };
     public ObservableCollection<string> HandoverStatusOptions { get; } = new() { "All", "Pending", "Received" };
 
@@ -83,17 +80,17 @@ public partial class ReportsViewModel : ObservableObject
     public ObservableCollection<string> TestNameOptions { get; } = new();
     public ObservableCollection<string> SampleStatusOptions { get; } = new() { "All", "Pending", "Test Done" };
 
-    // --- NEW: Calibration Log Report Properties ---
+    // Calibration Log Report Properties
     [ObservableProperty] private string? _selectedCalibrationTestName;
     [ObservableProperty] private string? _selectedQcResult = "All";
     public ObservableCollection<CalibrationReportDto> CalibrationReportData { get; } = new();
     public ObservableCollection<string> CalibrationTestNameOptions { get; } = new();
     public ObservableCollection<string> QcResultOptions { get; } = new() { "All", "Passed", "Failed" };
 
-    public ReportsViewModel()
+    public ReportsViewModel(IPortalMirageApi apiClient, IAuthService authService)
     {
-        _apiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
-        if (string.IsNullOrEmpty(AuthToken)) AuthToken = UserManagementViewModel.AuthToken;
+        _apiClient = apiClient;
+        _authService = authService;
 
         _ = LoadFilterOptionsAsync();
 
@@ -110,55 +107,50 @@ public partial class ReportsViewModel : ObservableObject
         }
     }
 
-    private async Task LoadFilterOptionsAsync()
+    private async System.Threading.Tasks.Task LoadFilterOptionsAsync()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         try
         {
-            // Machine Names
-            var machineNameItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "MachineName");
+            var machineNameItems = await _apiClient.GetListItemsByTypeAsync(authToken, "MachineName");
             MachineNames.Clear(); MachineNames.Add("All");
             foreach (var item in machineNameItems) MachineNames.Add(item.ItemValue);
 
-            // Shifts - Updated for both Handover and Daily Task Compliance
-            var shiftItems = await _apiClient.GetAllShiftsAsync(AuthToken);
+            var shiftItems = await _apiClient.GetAllShiftsAsync(authToken);
             HandoverShiftOptions.Clear(); HandoverShiftOptions.Add("All");
-            TaskShiftOptions.Clear(); TaskShiftOptions.Add(new ShiftFilterItem(0, "All")); // Special item for "All"
+            TaskShiftOptions.Clear(); TaskShiftOptions.Add(new ShiftFilterItem(0, "All"));
             foreach (var shift in shiftItems)
             {
                 HandoverShiftOptions.Add(shift.ShiftName);
                 TaskShiftOptions.Add(new ShiftFilterItem(shift.ShiftID, shift.ShiftName));
             }
 
-            // Priorities
-            PriorityOptions.Clear(); PriorityOptions.Add("All"); PriorityOptions.Add("Normal"); PriorityOptions.Add("Urgent");
+            PriorityOptions.Clear();
+            PriorityOptions.Add("All"); PriorityOptions.Add("Normal"); PriorityOptions.Add("Urgent");
 
-            // Kit Names
-            var kitNameItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "KitName");
+            var kitNameItems = await _apiClient.GetListItemsByTypeAsync(authToken, "KitName");
             KitNameOptions.Clear(); KitNameOptions.Add("All");
             foreach (var item in kitNameItems) KitNameOptions.Add(item.ItemValue);
 
-            // Repeat Sample Filters
-            var reasonItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "RepeatReason");
+            var reasonItems = await _apiClient.GetListItemsByTypeAsync(authToken, "RepeatReason");
             ReasonOptions.Clear(); ReasonOptions.Add("All");
             foreach (var item in reasonItems) ReasonOptions.Add(item.ItemValue);
 
-            var departmentItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "Department");
+            var departmentItems = await _apiClient.GetListItemsByTypeAsync(authToken, "Department");
             DepartmentOptions.Clear(); DepartmentOptions.Add("All");
             foreach (var item in departmentItems) DepartmentOptions.Add(item.ItemValue);
 
-            // Load Media Name options
-            var mediaNameItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "MediaName");
+            var mediaNameItems = await _apiClient.GetListItemsByTypeAsync(authToken, "MediaName");
             MediaNameOptions.Clear(); MediaNameOptions.Add("All");
             foreach (var item in mediaNameItems) MediaNameOptions.Add(item.ItemValue);
 
-            // Load Test Name options for Sample Storage
-            var testNameItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "TestName");
+            var testNameItems = await _apiClient.GetListItemsByTypeAsync(authToken, "TestName");
             TestNameOptions.Clear(); TestNameOptions.Add("All");
             foreach (var item in testNameItems) TestNameOptions.Add(item.ItemValue);
 
-            // NEW: Load Test Name options for Calibration Log
-            var calibrationTestNameItems = await _apiClient.GetListItemsByTypeAsync(AuthToken, "TestName");
+            var calibrationTestNameItems = await _apiClient.GetListItemsByTypeAsync(authToken, "TestName");
             CalibrationTestNameOptions.Clear(); CalibrationTestNameOptions.Add("All");
             foreach (var item in calibrationTestNameItems) CalibrationTestNameOptions.Add(item.ItemValue);
         }
@@ -166,7 +158,7 @@ public partial class ReportsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task GenerateReport()
+    private async System.Threading.Tasks.Task GenerateReport()
     {
         switch (SelectedReport)
         {
@@ -187,7 +179,6 @@ public partial class ReportsViewModel : ObservableObject
         StartDate = DateTime.Today;
         EndDate = DateTime.Today;
 
-        // Clear all report data
         MachineBreakdownReportData.Clear();
         HandoverReportData.Clear();
         KitValidationReportData.Clear();
@@ -197,28 +188,26 @@ public partial class ReportsViewModel : ObservableObject
         SampleStorageReportData.Clear();
         CalibrationReportData.Clear();
 
-        // Reset summary stats for daily tasks
         TotalTasks = 0;
         CompletedTasks = 0;
         OnPropertyChanged(nameof(CompletionPercentage));
 
-        // Reset all filters
-        SelectedMachineName = null;
+        SelectedMachineName = "All";
         SelectedBreakdownStatus = "All";
-        SelectedShift = null;
-        SelectedPriority = null;
+        SelectedShift = "All";
+        SelectedPriority = "All";
         SelectedHandoverStatus = "All";
-        SelectedKitName = null;
+        SelectedKitName = "All";
         SelectedKitStatus = "All";
-        SelectedReason = null;
-        SelectedDepartment = null;
-        SelectedTaskShift = null;
+        SelectedReason = "All";
+        SelectedDepartment = "All";
+        SelectedTaskShift = TaskShiftOptions.FirstOrDefault();
         SelectedTaskStatus = "All";
-        SelectedMediaName = null;
+        SelectedMediaName = "All";
         SelectedMediaStatus = "All";
-        SelectedTestName = null;
+        SelectedTestName = "All";
         SelectedSampleStatus = "All";
-        SelectedCalibrationTestName = null;
+        SelectedCalibrationTestName = "All";
         SelectedQcResult = "All";
     }
 
@@ -228,9 +217,10 @@ public partial class ReportsViewModel : ObservableObject
         MessageBox.Show("Print functionality will be implemented in a future step.", "Coming Soon");
     }
 
-    private async Task GenerateMachineBreakdownReport()
+    private async System.Threading.Tasks.Task GenerateMachineBreakdownReport()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
 
         if (StartDate > EndDate)
         {
@@ -244,8 +234,7 @@ public partial class ReportsViewModel : ObservableObject
         {
             var machineNameFilter = SelectedMachineName == "All" ? null : SelectedMachineName;
             var statusFilter = SelectedBreakdownStatus == "All" ? null : SelectedBreakdownStatus;
-
-            var reportData = await _apiClient.GetMachineBreakdownReportAsync(AuthToken, StartDate, EndDate, machineNameFilter, statusFilter);
+            var reportData = await _apiClient.GetMachineBreakdownReportAsync(authToken, StartDate, EndDate, machineNameFilter, statusFilter);
             foreach (var item in reportData)
             {
                 MachineBreakdownReportData.Add(item);
@@ -266,9 +255,11 @@ public partial class ReportsViewModel : ObservableObject
         }
     }
 
-    private async Task GenerateHandoverReport()
+    private async System.Threading.Tasks.Task GenerateHandoverReport()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         if (StartDate > EndDate)
         {
             MessageBox.Show("Start date cannot be after end date.", "Invalid Date Range");
@@ -282,10 +273,8 @@ public partial class ReportsViewModel : ObservableObject
             var shiftFilter = SelectedShift == "All" ? null : SelectedShift;
             var priorityFilter = SelectedPriority == "All" ? null : SelectedPriority;
             var statusFilter = SelectedHandoverStatus == "All" ? null : SelectedHandoverStatus;
-
-            var reportData = await _apiClient.GetHandoverReportAsync(AuthToken, StartDate, EndDate, shiftFilter, priorityFilter, statusFilter);
+            var reportData = await _apiClient.GetHandoverReportAsync(authToken, StartDate, EndDate, shiftFilter, priorityFilter, statusFilter);
             foreach (var item in reportData) HandoverReportData.Add(item);
-
             if (!HandoverReportData.Any())
             {
                 MessageBox.Show("No records found for the selected criteria.", "Report Generated");
@@ -295,9 +284,11 @@ public partial class ReportsViewModel : ObservableObject
         finally { IsLoading = false; }
     }
 
-    private async Task GenerateKitValidationReport()
+    private async System.Threading.Tasks.Task GenerateKitValidationReport()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         if (StartDate > EndDate)
         {
             MessageBox.Show("Start date cannot be after end date.", "Invalid Date Range");
@@ -310,10 +301,8 @@ public partial class ReportsViewModel : ObservableObject
         {
             var kitNameFilter = SelectedKitName == "All" ? null : SelectedKitName;
             var statusFilter = SelectedKitStatus == "All" ? null : SelectedKitStatus;
-
-            var reportData = await _apiClient.GetKitValidationReportAsync(AuthToken, StartDate, EndDate, kitNameFilter, statusFilter);
+            var reportData = await _apiClient.GetKitValidationReportAsync(authToken, StartDate, EndDate, kitNameFilter, statusFilter);
             foreach (var item in reportData) KitValidationReportData.Add(item);
-
             if (!KitValidationReportData.Any())
             {
                 MessageBox.Show("No records found for the selected criteria.", "Report Generated");
@@ -323,9 +312,11 @@ public partial class ReportsViewModel : ObservableObject
         finally { IsLoading = false; }
     }
 
-    private async Task GenerateRepeatSampleReport()
+    private async System.Threading.Tasks.Task GenerateRepeatSampleReport()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         if (StartDate > EndDate)
         {
             MessageBox.Show("Start date cannot be after end date.", "Invalid Date Range");
@@ -338,10 +329,8 @@ public partial class ReportsViewModel : ObservableObject
         {
             var reasonFilter = SelectedReason == "All" ? null : SelectedReason;
             var departmentFilter = SelectedDepartment == "All" ? null : SelectedDepartment;
-
-            var reportData = await _apiClient.GetRepeatSampleReportAsync(AuthToken, StartDate, EndDate, reasonFilter, departmentFilter);
+            var reportData = await _apiClient.GetRepeatSampleReportAsync(authToken, StartDate, EndDate, reasonFilter, departmentFilter);
             foreach (var item in reportData) RepeatSampleReportData.Add(item);
-
             if (!RepeatSampleReportData.Any())
             {
                 MessageBox.Show("No records found for the selected criteria.", "Report Generated");
@@ -351,9 +340,11 @@ public partial class ReportsViewModel : ObservableObject
         finally { IsLoading = false; }
     }
 
-    private async Task GenerateDailyTaskComplianceReport()
+    private async System.Threading.Tasks.Task GenerateDailyTaskComplianceReport()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         if (StartDate > EndDate) { MessageBox.Show("Start date cannot be after end date."); return; }
 
         IsLoading = true;
@@ -364,15 +355,11 @@ public partial class ReportsViewModel : ObservableObject
         {
             var shiftIdFilter = SelectedTaskShift?.Id == 0 ? (int?)null : SelectedTaskShift?.Id;
             var statusFilter = SelectedTaskStatus == "All" ? null : SelectedTaskStatus;
-
-            var reportData = await _apiClient.GetDailyTaskComplianceReportAsync(AuthToken, StartDate, EndDate, shiftIdFilter, statusFilter);
-
+            var reportData = await _apiClient.GetDailyTaskComplianceReportAsync(authToken, StartDate, EndDate, shiftIdFilter, statusFilter);
             foreach (var item in reportData.Items) DailyTaskReportData.Add(item);
-
-            // Update summary stats
             TotalTasks = reportData.TotalTasks;
             CompletedTasks = reportData.CompletedTasks;
-            OnPropertyChanged(nameof(CompletionPercentage)); // Notify UI to update the percentage
+            OnPropertyChanged(nameof(CompletionPercentage));
 
             if (!DailyTaskReportData.Any()) { MessageBox.Show("No records found for the selected criteria."); }
         }
@@ -380,10 +367,11 @@ public partial class ReportsViewModel : ObservableObject
         finally { IsLoading = false; }
     }
 
-    // Method for Media Sterility Report
-    private async Task GenerateMediaSterilityReport()
+    private async System.Threading.Tasks.Task GenerateMediaSterilityReport()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         if (StartDate > EndDate) { MessageBox.Show("Start date cannot be after end date."); return; }
 
         IsLoading = true;
@@ -392,20 +380,19 @@ public partial class ReportsViewModel : ObservableObject
         {
             var mediaNameFilter = SelectedMediaName == "All" ? null : SelectedMediaName;
             var statusFilter = SelectedMediaStatus == "All" ? null : SelectedMediaStatus;
-
-            var reportData = await _apiClient.GetMediaSterilityReportAsync(AuthToken, StartDate, EndDate, mediaNameFilter, statusFilter);
+            var reportData = await _apiClient.GetMediaSterilityReportAsync(authToken, StartDate, EndDate, mediaNameFilter, statusFilter);
             foreach (var item in reportData) MediaSterilityReportData.Add(item);
-
             if (!MediaSterilityReportData.Any()) { MessageBox.Show("No records found for the selected criteria."); }
         }
         catch (Exception ex) { MessageBox.Show($"Failed to generate report: {ex.Message}"); }
         finally { IsLoading = false; }
     }
 
-    // Method for Sample Storage Report
-    private async Task GenerateSampleStorageReport()
+    private async System.Threading.Tasks.Task GenerateSampleStorageReport()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         if (StartDate > EndDate) { MessageBox.Show("Start date cannot be after end date."); return; }
 
         IsLoading = true;
@@ -414,20 +401,19 @@ public partial class ReportsViewModel : ObservableObject
         {
             var testNameFilter = SelectedTestName == "All" ? null : SelectedTestName;
             var statusFilter = SelectedSampleStatus == "All" ? null : SelectedSampleStatus;
-
-            var reportData = await _apiClient.GetSampleStorageReportAsync(AuthToken, StartDate, EndDate, testNameFilter, statusFilter);
+            var reportData = await _apiClient.GetSampleStorageReportAsync(authToken, StartDate, EndDate, testNameFilter, statusFilter);
             foreach (var item in reportData) SampleStorageReportData.Add(item);
-
             if (!SampleStorageReportData.Any()) { MessageBox.Show("No records found for the selected criteria."); }
         }
         catch (Exception ex) { MessageBox.Show($"Failed to generate report: {ex.Message}"); }
         finally { IsLoading = false; }
     }
 
-    // NEW: Method for Calibration Report
-    private async Task GenerateCalibrationReport()
+    private async System.Threading.Tasks.Task GenerateCalibrationReport()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         if (StartDate > EndDate) { MessageBox.Show("Start date cannot be after end date."); return; }
 
         IsLoading = true;
@@ -436,10 +422,8 @@ public partial class ReportsViewModel : ObservableObject
         {
             var testNameFilter = SelectedCalibrationTestName == "All" ? null : SelectedCalibrationTestName;
             var qcResultFilter = SelectedQcResult == "All" ? null : SelectedQcResult;
-
-            var reportData = await _apiClient.GetCalibrationReportAsync(AuthToken, StartDate, EndDate, testNameFilter, qcResultFilter);
+            var reportData = await _apiClient.GetCalibrationReportAsync(authToken, StartDate, EndDate, testNameFilter, qcResultFilter);
             foreach (var item in reportData) CalibrationReportData.Add(item);
-
             if (!CalibrationReportData.Any()) { MessageBox.Show("No records found for the selected criteria."); }
         }
         catch (Exception ex) { MessageBox.Show($"Failed to generate report: {ex.Message}"); }

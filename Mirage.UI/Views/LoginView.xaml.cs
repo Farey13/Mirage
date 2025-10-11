@@ -1,4 +1,5 @@
 ﻿using MahApps.Metro.Controls;
+using Microsoft.Extensions.DependencyInjection;
 using Mirage.UI.ViewModels;
 using System.Windows;
 
@@ -9,10 +10,8 @@ namespace Mirage.UI.Views
         public LoginView()
         {
             InitializeComponent();
-            if (DataContext is LoginViewModel vm)
-            {
-                vm.CloseWindowAction = (window) => window.Close();
-            }
+            // Get the shared LoginViewModel from our app's service provider
+            DataContext = App.ServiceProvider?.GetRequiredService<LoginViewModel>();
         }
     }
 }

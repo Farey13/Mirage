@@ -9,9 +9,7 @@
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="1000">
 
-    <UserControl.DataContext>
-        <viewModels:UserManagementViewModel/>
-    </UserControl.DataContext>
+    
 
     <UserControl.Resources>
         <Style x:Key="StandardDataGridRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource MahApps.Styles.DataGridRow}">

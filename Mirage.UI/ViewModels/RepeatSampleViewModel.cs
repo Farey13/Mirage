@@ -14,37 +14,31 @@ namespace Mirage.UI.ViewModels;
 
 public partial class RepeatSampleViewModel : ObservableObject
 {
-    public static string? AuthToken { get; set; }
     private readonly IPortalMirageApi _mirageApiClient;
     private readonly IPatientInfoApi _patientInfoApiClient;
+    private readonly IAuthService _authService;
 
-    // Form properties
     [ObservableProperty] private string _patientIdCardNumber = string.Empty;
     [ObservableProperty] private string _patientName = string.Empty;
     [ObservableProperty] private string? _selectedReason;
     [ObservableProperty] private string? _informedPerson;
     [ObservableProperty] private string? _selectedDepartment;
-
-    // Search and Data Grid
     [ObservableProperty] private DateTime _startDate = DateTime.Today;
     [ObservableProperty] private DateTime _endDate = DateTime.Today;
-    public ObservableCollection<RepeatSampleResponse> Logs { get; } = new();
-
-    // Deactivation Flyout properties
     [ObservableProperty] private bool _isDeleteFlyoutOpen;
     [ObservableProperty] private RepeatSampleResponse? _selectedLogToDelete;
     [ObservableProperty] private string _deactivationReason = string.Empty;
 
-    // Dropdown options
+    public ObservableCollection<RepeatSampleResponse> Logs { get; } = new();
     public ObservableCollection<string> Reasons { get; } = new();
     public ObservableCollection<string> Departments { get; } = new() { "OPD", "IPD" };
 
-    public RepeatSampleViewModel()
+    public RepeatSampleViewModel(IPortalMirageApi mirageApiClient, IPatientInfoApi patientInfoApiClient, IAuthService authService)
     {
-        _mirageApiClient = RestService.For<IPortalMirageApi>("https://localhost:7210");
-        _patientInfoApiClient = RestService.For<IPatientInfoApi>("https://localhost:7098"); // NOTE: Port may be different
+        _mirageApiClient = mirageApiClient;
+        _patientInfoApiClient = patientInfoApiClient;
+        _authService = authService;
 
-        // This list will be loaded from the API in the Admin section later
         Reasons.Add("Hemolysis");
         Reasons.Add("Clotted");
         Reasons.Add("Insufficient Quantity");
@@ -54,25 +48,31 @@ public partial class RepeatSampleViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task FindPatient()
+    private async System.Threading.Tasks.Task FindPatient()
     {
         if (string.IsNullOrWhiteSpace(PatientIdCardNumber)) return;
+
         try
         {
             var nationalId = new NationalId(PatientIdCardNumber);
             var patient = await _patientInfoApiClient.GetByNationalIdAsync(nationalId);
             PatientName = patient?.PatientName ?? "Patient Not Found";
         }
-        catch (Exception ex) { PatientName = "Error finding patient"; }
+        catch (Exception)
+        {
+            PatientName = "Error finding patient";
+        }
     }
 
     [RelayCommand]
-    private async Task LoadLogs()
+    private async System.Threading.Tasks.Task LoadLogs()
     {
-        if (string.IsNullOrEmpty(AuthToken)) return;
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         try
         {
-            var logs = await _mirageApiClient.GetRepeatSamplesAsync(AuthToken, StartDate, EndDate);
+            var logs = await _mirageApiClient.GetRepeatSamplesAsync(authToken, StartDate, EndDate);
             Logs.Clear();
             foreach (var log in logs) Logs.Add(log);
         }
@@ -80,9 +80,10 @@ public partial class RepeatSampleViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task Save()
+    private async System.Threading.Tasks.Task Save()
     {
-        if (string.IsNullOrEmpty(AuthToken) || string.IsNullOrEmpty(PatientIdCardNumber) || string.IsNullOrEmpty(PatientName) || PatientName == "Patient Not Found")
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken) || string.IsNullOrEmpty(PatientIdCardNumber) || string.IsNullOrEmpty(PatientName) || PatientName == "Patient Not Found")
         {
             MessageBox.Show("A valid Patient ID and Name are required.");
             return;
@@ -90,7 +91,7 @@ public partial class RepeatSampleViewModel : ObservableObject
         try
         {
             var request = new CreateRepeatSampleRequest(PatientIdCardNumber, PatientName, SelectedReason, InformedPerson, SelectedDepartment);
-            await _mirageApiClient.CreateRepeatSampleAsync(AuthToken, request);
+            await _mirageApiClient.CreateRepeatSampleAsync(authToken, request);
             Clear();
             await LoadLogs();
         }
@@ -105,8 +106,6 @@ public partial class RepeatSampleViewModel : ObservableObject
         SelectedReason = null;
         InformedPerson = string.Empty;
         SelectedDepartment = null;
-        OnPropertyChanged(nameof(SelectedReason));
-        OnPropertyChanged(nameof(SelectedDepartment));
     }
 
     [RelayCommand]
@@ -118,19 +117,21 @@ public partial class RepeatSampleViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task ConfirmDeactivation()
+    private async System.Threading.Tasks.Task ConfirmDeactivation()
     {
         if (SelectedLogToDelete is null || string.IsNullOrWhiteSpace(DeactivationReason))
         {
             MessageBox.Show("A reason is required for deactivation.");
             return;
         }
-        if (string.IsNullOrEmpty(AuthToken)) return;
+
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
         try
         {
             var request = new DeactivateRepeatSampleRequest(DeactivationReason);
-            await _mirageApiClient.DeactivateRepeatSampleAsync(AuthToken, SelectedLogToDelete.RepeatID, request);
-
+            await _mirageApiClient.DeactivateRepeatSampleAsync(authToken, SelectedLogToDelete.RepeatID, request);
             IsDeleteFlyoutOpen = false;
             await LoadLogs();
         }

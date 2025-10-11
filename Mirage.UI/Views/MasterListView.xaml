@@ -7,9 +7,7 @@
              xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="900">
-    <UserControl.DataContext>
-        <viewModels:MasterListViewModel/>
-    </UserControl.DataContext>
+    
 
     <Grid Margin="10">
         <Grid.RowDefinitions>

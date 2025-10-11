@@ -8,8 +8,7 @@ public interface IShiftService
 {
     Task<IEnumerable<Shift>> GetAllAsync();
     Task<Shift?> GetByIdAsync(int shiftId);
-    Task<Shift> CreateAsync(Shift shift);
-    Task<Shift> UpdateAsync(Shift shift);
-
-    System.Threading.Tasks.Task DeactivateAsync(int shiftId);
+    Task<Shift> CreateAsync(Shift shift, int actorUserId); // Add actorUserId
+    Task<Shift> UpdateAsync(Shift shift, int actorUserId); // Add actorUserId
+    System.Threading.Tasks.Task DeactivateAsync(int shiftId, int actorUserId); // Add actorUserId
 }

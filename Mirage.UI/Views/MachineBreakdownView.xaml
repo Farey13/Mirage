@@ -6,9 +6,7 @@
              xmlns:local="clr-namespace:Mirage.UI.Views"
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels">
-    <UserControl.DataContext>
-        <viewModels:MachineBreakdownViewModel/>
-    </UserControl.DataContext>
+    
 
     <Grid>
         <Grid Margin="20">

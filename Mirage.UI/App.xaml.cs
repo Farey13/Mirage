@@ -1,35 +1,109 @@
-﻿using System.Globalization;
+﻿using Mirage.UI.Services;
+using Mirage.UI.ViewModels;
+using Mirage.UI.Views;
+using Microsoft.Extensions.DependencyInjection;
+using Refit;
+using System;
+using System.Globalization;
 using System.Threading;
 using System.Windows;
 using System.Windows.Markup;
 
-namespace Mirage.UI;
-
-/// <summary>
-/// Interaction logic for App.xaml
-/// </summary>
-public partial class App : Application
+namespace Mirage.UI
 {
-    protected override void OnStartup(StartupEventArgs e)
+    public partial class App : Application
     {
-        base.OnStartup(e);
+        public static IServiceProvider? ServiceProvider { get; private set; }
 
-        // 1. Create a culture info object for a region that is close to what we want (e.g., 'en-GB').
-        var cultureInfo = new CultureInfo("en-GB");
+        protected override void OnStartup(StartupEventArgs e)
+        {
+            base.OnStartup(e);
 
-        // 2. Clone it so we can make custom changes.
-        var customCulture = (CultureInfo)cultureInfo.Clone();
+            // Set the custom date format for the entire application
+            var cultureInfo = new CultureInfo("en-GB");
+            var customCulture = (CultureInfo)cultureInfo.Clone();
+            customCulture.DateTimeFormat.ShortDatePattern = "dd/MMM/yy";
+            Thread.CurrentThread.CurrentCulture = customCulture;
+            Thread.CurrentThread.CurrentUICulture = customCulture;
+            FrameworkElement.LanguageProperty.OverrideMetadata(
+                typeof(FrameworkElement),
+                new FrameworkPropertyMetadata(XmlLanguage.GetLanguage(customCulture.IetfLanguageTag))
+            );
 
-        // 3. Set the specific date format pattern you requested.
-        customCulture.DateTimeFormat.ShortDatePattern = "dd/MMM/yy";
+            // Configure our services for dependency injection
+            var serviceCollection = new ServiceCollection();
+            ConfigureServices(serviceCollection);
+            ServiceProvider = serviceCollection.BuildServiceProvider();
 
-        // 4. Set this new custom culture as the default for the application.
-        Thread.CurrentThread.CurrentCulture = customCulture;
-        Thread.CurrentThread.CurrentUICulture = customCulture;
+            // Manually open the Login window
+            var loginView = ServiceProvider.GetRequiredService<LoginView>();
+            loginView.Show();
+        }
 
-        FrameworkElement.LanguageProperty.OverrideMetadata(
-            typeof(FrameworkElement),
-            new FrameworkPropertyMetadata(XmlLanguage.GetLanguage(customCulture.IetfLanguageTag))
-        );
+        private void ConfigureServices(IServiceCollection services)
+        {
+            // --- Central Services ---
+            services.AddSingleton<IAuthService, AuthService>();
+
+            // --- API Clients ---
+            // Main PortalMirage API
+            services.AddRefitClient<IPortalMirageApi>()
+                    .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://localhost:7210"));
+
+            // External Patient Info API
+            services.AddRefitClient<PatientInfo.Api.Sdk.IPatientInfoApi>()
+                    .ConfigureHttpClient(c => c.BaseAddress = new Uri("http://localhost:5104"));
+
+            // --- ViewModels (Registered as Singletons to preserve state) ---
+            services.AddSingleton<MainViewModel>();
+            services.AddSingleton<LoginViewModel>(); // Critical - was missing
+            services.AddSingleton<DashboardViewModel>();
+            services.AddSingleton<LogbooksViewModel>();
+            services.AddSingleton<ReportsViewModel>();
+            services.AddSingleton<AdminViewModel>();
+            services.AddSingleton<SettingsViewModel>();
+            services.AddSingleton<UserManagementViewModel>();
+            services.AddSingleton<ShiftManagementViewModel>();
+            services.AddSingleton<MasterListViewModel>();
+            services.AddSingleton<AuditLogViewModel>();
+            services.AddSingleton<CalibrationLogViewModel>();
+            services.AddSingleton<KitValidationViewModel>();
+            services.AddSingleton<SampleStorageViewModel>();
+            services.AddSingleton<HandoverViewModel>();
+            services.AddSingleton<MachineBreakdownViewModel>();
+            services.AddSingleton<MediaSterilityViewModel>();
+            services.AddSingleton<RepeatSampleViewModel>();
+            services.AddSingleton<DailyTaskLogViewModel>();
+
+            // --- Views (Registered as Transient so a new one is created each time) ---
+            services.AddTransient<LoginView>();
+            services.AddTransient<MainWindow>();
+
+            // Additional Views for complete coverage
+            services.AddTransient<DashboardView>();
+            services.AddTransient<HandoverView>();
+            services.AddTransient<MachineBreakdownView>();
+            services.AddTransient<DailyTaskLogView>();
+            services.AddTransient<SampleStorageView>();
+            services.AddTransient<AuditLogView>();
+            services.AddTransient<CalibrationLogView>();
+            services.AddTransient<KitValidationView>();
+            services.AddTransient<MediaSterilityView>();
+            services.AddTransient<RepeatSampleView>();
+            services.AddTransient<UserManagementView>();
+            services.AddTransient<ShiftManagementView>();
+            services.AddTransient<MasterListView>();
+            services.AddTransient<AdminView>();
+            services.AddTransient<LogbooksView>();
+            services.AddTransient<ReportsView>();
+            services.AddTransient<SettingsView>();
+        }
+
+        protected override void OnExit(ExitEventArgs e)
+        {
+            // Clean up service provider
+            (ServiceProvider as IDisposable)?.Dispose();
+            base.OnExit(e);
+        }
     }
 }
