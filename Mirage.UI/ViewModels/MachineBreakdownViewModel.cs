@@ -66,10 +66,34 @@ public partial class MachineBreakdownViewModel : ObservableObject
     {
         _apiClient = apiClient;
         _authService = authService;
-        MachineNames.Add("Vitros 250");
-        MachineNames.Add("Abbott Architect");
-        MachineNames.Add("Sysmex XN-1000");
+
+        // Call our new methods to load data from the API
+        _ = LoadMachineNamesAsync();
         SearchCommand.Execute(null);
+    }
+
+    private async System.Threading.Tasks.Task LoadMachineNamesAsync()
+    {
+        var authToken = _authService.GetToken();
+        if (string.IsNullOrEmpty(authToken)) return;
+
+        try
+        {
+            var machineNameItems = await _apiClient.GetListItemsByTypeAsync(authToken, "MachineName");
+
+            MachineNames.Clear();
+            foreach (var item in machineNameItems)
+            {
+                if (item.IsActive) // Only add active items to the dropdown
+                {
+                    MachineNames.Add(item.ItemValue);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to load machine names: {ex.Message}", "Error");
+        }
     }
 
     [RelayCommand]
