@@ -1,4 +1,5 @@
-﻿using Mirage.UI.Services;
+﻿using QuestPDF.Infrastructure;
+using Mirage.UI.Services;
 using Mirage.UI.ViewModels;
 using Mirage.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +19,10 @@ namespace Mirage.UI
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+
+            // --- ADD QUESTPDF LICENSE ---
+            QuestPDF.Settings.License = LicenseType.Community;
+            // ----------------------------
 
             // Set the custom date format for the entire application
             var cultureInfo = new CultureInfo("en-GB");
@@ -53,6 +58,8 @@ namespace Mirage.UI
             // External Patient Info API
             services.AddRefitClient<PatientInfo.Api.Sdk.IPatientInfoApi>()
                     .ConfigureHttpClient(c => c.BaseAddress = new Uri("http://localhost:5104"));
+            // Add this line to register your new PDF service
+            services.AddSingleton<IPdfExportService, PdfExportService>();
 
             // --- ViewModels (Registered as Singletons to preserve state) ---
             services.AddSingleton<MainViewModel>();
