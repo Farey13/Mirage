@@ -195,7 +195,7 @@ public partial class AuditLogViewModel : ObservableObject
 
             // 2. Create the folder path (e.g., C:\MirageReports\2025\10\11)
             var today = DateTime.Today;
-            var directoryPath = Path.Combine("C:", "MirageReports", today.ToString("yyyy"), today.ToString("MM"), today.ToString("dd"));
+            var directoryPath = Path.Combine("C:", "MirageReports", today.ToString("yyyy"), today.ToString("MMMM"), today.ToString("dd"));
             Directory.CreateDirectory(directoryPath); // This safely creates folders if they don't exist
 
             // 3. Create a unique file name

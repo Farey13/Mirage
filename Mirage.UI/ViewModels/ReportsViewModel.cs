@@ -4,8 +4,11 @@ using Mirage.UI.Services;
 using PortalMirage.Core.Dtos;
 using Refit;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
@@ -18,6 +21,7 @@ public partial class ReportsViewModel : ObservableObject
 {
     private readonly IPortalMirageApi _apiClient;
     private readonly IAuthService _authService;
+    private readonly IPdfExportService _pdfExportService;
     private readonly DispatcherTimer _timer;
 
     [ObservableProperty] private string _selectedReport = "Machine Breakdowns";
@@ -87,10 +91,11 @@ public partial class ReportsViewModel : ObservableObject
     public ObservableCollection<string> CalibrationTestNameOptions { get; } = new();
     public ObservableCollection<string> QcResultOptions { get; } = new() { "All", "Passed", "Failed" };
 
-    public ReportsViewModel(IPortalMirageApi apiClient, IAuthService authService)
+    public ReportsViewModel(IPortalMirageApi apiClient, IAuthService authService, IPdfExportService pdfExportService)
     {
         _apiClient = apiClient;
         _authService = authService;
+        _pdfExportService = pdfExportService;
 
         _ = LoadFilterOptionsAsync();
 
@@ -212,9 +217,139 @@ public partial class ReportsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void PrintReport()
+    private async System.Threading.Tasks.Task PrintReport()
     {
-        MessageBox.Show("Print functionality will be implemented in a future step.", "Coming Soon");
+        string reportTitle = SelectedReport;
+        string[] headers;
+        IEnumerable<object> items;
+
+        // Use a switch to get the correct data and headers for the selected report
+        switch (SelectedReport)
+        {
+            case "Machine Breakdowns":
+                headers = new[] { "Reported On", "Machine", "Reason", "Reported By", "Is Resolved", "Resolved On", "Resolved By", "Resolution", "Downtime (Mins)", "Downtime" };
+                items = MachineBreakdownReportData;
+                break;
+
+            case "Handover Summary":
+                headers = new[] { "Given On", "Given By", "Shift", "Priority", "Notes", "Is Received", "Received On", "Received By" };
+                items = HandoverReportData;
+                break;
+
+            case "Kit Validation Log":
+                headers = new[] { "Validated On", "Kit Name", "Lot #", "Expiry", "Status", "Comments", "Validated By" };
+                items = KitValidationReportData;
+                break;
+
+            case "Repeat Sample Log":
+                headers = new[] { "Logged On", "Patient ID", "Patient Name", "Reason", "Department", "Informed", "Logged By" };
+                items = RepeatSampleReportData;
+                break;
+
+            case "Daily Task Compliance":
+                headers = new[] { "Date", "Task Name", "Shift", "Status", "Completed On", "Completed By", "Comments" };
+                items = DailyTaskReportData;
+                break;
+
+            case "Media Sterility Log":
+                headers = new[] { "Checked On", "Media Name", "Lot #", "Quantity", "Result 37C", "Result 25C", "Overall Status", "Comments", "Performed By" };
+                items = MediaSterilityReportData;
+                break;
+
+            case "Sample Storage Log":
+                headers = new[] { "Stored On", "Sample ID", "Test Name", "Stored By", "Is Test Done", "Completed On", "Completed By" };
+                items = SampleStorageReportData;
+                break;
+
+            case "Calibration Log":
+                headers = new[] { "Calibrated On", "Test/Instrument", "QC Result", "Reason", "Performed By" };
+                items = CalibrationReportData;
+                break;
+
+            default:
+                MessageBox.Show("Selected report is not recognized.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+        }
+
+        if (!items.Any())
+        {
+            MessageBox.Show("There is no data to export.", "Export Canceled", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        await _pdfExportService.GenerateReportPdfAsync(reportTitle, headers, items);
+    }
+
+    [RelayCommand]
+    private async System.Threading.Tasks.Task ExportToCsv()
+    {
+        string reportTitle = SelectedReport;
+        IEnumerable<object> items;
+
+        // Use a switch to get the correct data collection for the selected report
+        switch (SelectedReport)
+        {
+            case "Machine Breakdowns": items = MachineBreakdownReportData; break;
+            case "Handover Summary": items = HandoverReportData; break;
+            case "Kit Validation Log": items = KitValidationReportData; break;
+            case "Repeat Sample Log": items = RepeatSampleReportData; break;
+            case "Daily Task Compliance": items = DailyTaskReportData; break;
+            case "Media Sterility Log": items = MediaSterilityReportData; break;
+            case "Sample Storage Log": items = SampleStorageReportData; break;
+            case "Calibration Log": items = CalibrationReportData; break;
+            default:
+                MessageBox.Show("Selected report is not recognized.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+        }
+
+        if (!items.Any())
+        {
+            MessageBox.Show("There is no data to export.", "Export Canceled", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            var csvBuilder = new StringBuilder();
+
+            // Get properties from the first item to create the header row
+            var properties = items.First().GetType().GetProperties();
+            var headers = properties.Select(p => p.Name);
+            csvBuilder.AppendLine(string.Join(",", headers));
+
+            // Add the data rows
+            foreach (var item in items)
+            {
+                var values = properties.Select(prop =>
+                {
+                    var value = prop.GetValue(item);
+                    // Sanitize the value for CSV
+                    var stringValue = value?.ToString() ?? "";
+                    if (stringValue.Contains(',') || stringValue.Contains('"'))
+                    {
+                        return $"\"{stringValue.Replace("\"", "\"\"")}\"";
+                    }
+                    return stringValue;
+                });
+                csvBuilder.AppendLine(string.Join(",", values));
+            }
+
+            // Create the file path and save the file
+            var today = DateTime.Today;
+            var directoryPath = Path.Combine("C:", "MirageReports", today.ToString("yyyy"), today.ToString("MM"), today.ToString("dd"));
+            Directory.CreateDirectory(directoryPath);
+
+            var fileName = $"{reportTitle.Replace(' ', '_')}_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            var filePath = Path.Combine(directoryPath, fileName);
+
+            await File.WriteAllTextAsync(filePath, csvBuilder.ToString());
+
+            MessageBox.Show($"Successfully exported {items.Count()} records to:\n{filePath}", "Export Successful", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"An error occurred during export: {ex.Message}", "Export Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private async System.Threading.Tasks.Task GenerateMachineBreakdownReport()

@@ -13,7 +13,7 @@ namespace PortalMirage.Api.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterUserRequest request)
         {
-            var newUser = await userService.RegisterUserAsync(request.Username, request.Password, request.FullName);
+            var newUser = await userService.RegisterUserAsync(request.Username, request.Password, request.FullName, null);
 
             if (newUser is null)
             {

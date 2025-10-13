@@ -8,8 +8,6 @@
              mc:Ignorable="d" 
              d:DesignHeight="700" d:DesignWidth="1000">
 
-    
-
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -252,211 +250,225 @@
 
         </StackPanel>
 
-        <Grid Grid.Row="2">
-            <mah:ProgressRing IsActive="{Binding IsLoading}" Panel.ZIndex="1"/>
-            <TextBlock Text="Generate a report to see the results here." HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource MahApps.Brushes.Gray5}" FontStyle="Italic">
-                <TextBlock.Style>
-                    <Style TargetType="TextBlock">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding MachineBreakdownReportData.Count}" Value="0">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </TextBlock.Style>
-            </TextBlock>
+        <DockPanel Grid.Row="2" LastChildFill="True">
 
-            <DataGrid ItemsSource="{Binding MachineBreakdownReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
-                <DataGrid.Style>
-                    <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding SelectedReport}" Value="Machine Breakdowns">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.Style>
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Reported On" Binding="{Binding ReportedDateTime, StringFormat='g'}" Width="1.5*"/>
-                    <DataGridTextColumn Header="Machine" Binding="{Binding MachineName}" Width="1.5*"/>
-                    <DataGridTextColumn Header="Reason" Binding="{Binding BreakdownReason}" Width="2*"/>
-                    <DataGridTextColumn Header="Reported By" Binding="{Binding ReportedByUsername}" Width="*"/>
-                    <DataGridTextColumn Header="Resolved On" Binding="{Binding ResolvedDateTime, StringFormat='g'}" Width="1.5*"/>
-                    <DataGridTextColumn Header="Resolved By" Binding="{Binding ResolvedByUsername}" Width="*"/>
-                    <DataGridTextColumn Header="Resolution" Binding="{Binding ResolutionNotes}" Width="2*"/>
-                    <DataGridTextColumn Header="Downtime" Binding="{Binding ElapsedDowntimeDisplay}" Width="*" FontWeight="SemiBold"/>
-                </DataGrid.Columns>
-            </DataGrid>
-
-            <DataGrid ItemsSource="{Binding HandoverReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
-                <DataGrid.Style>
-                    <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding SelectedReport}" Value="Handover Summary">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.Style>
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Given On" Binding="{Binding GivenDateTime, StringFormat='g'}" Width="1.5*"/>
-                    <DataGridTextColumn Header="Given By" Binding="{Binding GivenByUsername}" Width="*"/>
-                    <DataGridTextColumn Header="Shift" Binding="{Binding Shift}" Width="*"/>
-                    <DataGridTextColumn Header="Priority" Binding="{Binding Priority}" Width="*"/>
-                    <DataGridTextColumn Header="Notes" Binding="{Binding HandoverNotes}" Width="3*"/>
-                    <DataGridTextColumn Header="Received On" Binding="{Binding ReceivedDateTime, StringFormat='g'}" Width="1.5*"/>
-                    <DataGridTextColumn Header="Received By" Binding="{Binding ReceivedByUsername}" Width="*"/>
-                </DataGrid.Columns>
-            </DataGrid>
-
-            <DataGrid ItemsSource="{Binding KitValidationReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
-                <DataGrid.Style>
-                    <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding SelectedReport}" Value="Kit Validation Log">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.Style>
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Validated On" Binding="{Binding ValidationDateTime, StringFormat='g'}" Width="1.5*"/>
-                    <DataGridTextColumn Header="Kit Name" Binding="{Binding KitName}" Width="2*"/>
-                    <DataGridTextColumn Header="Lot Number" Binding="{Binding KitLotNumber}" Width="*"/>
-                    <DataGridTextColumn Header="Expiry Date" Binding="{Binding KitExpiryDate, StringFormat='d'}" Width="*"/>
-                    <DataGridTextColumn Header="Status" Binding="{Binding ValidationStatus}" Width="*"/>
-                    <DataGridTextColumn Header="Comments" Binding="{Binding Comments}" Width="2*"/>
-                    <DataGridTextColumn Header="Validated By" Binding="{Binding ValidatedByUsername}" Width="*"/>
-                </DataGrid.Columns>
-            </DataGrid>
-
-            <DataGrid ItemsSource="{Binding RepeatSampleReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
-                <DataGrid.Style>
-                    <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding SelectedReport}" Value="Repeat Sample Log">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.Style>
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Logged On" Binding="{Binding LogDateTime, StringFormat='g'}" Width="1.5*"/>
-                    <DataGridTextColumn Header="Patient ID" Binding="{Binding PatientIdCardNumber}" Width="*"/>
-                    <DataGridTextColumn Header="Patient Name" Binding="{Binding PatientName}" Width="1.5*"/>
-                    <DataGridTextColumn Header="Reason" Binding="{Binding ReasonText}" Width="2*"/>
-                    <DataGridTextColumn Header="Department" Binding="{Binding Department}" Width="*"/>
-                    <DataGridTextColumn Header="Informed" Binding="{Binding InformedPerson}" Width="*"/>
-                    <DataGridTextColumn Header="Logged By" Binding="{Binding LoggedByUsername}" Width="*"/>
-                </DataGrid.Columns>
-            </DataGrid>
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+                <Button Content="Export to CSV" 
+                        Command="{Binding ExportToCsvCommand}"
+                        Style="{DynamicResource MahApps.Styles.Button}"
+                        Margin="0,0,5,0"/>
+                <Button Content="Print to PDF" 
+                        Command="{Binding PrintReportCommand}"
+                        Style="{DynamicResource MahApps.Styles.Button.Accent}"/>
+            </StackPanel>
 
             <Grid>
-                <Grid.Style>
-                    <Style TargetType="Grid">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding SelectedReport}" Value="Daily Task Compliance">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Grid.Style>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                <Border Grid.Row="0" Background="{DynamicResource MahApps.Brushes.Gray9}" CornerRadius="5" Padding="15" Margin="0,0,0,10">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <TextBlock Text="Total Tasks:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding TotalTasks}" FontWeight="Bold" FontSize="16" Margin="5,0,20,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="Completed:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding CompletedTasks}" FontWeight="Bold" FontSize="16" Margin="5,0,20,0" VerticalAlignment="Center" Foreground="Green"/>
-                        <TextBlock Text="Compliance:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding CompletionPercentage, StringFormat=P1}" FontWeight="Bold" FontSize="16" Margin="5,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource MahApps.Brushes.Accent}"/>
-                    </StackPanel>
-                </Border>
-                <DataGrid Grid.Row="1" ItemsSource="{Binding DailyTaskReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
+                <mah:ProgressRing IsActive="{Binding IsLoading}" Panel.ZIndex="1"/>
+
+                <TextBlock Text="Generate a report to see the results here." HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource MahApps.Brushes.Gray5}" FontStyle="Italic">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding MachineBreakdownReportData.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <DataGrid ItemsSource="{Binding MachineBreakdownReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
+                    <DataGrid.Style>
+                        <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedReport}" Value="Machine Breakdowns">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Style>
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Date" Binding="{Binding LogDate, StringFormat='d'}" Width="*"/>
-                        <DataGridTextColumn Header="Task Name" Binding="{Binding TaskName}" Width="2*"/>
-                        <DataGridTextColumn Header="Shift" Binding="{Binding ShiftName}" Width="*"/>
-                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
-                        <DataGridTextColumn Header="Completed On" Binding="{Binding CompletedDateTime, StringFormat='g'}" Width="1.5*"/>
-                        <DataGridTextColumn Header="Completed By" Binding="{Binding CompletedByUsername}" Width="*"/>
-                        <DataGridTextColumn Header="Comments" Binding="{Binding Comments}" Width="2*"/>
+                        <DataGridTextColumn Header="Reported On" Binding="{Binding ReportedDateTime, StringFormat='g'}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Machine" Binding="{Binding MachineName}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Reason" Binding="{Binding BreakdownReason}" Width="2*"/>
+                        <DataGridTextColumn Header="Reported By" Binding="{Binding ReportedByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Resolved On" Binding="{Binding ResolvedDateTime, StringFormat='g'}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Resolved By" Binding="{Binding ResolvedByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Resolution" Binding="{Binding ResolutionNotes}" Width="2*"/>
+                        <DataGridTextColumn Header="Downtime" Binding="{Binding ElapsedDowntimeDisplay}" Width="*" FontWeight="SemiBold"/>
                     </DataGrid.Columns>
                 </DataGrid>
+
+                <DataGrid ItemsSource="{Binding HandoverReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
+                    <DataGrid.Style>
+                        <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedReport}" Value="Handover Summary">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Style>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Given On" Binding="{Binding GivenDateTime, StringFormat='g'}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Given By" Binding="{Binding GivenByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Shift" Binding="{Binding Shift}" Width="*"/>
+                        <DataGridTextColumn Header="Priority" Binding="{Binding Priority}" Width="*"/>
+                        <DataGridTextColumn Header="Notes" Binding="{Binding HandoverNotes}" Width="3*"/>
+                        <DataGridTextColumn Header="Received On" Binding="{Binding ReceivedDateTime, StringFormat='g'}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Received By" Binding="{Binding ReceivedByUsername}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <DataGrid ItemsSource="{Binding KitValidationReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
+                    <DataGrid.Style>
+                        <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedReport}" Value="Kit Validation Log">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Style>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Validated On" Binding="{Binding ValidationDateTime, StringFormat='g'}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Kit Name" Binding="{Binding KitName}" Width="2*"/>
+                        <DataGridTextColumn Header="Lot Number" Binding="{Binding KitLotNumber}" Width="*"/>
+                        <DataGridTextColumn Header="Expiry Date" Binding="{Binding KitExpiryDate, StringFormat='d'}" Width="*"/>
+                        <DataGridTextColumn Header="Status" Binding="{Binding ValidationStatus}" Width="*"/>
+                        <DataGridTextColumn Header="Comments" Binding="{Binding Comments}" Width="2*"/>
+                        <DataGridTextColumn Header="Validated By" Binding="{Binding ValidatedByUsername}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <DataGrid ItemsSource="{Binding RepeatSampleReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
+                    <DataGrid.Style>
+                        <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedReport}" Value="Repeat Sample Log">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Style>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Logged On" Binding="{Binding LogDateTime, StringFormat='g'}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Patient ID" Binding="{Binding PatientIdCardNumber}" Width="*"/>
+                        <DataGridTextColumn Header="Patient Name" Binding="{Binding PatientName}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Reason" Binding="{Binding ReasonText}" Width="2*"/>
+                        <DataGridTextColumn Header="Department" Binding="{Binding Department}" Width="*"/>
+                        <DataGridTextColumn Header="Informed" Binding="{Binding InformedPerson}" Width="*"/>
+                        <DataGridTextColumn Header="Logged By" Binding="{Binding LoggedByUsername}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <Grid>
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedReport}" Value="Daily Task Compliance">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Background="{DynamicResource MahApps.Brushes.Gray9}" CornerRadius="5" Padding="15" Margin="0,0,0,10">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="Total Tasks:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding TotalTasks}" FontWeight="Bold" FontSize="16" Margin="5,0,20,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Completed:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding CompletedTasks}" FontWeight="Bold" FontSize="16" Margin="5,0,20,0" VerticalAlignment="Center" Foreground="Green"/>
+                            <TextBlock Text="Compliance:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding CompletionPercentage, StringFormat=P1}" FontWeight="Bold" FontSize="16" Margin="5,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource MahApps.Brushes.Accent}"/>
+                        </StackPanel>
+                    </Border>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding DailyTaskReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Date" Binding="{Binding LogDate, StringFormat='d'}" Width="*"/>
+                            <DataGridTextColumn Header="Task Name" Binding="{Binding TaskName}" Width="2*"/>
+                            <DataGridTextColumn Header="Shift" Binding="{Binding ShiftName}" Width="*"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
+                            <DataGridTextColumn Header="Completed On" Binding="{Binding CompletedDateTime, StringFormat='g'}" Width="1.5*"/>
+                            <DataGridTextColumn Header="Completed By" Binding="{Binding CompletedByUsername}" Width="*"/>
+                            <DataGridTextColumn Header="Comments" Binding="{Binding Comments}" Width="2*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+
+                <DataGrid ItemsSource="{Binding MediaSterilityReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
+                    <DataGrid.Style>
+                        <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedReport}" Value="Media Sterility Log">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Style>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Checked On" Binding="{Binding CheckDateTime, StringFormat='g'}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Media Name" Binding="{Binding MediaName}" Width="2*"/>
+                        <DataGridTextColumn Header="Lot Number" Binding="{Binding MediaLotNumber}" Width="*"/>
+                        <DataGridTextColumn Header="Result 37°C" Binding="{Binding Result37C}" Width="*"/>
+                        <DataGridTextColumn Header="Result 25°C" Binding="{Binding Result25C}" Width="*"/>
+                        <DataGridTextColumn Header="Overall Status" Binding="{Binding OverallStatus}" Width="*"/>
+                        <DataGridTextColumn Header="Performed By" Binding="{Binding PerformedByUsername}" Width="1.5*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <DataGrid ItemsSource="{Binding SampleStorageReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
+                    <DataGrid.Style>
+                        <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedReport}" Value="Sample Storage Log">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Style>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Stored On" Binding="{Binding StorageDateTime, StringFormat='g'}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Sample ID" Binding="{Binding PatientSampleID}" Width="*"/>
+                        <DataGridTextColumn Header="Test Name" Binding="{Binding TestName}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Stored By" Binding="{Binding StoredByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Completed On" Binding="{Binding TestDoneDateTime, StringFormat='g'}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Completed By" Binding="{Binding TestDoneByUsername}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <DataGrid ItemsSource="{Binding CalibrationReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
+                    <DataGrid.Style>
+                        <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedReport}" Value="Calibration Log">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Style>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Calibrated On" Binding="{Binding CalibrationDateTime, StringFormat='g'}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Test/Instrument" Binding="{Binding TestName}" Width="2*"/>
+                        <DataGridTextColumn Header="QC Result" Binding="{Binding QcResult}" Width="*"/>
+                        <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*"/>
+                        <DataGridTextColumn Header="Performed By" Binding="{Binding PerformedByUsername}" Width="1.5*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
             </Grid>
-
-            <DataGrid ItemsSource="{Binding MediaSterilityReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
-                <DataGrid.Style>
-                    <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding SelectedReport}" Value="Media Sterility Log">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.Style>
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Checked On" Binding="{Binding CheckDateTime, StringFormat='g'}" Width="1.5*"/>
-                    <DataGridTextColumn Header="Media Name" Binding="{Binding MediaName}" Width="2*"/>
-                    <DataGridTextColumn Header="Lot Number" Binding="{Binding MediaLotNumber}" Width="*"/>
-                    <DataGridTextColumn Header="Result 37°C" Binding="{Binding Result37C}" Width="*"/>
-                    <DataGridTextColumn Header="Result 25°C" Binding="{Binding Result25C}" Width="*"/>
-                    <DataGridTextColumn Header="Overall Status" Binding="{Binding OverallStatus}" Width="*"/>
-                    <DataGridTextColumn Header="Performed By" Binding="{Binding PerformedByUsername}" Width="1.5*"/>
-                </DataGrid.Columns>
-            </DataGrid>
-
-            <DataGrid ItemsSource="{Binding SampleStorageReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
-                <DataGrid.Style>
-                    <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding SelectedReport}" Value="Sample Storage Log">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.Style>
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Stored On" Binding="{Binding StorageDateTime, StringFormat='g'}" Width="1.5*"/>
-                    <DataGridTextColumn Header="Sample ID" Binding="{Binding PatientSampleID}" Width="*"/>
-                    <DataGridTextColumn Header="Test Name" Binding="{Binding TestName}" Width="1.5*"/>
-                    <DataGridTextColumn Header="Stored By" Binding="{Binding StoredByUsername}" Width="*"/>
-                    <DataGridTextColumn Header="Completed On" Binding="{Binding TestDoneDateTime, StringFormat='g'}" Width="1.5*"/>
-                    <DataGridTextColumn Header="Completed By" Binding="{Binding TestDoneByUsername}" Width="*"/>
-                </DataGrid.Columns>
-            </DataGrid>
-
-            <DataGrid ItemsSource="{Binding CalibrationReportData}" AutoGenerateColumns="False" IsReadOnly="True" RowStyle="{StaticResource StandardDataGridRowStyle}">
-                <DataGrid.Style>
-                    <Style TargetType="DataGrid" BasedOn="{StaticResource MahApps.Styles.DataGrid}">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding SelectedReport}" Value="Calibration Log">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.Style>
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Calibrated On" Binding="{Binding CalibrationDateTime, StringFormat='g'}" Width="1.5*"/>
-                    <DataGridTextColumn Header="Test/Instrument" Binding="{Binding TestName}" Width="2*"/>
-                    <DataGridTextColumn Header="QC Result" Binding="{Binding QcResult}" Width="*"/>
-                    <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*"/>
-                    <DataGridTextColumn Header="Performed By" Binding="{Binding PerformedByUsername}" Width="1.5*"/>
-                </DataGrid.Columns>
-            </DataGrid>
-
-        </Grid>
+        </DockPanel>
     </Grid>
 </UserControl>
