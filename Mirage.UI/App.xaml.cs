@@ -14,10 +14,25 @@ namespace Mirage.UI
 {
     public partial class App : Application
     {
+        private static Mutex? _mutex = null; // <-- ADD THIS LINE
+
         public static IServiceProvider? ServiceProvider { get; private set; }
 
         protected override void OnStartup(StartupEventArgs e)
         {
+            // --- SINGLE INSTANCE CHECK ---
+            const string appName = "MiragePortal-9A8B7C6D-5E4F-4G3H-2I1J-K0L9M8N7O6P5";
+            _mutex = new Mutex(true, appName, out bool createdNew);
+
+            if (!createdNew)
+            {
+                // Another instance is already running.
+                MessageBox.Show("Project Mirage is already running.", "Application Already Running", MessageBoxButton.OK, MessageBoxImage.Information);
+                Application.Current.Shutdown();
+                return; // Exit the startup process
+            }
+            // ---------------------------
+
             base.OnStartup(e);
 
             // --- ADD QUESTPDF LICENSE ---
@@ -83,8 +98,6 @@ namespace Mirage.UI
             services.AddSingleton<DailyTaskLogViewModel>();
             services.AddSingleton<IInactivityService, InactivityService>();
 
-
-
             // --- Views (Registered as Transient so a new one is created each time) ---
             services.AddTransient<LoginView>();
             services.AddTransient<MainWindow>();
@@ -113,6 +126,11 @@ namespace Mirage.UI
         {
             // Clean up service provider
             (ServiceProvider as IDisposable)?.Dispose();
+
+            // Release the mutex
+            _mutex?.ReleaseMutex();
+            _mutex?.Dispose();
+
             base.OnExit(e);
         }
     }
