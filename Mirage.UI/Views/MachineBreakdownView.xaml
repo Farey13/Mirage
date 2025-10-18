@@ -5,8 +5,11 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Mirage.UI.Views"
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
-             xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels">
-    
+             xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
+             mc:Ignorable="d" 
+             d:DesignWidth="1000"
+             Loaded="MachineBreakdownView_OnLoaded">
+
 
     <Grid>
         <Grid Margin="20">

@@ -41,7 +41,6 @@ public partial class MasterListViewModel : ObservableObject
     {
         _apiClient = apiClient;
         _authService = authService;
-        _ = LoadAllItemsAsync();
     }
 
     [RelayCommand]

@@ -1,28 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Mirage.UI.ViewModels;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Mirage.UI.Views
 {
-    /// <summary>
-    /// Interaction logic for MasterListView.xaml
-    /// </summary>
     public partial class MasterListView : UserControl
     {
         public MasterListView()
         {
             InitializeComponent();
+            // This line connects the View to its shared ViewModel
+            this.DataContext = App.ServiceProvider?.GetRequiredService<MasterListViewModel>();
+        }
+
+        // This method will run when the Master List tab is shown
+        private void MasterListView_OnLoaded(object sender, RoutedEventArgs e)
+        {
+            if (this.DataContext is MasterListViewModel viewModel && viewModel.LoadAllItemsCommand.CanExecute(null))
+            {
+                viewModel.LoadAllItemsCommand.Execute(null);
+            }
         }
     }
 }

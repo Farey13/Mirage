@@ -1,28 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Mirage.UI.ViewModels;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Mirage.UI.Views
 {
-    /// <summary>
-    /// Interaction logic for MachineBreakdownView.xaml
-    /// </summary>
     public partial class MachineBreakdownView : UserControl
     {
         public MachineBreakdownView()
         {
             InitializeComponent();
+            this.DataContext = App.ServiceProvider?.GetRequiredService<MachineBreakdownViewModel>();
+        }
+
+        private void MachineBreakdownView_OnLoaded(object sender, RoutedEventArgs e)
+        {
+            if (this.DataContext is MachineBreakdownViewModel viewModel)
+            {
+                // Load both the machine names and the breakdown data
+                viewModel.LoadMachineNamesCommand.Execute(null);
+                viewModel.SearchCommand.Execute(null);
+            }
         }
     }
 }

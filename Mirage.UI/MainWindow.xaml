@@ -11,8 +11,6 @@
     WindowStartupLocation="CenterScreen"
     TitleCharacterCasing="Normal">
 
-    
-
     <mah:HamburgerMenu
         x:Name="HamburgerMenuControl"
         DisplayMode="CompactInline"
@@ -57,7 +55,19 @@
         </mah:HamburgerMenu.OptionsItemTemplate>
 
         <mah:HamburgerMenu.Content>
-            <ContentControl Content="{Binding CurrentView}" />
+            <Grid>
+                <ContentControl Content="{Binding CurrentView}" />
+
+                <TextBlock Text="{Binding CurrentUser.FullName}"
+                           IsHitTestVisible="False"
+                           FontSize="12"
+                           FontWeight="Normal"
+                           Opacity="0.3"
+                           VerticalAlignment="Bottom"
+                           HorizontalAlignment="Right"
+                           Margin="0,0,10,5"/>
+            </Grid>
         </mah:HamburgerMenu.Content>
+
     </mah:HamburgerMenu>
 </mah:MetroWindow>

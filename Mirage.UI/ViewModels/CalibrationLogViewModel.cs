@@ -49,9 +49,6 @@ public partial class CalibrationLogViewModel : ObservableObject
         TestNames.Add("Glucose Meter QC");
         QcResults.Add("Passed");
         QcResults.Add("Failed");
-
-        // We still call this to preserve the auto-load functionality
-        LoadLogsCommand.Execute(null);
     }
 
     [RelayCommand]

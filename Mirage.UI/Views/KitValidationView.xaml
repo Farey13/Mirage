@@ -7,8 +7,8 @@
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
              mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="1000">
-    
+             d:DesignHeight="600" d:DesignWidth="1000"
+             Loaded="KitValidationView_OnLoaded">
 
     <UserControl.Resources>
         <Style x:Key="StandardActionButtonStyle" TargetType="Button" BasedOn="{StaticResource MahApps.Styles.Button.Flat}">

@@ -1,28 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Mirage.UI.ViewModels;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Mirage.UI.Views
 {
-    /// <summary>
-    /// Interaction logic for HandoverView.xaml
-    /// </summary>
     public partial class HandoverView : UserControl
     {
         public HandoverView()
         {
             InitializeComponent();
+            this.DataContext = App.ServiceProvider?.GetRequiredService<HandoverViewModel>();
+        }
+
+        private void HandoverView_OnLoaded(object sender, RoutedEventArgs e)
+        {
+            if (this.DataContext is HandoverViewModel viewModel && viewModel.SearchCommand.CanExecute(null))
+            {
+                viewModel.SearchCommand.Execute(null);
+            }
         }
     }
 }

@@ -1,28 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Mirage.UI.ViewModels;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Mirage.UI.Views
 {
-    /// <summary>
-    /// Interaction logic for DailyTaskLogView.xaml
-    /// </summary>
     public partial class DailyTaskLogView : UserControl
     {
         public DailyTaskLogView()
         {
             InitializeComponent();
+            this.DataContext = App.ServiceProvider?.GetRequiredService<DailyTaskLogViewModel>();
+        }
+
+        private void DailyTaskLogView_OnLoaded(object sender, RoutedEventArgs e)
+        {
+            if (this.DataContext is DailyTaskLogViewModel viewModel && viewModel.LoadTasksCommand.CanExecute(null))
+            {
+                // This now uses the CORRECT command name: LoadTasksCommand
+                viewModel.LoadTasksCommand.Execute(null);
+            }
         }
     }
 }

@@ -66,12 +66,9 @@ public partial class MachineBreakdownViewModel : ObservableObject
     {
         _apiClient = apiClient;
         _authService = authService;
-
-        // Call our new methods to load data from the API
-        _ = LoadMachineNamesAsync();
-        SearchCommand.Execute(null);
     }
 
+    [RelayCommand]
     private async System.Threading.Tasks.Task LoadMachineNamesAsync()
     {
         var authToken = _authService.GetToken();

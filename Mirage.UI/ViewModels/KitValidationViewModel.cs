@@ -35,7 +35,6 @@ public partial class KitValidationViewModel : ObservableObject
         _authService = authService;
         ValidationStatuses.Add("Accepted");
         ValidationStatuses.Add("Rejected");
-        LoadLogsCommand.Execute(null);
     }
 
     [RelayCommand]

@@ -16,6 +16,7 @@ public partial class LoginViewModel : ObservableObject
 {
     private readonly IPortalMirageApi _apiClient;
     private readonly IAuthService _authService; // It now uses our service
+    private readonly MainViewModel _mainViewModel; // Added for setting current user
 
     [ObservableProperty]
     private string _username = string.Empty;
@@ -23,15 +24,19 @@ public partial class LoginViewModel : ObservableObject
     [ObservableProperty]
     private string _errorMessage = string.Empty;
 
+    [ObservableProperty]
+    private bool _isLoginInProgress;
+
     // The constructor now receives the services it needs
-    public LoginViewModel(IPortalMirageApi apiClient, IAuthService authService)
+    public LoginViewModel(IPortalMirageApi apiClient, IAuthService authService, MainViewModel mainViewModel)
     {
         _apiClient = apiClient;
         _authService = authService;
+        _mainViewModel = mainViewModel; // Store the MainViewModel reference
     }
 
     [RelayCommand]
-    private async Task Login(object? parameter)
+    private async System.Threading.Tasks.Task LoginAsync(object? parameter)
     {
         if (parameter is not System.Windows.Controls.PasswordBox passwordBox) return;
         var password = passwordBox.Password;
@@ -42,20 +47,30 @@ public partial class LoginViewModel : ObservableObject
             return;
         }
 
+        IsLoginInProgress = true;
         ErrorMessage = string.Empty;
         try
         {
             var loginRequest = new LoginRequest(Username, password);
             var loginResponse = await _apiClient.LoginAsync(loginRequest);
 
-            // Here is the magic: we use the service to store the token centrally
+            // 1. Set the token and user info first
             _authService.SetToken($"Bearer {loginResponse.Token}");
+            _mainViewModel.CurrentUser = loginResponse.User;
 
-            // Open the main window using the service provider
+            // 2. Get the MainWindow and show it so the UI appears instantly
             var mainWindow = App.ServiceProvider?.GetRequiredService<MainWindow>();
             mainWindow?.Show();
 
-            // Close the login window
+            // 3. NOW, get the DashboardViewModel and tell it to load its data
+            var dashboardViewModel = App.ServiceProvider?.GetRequiredService<DashboardViewModel>();
+            if (dashboardViewModel != null)
+            {
+                // We don't wait for this to finish; the UI is already visible and the dashboard will update when ready
+                _ = dashboardViewModel.LoadSummaryAsync();
+            }
+
+            // 4. Close the login window
             var loginWindow = Application.Current.Windows.OfType<LoginView>().FirstOrDefault();
             loginWindow?.Close();
         }
@@ -66,6 +81,10 @@ public partial class LoginViewModel : ObservableObject
         catch (Exception ex)
         {
             ErrorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            IsLoginInProgress = false;
         }
     }
 }

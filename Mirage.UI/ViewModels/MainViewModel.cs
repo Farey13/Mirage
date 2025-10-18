@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Mirage.UI.Views;
+using PortalMirage.Core.Dtos;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -23,6 +24,9 @@ public partial class MainViewModel : ObservableObject
 
     public ObservableCollection<NavigationItem> MenuItems { get; } = new();
     public ObservableCollection<NavigationItem> OptionsMenuItems { get; } = new();
+
+    [ObservableProperty]
+    private UserResponse? _currentUser;
 
     public MainViewModel(
         DashboardViewModel dashboardViewModel,
