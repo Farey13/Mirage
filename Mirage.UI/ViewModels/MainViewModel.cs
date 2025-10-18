@@ -1,10 +1,13 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
+using Mirage.UI.Services;
 using Mirage.UI.Views;
 using PortalMirage.Core.Dtos;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows;
 
 namespace Mirage.UI.ViewModels;
@@ -21,6 +24,8 @@ public partial class MainViewModel : ObservableObject
     private NavigationItem? _selectedOptionsMenuItem;
 
     private readonly Dictionary<Type, object> _viewModelInstances = new();
+    private readonly IAuthService _authService;
+    private readonly IInactivityService _inactivityService;
 
     public ObservableCollection<NavigationItem> MenuItems { get; } = new();
     public ObservableCollection<NavigationItem> OptionsMenuItems { get; } = new();
@@ -29,6 +34,8 @@ public partial class MainViewModel : ObservableObject
     private UserResponse? _currentUser;
 
     public MainViewModel(
+        IAuthService authService,
+        IInactivityService inactivityService,
         DashboardViewModel dashboardViewModel,
         LogbooksViewModel logbooksViewModel,
         ReportsViewModel reportsViewModel,
@@ -43,6 +50,12 @@ public partial class MainViewModel : ObservableObject
         MediaSterilityViewModel mediaSterilityViewModel,
         DailyTaskLogViewModel dailyTaskLogViewModel)
     {
+        // --- ADD THESE LINES AT THE TOP OF THE CONSTRUCTOR ---
+        _authService = authService;
+        _inactivityService = inactivityService;
+        _inactivityService.OnInactive += Logout;
+        // ----------------------------------------------------
+
         // Add ALL ViewModels to our dictionary
         _viewModelInstances.Add(typeof(DashboardViewModel), dashboardViewModel);
         _viewModelInstances.Add(typeof(LogbooksViewModel), logbooksViewModel);
@@ -132,5 +145,26 @@ public partial class MainViewModel : ObservableObject
                 SelectedOptionsMenuItem = null;
             }
         }
+    }
+
+    private void Logout()
+    {
+        // Make sure we run this on the UI thread
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            // 1. Stop the timer so it doesn't fire again
+            _inactivityService.StopTimer();
+
+            // 2. Clear the authentication token
+            _authService.SetToken(null);
+
+            // 3. Open a new login window
+            var loginView = App.ServiceProvider?.GetRequiredService<LoginView>();
+            loginView?.Show();
+
+            // 4. Find and close the current main window
+            var currentMainWindow = Application.Current.Windows.OfType<MainWindow>().FirstOrDefault();
+            currentMainWindow?.Close();
+        });
     }
 }
