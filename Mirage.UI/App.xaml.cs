@@ -81,6 +81,9 @@ namespace Mirage.UI
             services.AddSingleton<MediaSterilityViewModel>();
             services.AddSingleton<RepeatSampleViewModel>();
             services.AddSingleton<DailyTaskLogViewModel>();
+            services.AddSingleton<IInactivityService, InactivityService>();
+
+
 
             // --- Views (Registered as Transient so a new one is created each time) ---
             services.AddTransient<LoginView>();
