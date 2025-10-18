@@ -43,8 +43,6 @@ public partial class RepeatSampleViewModel : ObservableObject
         Reasons.Add("Clotted");
         Reasons.Add("Insufficient Quantity");
         Reasons.Add("Instrument Error");
-
-        LoadLogsCommand.Execute(null);
     }
 
     [RelayCommand]

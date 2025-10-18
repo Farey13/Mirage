@@ -72,7 +72,6 @@ public partial class HandoverViewModel : ObservableObject
     {
         _apiClient = apiClient;
         _authService = authService;
-        SearchCommand.Execute(null);
     }
 
     [RelayCommand]

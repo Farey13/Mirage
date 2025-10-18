@@ -5,12 +5,18 @@
                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                  xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
                  xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
+                 xmlns:converters="clr-namespace:Mirage.UI.Converters"
                  mc:Ignorable="d"
                  Title="Login - Portal Mirage" Height="450" Width="800"
                  WindowStartupLocation="CenterScreen"
                  WindowStyle="None" ResizeMode="NoResize">
 
-    
+    <mah:MetroWindow.Resources>
+        <ResourceDictionary>
+            <converters:StringIsNullOrEmptyToVisibilityConverter x:Key="StringIsNullOrEmptyToVisibilityConverter"/>
+            <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+        </ResourceDictionary>
+    </mah:MetroWindow.Resources>
 
     <Grid>
         <Grid.ColumnDefinitions>
@@ -26,7 +32,10 @@
         </Grid>
 
         <Grid Grid.Column="1">
-            <StackPanel Width="300" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel Width="300" 
+                        HorizontalAlignment="Center" 
+                        VerticalAlignment="Center"
+                        IsEnabled="{Binding IsLoginInProgress, Converter={StaticResource InverseBooleanConverter}}">
                 <TextBlock Text="Welcome Back" FontSize="28" FontWeight="Light" Margin="0,0,0,20"/>
                 <TextBox mah:TextBoxHelper.Watermark="Username" Margin="0,10" FontSize="16"
                          Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"/>
@@ -34,9 +43,11 @@
                 <Button Content="Login" Margin="0,20" Padding="10" FontSize="18" FontWeight="Bold" Background="#0078D7" Foreground="White"
                         Command="{Binding LoginCommand}"
                         CommandParameter="{Binding ElementName=PasswordBox}"/>
-                <TextBlock Text="{Binding ErrorMessage}" Foreground="Red" TextAlignment="Center" 
-                           Visibility="{Binding ErrorMessage, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="Red" TextAlignment="Center" TextWrapping="Wrap"
+                           Visibility="{Binding ErrorMessage, Converter={StaticResource StringIsNullOrEmptyToVisibilityConverter}, ConverterParameter=Inverse}"/>
             </StackPanel>
+
+            <mah:ProgressRing IsActive="{Binding IsLoginInProgress}" />
         </Grid>
     </Grid>
 </mah:MetroWindow>

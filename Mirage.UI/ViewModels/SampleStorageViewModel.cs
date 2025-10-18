@@ -62,7 +62,7 @@ public partial class SampleStorageViewModel : ObservableObject
     {
         _apiClient = apiClient;
         _authService = authService;
-        SearchCommand.Execute(null);
+        
     }
 
     [RelayCommand]

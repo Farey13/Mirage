@@ -40,7 +40,7 @@ public partial class MediaSterilityViewModel : ObservableObject
         MediaNames.Add("Blood Agar");
         MediaNames.Add("MacConkey Agar");
         MediaNames.Add("Chocolate Agar");
-        LoadLogsCommand.Execute(null);
+        
     }
 
     [RelayCommand]

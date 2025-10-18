@@ -7,8 +7,9 @@
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
              mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="1000">
-    
+             d:DesignHeight="600" d:DesignWidth="1000"
+             Loaded="CalibrationLogView_OnLoaded">
+
 
     <Grid>
         <Grid Margin="20">
