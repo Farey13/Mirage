@@ -23,6 +23,9 @@
         <DataTemplate DataType="{x:Type viewModels:AuditLogViewModel}">
             <views:AuditLogView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type viewModels:SystemSettingsViewModel}">
+            <views:SystemSettingsView />
+        </DataTemplate>
 
         <!-- Nice styling from old code -->
         <Style x:Key="CompactTabItem" TargetType="TabItem" BasedOn="{StaticResource MahApps.Styles.TabItem}">

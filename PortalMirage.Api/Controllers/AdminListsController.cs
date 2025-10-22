@@ -60,6 +60,18 @@ namespace PortalMirage.Api.Controllers
             return Ok(createdItem);
         }
 
+
+        [HttpGet("setting/{itemValue}")]
+        public async Task<IActionResult> GetSetting(string itemValue)
+        {
+            var setting = await adminListService.GetItemAsync("SystemSetting", itemValue);
+            if (setting == null)
+            {
+                return NotFound();
+            }
+            return Ok(setting);
+        }
+
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateAdminListItemRequest request)
         {

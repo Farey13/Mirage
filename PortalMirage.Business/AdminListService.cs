@@ -36,6 +36,11 @@ public class AdminListService(
         return createdItem;
     }
 
+    public async Task<AdminListItem?> GetItemAsync(string listType, string itemValue)
+    {
+        return await adminListRepository.GetItemAsync(listType, itemValue);
+    }
+
     public async Task<AdminListItem> UpdateAsync(AdminListItem item, int actorUserId)
     {
         var updatedItem = await adminListRepository.UpdateAsync(item);

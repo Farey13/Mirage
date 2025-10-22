@@ -12,4 +12,6 @@ public interface IAdminListService
     // Updated methods with actorUserId parameter for audit logging
     Task<AdminListItem> CreateAsync(AdminListItem item, int actorUserId);
     Task<AdminListItem> UpdateAsync(AdminListItem item, int actorUserId);
+
+    Task<AdminListItem?> GetItemAsync(string listType, string itemValue);
 }

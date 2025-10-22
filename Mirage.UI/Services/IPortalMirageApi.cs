@@ -227,7 +227,8 @@ public interface IPortalMirageApi
         [Query] string? mediaName,
         [Query] string? status);
 
-
+    [Get("/api/admin/lists/setting/{itemValue}")]
+    System.Threading.Tasks.Task<AdminListItemDto> GetSettingAsync([Header("Authorization")] string token, string itemValue);
 
     [Get("/api/reports/sample-storage")]
     System.Threading.Tasks.Task<List<SampleStorageReportDto>> GetSampleStorageReportAsync(/*...*/);
