@@ -10,4 +10,6 @@ public interface IAdminListRepository
     Task<IEnumerable<AdminListItem>> GetByTypeAsync(string listType);
     Task<AdminListItem> CreateAsync(AdminListItem item);
     Task<AdminListItem> UpdateAsync(AdminListItem item);
+
+    Task<AdminListItem?> GetItemAsync(string listType, string itemValue);
 }

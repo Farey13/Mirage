@@ -18,13 +18,15 @@ public partial class AdminViewModel : ObservableObject
         UserManagementViewModel userManagementViewModel,
         ShiftManagementViewModel shiftManagementViewModel,
         MasterListViewModel masterListViewModel,
-        AuditLogViewModel auditLogViewModel)
+        AuditLogViewModel auditLogViewModel,
+        SystemSettingsViewModel systemSettingsViewModel)
     {
         // Create the list of tabs to be displayed
         TabItems.Add(new AdminTabItem("Users", "👥", userManagementViewModel));
         TabItems.Add(new AdminTabItem("Shifts", "🕒", shiftManagementViewModel));
         TabItems.Add(new AdminTabItem("Master Lists", "📋", masterListViewModel));
         TabItems.Add(new AdminTabItem("Audit Log", "📜", auditLogViewModel));
+        TabItems.Add(new AdminTabItem("System Settings", "🛡️", systemSettingsViewModel));
 
         // Select the first tab by default
         _selectedTab = TabItems[0];

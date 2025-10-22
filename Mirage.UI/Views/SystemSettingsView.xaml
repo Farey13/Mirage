@@ -1,0 +1,30 @@
+﻿<UserControl x:Class="Mirage.UI.Views.SystemSettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800"
+             Loaded="SystemSettingsView_OnLoaded">
+
+    <Grid Margin="10">
+        <GroupBox Header="Session Management" Width="400" HorizontalAlignment="Left">
+            <StackPanel Margin="10">
+                <TextBlock Text="Automatic Logout" FontWeight="Bold" />
+                <TextBlock Text="Set the number of minutes of inactivity before the user is automatically logged out." TextWrapping="Wrap" Margin="0,5,0,10"/>
+
+                <mah:NumericUpDown Value="{Binding InactivityTimeoutMinutes}"
+                                   Minimum="5"
+                                   Maximum="120"
+                                   StringFormat="N0"
+                                   Margin="0,0,0,20"/>
+
+                <Button Content="Save Settings"
+                        Command="{Binding SaveSettingsAsyncCommand}"
+                        Style="{DynamicResource MahApps.Styles.Button.Accent}"
+                        HorizontalAlignment="Left"/>
+            </StackPanel>
+        </GroupBox>
+    </Grid>
+</UserControl>

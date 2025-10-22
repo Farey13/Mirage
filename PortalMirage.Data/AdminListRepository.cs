@@ -46,4 +46,11 @@ public class AdminListRepository(IDbConnectionFactory connectionFactory) : IAdmi
                            """;
         return await connection.QuerySingleAsync<AdminListItem>(sql, item);
     }
+
+    public async Task<AdminListItem?> GetItemAsync(string listType, string itemValue)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = "SELECT * FROM AdminListItems WHERE ListType = @ListType AND ItemValue = @ItemValue";
+        return await connection.QuerySingleOrDefaultAsync<AdminListItem>(sql, new { ListType = listType, ItemValue = itemValue });
+    }
 }
