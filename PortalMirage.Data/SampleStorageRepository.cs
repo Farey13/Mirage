@@ -23,12 +23,11 @@ public class SampleStorageRepository(IDbConnectionFactory connectionFactory) : I
     public async Task<int> GetPendingCountAsync()
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
+        // CORRECTED QUERY: Removed the date filter
         const string sql = @"
-            SELECT COUNT(*) FROM SampleStorage 
-            WHERE IsTestDone = 0 
-              AND IsActive = 1 
-              AND StorageDateTime >= CAST(GETDATE() AS DATE) 
-              AND StorageDateTime < DATEADD(day, 1, CAST(GETDATE() AS DATE))";
+        SELECT COUNT(*) FROM SampleStorage 
+        WHERE IsTestDone = 0 
+          AND IsActive = 1";
         return await connection.ExecuteScalarAsync<int>(sql);
     }
 
