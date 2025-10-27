@@ -1,28 +1,27 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Mirage.UI.ViewModels;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Mirage.UI.Views
 {
-    /// <summary>
-    /// Interaction logic for ReportsView.xaml
-    /// </summary>
     public partial class ReportsView : UserControl
     {
         public ReportsView()
         {
             InitializeComponent();
+            // Connect to the shared ViewModel
+            this.DataContext = App.ServiceProvider?.GetRequiredService<ReportsViewModel>();
+        }
+
+        // This method runs when the Reports tab is shown
+        private void ReportsView_OnLoaded(object sender, RoutedEventArgs e)
+        {
+            // Get the ViewModel and execute the command to load filters
+            if (this.DataContext is ReportsViewModel viewModel && viewModel.LoadFilterOptionsCommand.CanExecute(null))
+            {
+                viewModel.LoadFilterOptionsCommand.Execute(null);
+            }
         }
     }
 }
