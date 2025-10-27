@@ -97,7 +97,7 @@ public partial class ReportsViewModel : ObservableObject
         _authService = authService;
         _pdfExportService = pdfExportService;
 
-        _ = LoadFilterOptionsAsync();
+        // REMOVED: _ = LoadFilterOptionsAsync();
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
         _timer.Tick += Timer_Tick;
@@ -112,6 +112,7 @@ public partial class ReportsViewModel : ObservableObject
         }
     }
 
+    [RelayCommand] // <-- ADDED THIS ATTRIBUTE
     private async System.Threading.Tasks.Task LoadFilterOptionsAsync()
     {
         var authToken = _authService.GetToken();
@@ -120,12 +121,29 @@ public partial class ReportsViewModel : ObservableObject
         try
         {
             var machineNameItems = await _apiClient.GetListItemsByTypeAsync(authToken, "MachineName");
-            MachineNames.Clear(); MachineNames.Add("All");
-            foreach (var item in machineNameItems) MachineNames.Add(item.ItemValue);
+
+            // REMOVED DEBUG LINES:
+            // MessageBox.Show($"API returned {machineNameItems?.Count ?? 0} machine name items.", "Debug API Result");
+            // MessageBox.Show($"MachineNames collection now has {MachineNames.Count} items.", "Debug Collection Count");
+
+            MachineNames.Clear();
+            MachineNames.Add("All"); // Ensure "All" is always first
+            if (machineNameItems != null) // Add null check for safety
+            {
+                foreach (var item in machineNameItems)
+                {
+                    if (item.IsActive) // Only add active items
+                    {
+                        MachineNames.Add(item.ItemValue);
+                    }
+                }
+            }
 
             var shiftItems = await _apiClient.GetAllShiftsAsync(authToken);
-            HandoverShiftOptions.Clear(); HandoverShiftOptions.Add("All");
-            TaskShiftOptions.Clear(); TaskShiftOptions.Add(new ShiftFilterItem(0, "All"));
+            HandoverShiftOptions.Clear();
+            HandoverShiftOptions.Add("All");
+            TaskShiftOptions.Clear();
+            TaskShiftOptions.Add(new ShiftFilterItem(0, "All"));
             foreach (var shift in shiftItems)
             {
                 HandoverShiftOptions.Add(shift.ShiftName);
@@ -133,33 +151,50 @@ public partial class ReportsViewModel : ObservableObject
             }
 
             PriorityOptions.Clear();
-            PriorityOptions.Add("All"); PriorityOptions.Add("Normal"); PriorityOptions.Add("Urgent");
+            PriorityOptions.Add("All");
+            PriorityOptions.Add("Normal");
+            PriorityOptions.Add("Urgent");
 
             var kitNameItems = await _apiClient.GetListItemsByTypeAsync(authToken, "KitName");
-            KitNameOptions.Clear(); KitNameOptions.Add("All");
-            foreach (var item in kitNameItems) KitNameOptions.Add(item.ItemValue);
+            KitNameOptions.Clear();
+            KitNameOptions.Add("All");
+            foreach (var item in kitNameItems)
+                KitNameOptions.Add(item.ItemValue);
 
             var reasonItems = await _apiClient.GetListItemsByTypeAsync(authToken, "RepeatReason");
-            ReasonOptions.Clear(); ReasonOptions.Add("All");
-            foreach (var item in reasonItems) ReasonOptions.Add(item.ItemValue);
+            ReasonOptions.Clear();
+            ReasonOptions.Add("All");
+            foreach (var item in reasonItems)
+                ReasonOptions.Add(item.ItemValue);
 
             var departmentItems = await _apiClient.GetListItemsByTypeAsync(authToken, "Department");
-            DepartmentOptions.Clear(); DepartmentOptions.Add("All");
-            foreach (var item in departmentItems) DepartmentOptions.Add(item.ItemValue);
+            DepartmentOptions.Clear();
+            DepartmentOptions.Add("All");
+            foreach (var item in departmentItems)
+                DepartmentOptions.Add(item.ItemValue);
 
             var mediaNameItems = await _apiClient.GetListItemsByTypeAsync(authToken, "MediaName");
-            MediaNameOptions.Clear(); MediaNameOptions.Add("All");
-            foreach (var item in mediaNameItems) MediaNameOptions.Add(item.ItemValue);
+            MediaNameOptions.Clear();
+            MediaNameOptions.Add("All");
+            foreach (var item in mediaNameItems)
+                MediaNameOptions.Add(item.ItemValue);
 
             var testNameItems = await _apiClient.GetListItemsByTypeAsync(authToken, "TestName");
-            TestNameOptions.Clear(); TestNameOptions.Add("All");
-            foreach (var item in testNameItems) TestNameOptions.Add(item.ItemValue);
+            TestNameOptions.Clear();
+            TestNameOptions.Add("All");
+            foreach (var item in testNameItems)
+                TestNameOptions.Add(item.ItemValue);
 
             var calibrationTestNameItems = await _apiClient.GetListItemsByTypeAsync(authToken, "TestName");
-            CalibrationTestNameOptions.Clear(); CalibrationTestNameOptions.Add("All");
-            foreach (var item in calibrationTestNameItems) CalibrationTestNameOptions.Add(item.ItemValue);
+            CalibrationTestNameOptions.Clear();
+            CalibrationTestNameOptions.Add("All");
+            foreach (var item in calibrationTestNameItems)
+                CalibrationTestNameOptions.Add(item.ItemValue);
         }
-        catch (Exception ex) { MessageBox.Show($"Failed to load filter options: {ex.Message}"); }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to load filter options: {ex.Message}");
+        }
     }
 
     [RelayCommand]

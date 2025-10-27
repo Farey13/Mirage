@@ -6,7 +6,8 @@
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
              mc:Ignorable="d" 
-             d:DesignHeight="700" d:DesignWidth="1000">
+             d:DesignHeight="700" d:DesignWidth="1000"
+             Loaded="ReportsView_OnLoaded">
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
@@ -47,7 +48,7 @@
                         <ComboBox ItemsSource="{Binding MachineNames}" SelectedItem="{Binding SelectedMachineName}"
                                   mah:TextBoxHelper.Watermark="All Machines"
                                   Width="180" Margin="20,0,0,0"/>
-                        <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}"
+                        <ComboBox ItemsSource="{Binding BreakdownStatusOptions}" SelectedItem="{Binding SelectedBreakdownStatus}"
                                   mah:TextBoxHelper.Watermark="All Statuses"
                                   Width="150" Margin="5,0,0,0"/>
                         <Button Content="Generate Report" Command="{Binding GenerateReportCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}" Margin="20,0,0,0"/>
