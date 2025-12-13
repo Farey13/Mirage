@@ -5,6 +5,8 @@ using PortalMirage.Core.Dtos;
 using Refit;
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -23,6 +25,11 @@ public partial class MediaSterilityViewModel : ObservableObject
     [ObservableProperty] private string? _comments;
     [ObservableProperty] private DateTime _startDate = DateTime.Today;
     [ObservableProperty] private DateTime _endDate = DateTime.Today;
+
+    // DRAFT CONFIGURATION
+    private const string DraftFileName = "draft_mediasterility.json";
+    [ObservableProperty] private bool _hasUnsavedDraft;
+
     public ObservableCollection<MediaSterilityCheckResponse> Logs { get; } = new();
 
     [ObservableProperty] private bool _isDeleteFlyoutOpen;
@@ -40,11 +47,40 @@ public partial class MediaSterilityViewModel : ObservableObject
         MediaNames.Add("Blood Agar");
         MediaNames.Add("MacConkey Agar");
         MediaNames.Add("Chocolate Agar");
-        
+
+        // CHECK FOR DRAFT ON STARTUP
+        if (File.Exists(DraftFileName))
+        {
+            try
+            {
+                var json = File.ReadAllText(DraftFileName);
+                // Correct DTO name: CreateMediaSterilityCheckRequest
+                var draft = JsonSerializer.Deserialize<CreateMediaSterilityCheckRequest>(json);
+
+                if (draft != null)
+                {
+                    // Map the draft back to your form properties
+                    SelectedMediaName = draft.MediaName;
+                    MediaLotNumber = draft.MediaLotNumber;
+                    MediaQuantity = draft.MediaQuantity;
+                    SelectedResult37C = draft.Result37C;
+                    SelectedResult25C = draft.Result25C;
+                    Comments = draft.Comments;
+
+                    HasUnsavedDraft = true;
+                    MessageBox.Show("We found an unsaved sterility check and restored it.", "Draft Restored", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch
+            {
+                try { File.Delete(DraftFileName); }
+                catch { }
+            }
+        }
     }
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task LoadLogs()
+    private async Task LoadLogs()
     {
         var authToken = _authService.GetToken();
         if (string.IsNullOrEmpty(authToken)) return;
@@ -59,22 +95,62 @@ public partial class MediaSterilityViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task Save()
+    private async Task Save()
     {
         var authToken = _authService.GetToken();
+
+        // Validate required fields
         if (string.IsNullOrEmpty(authToken) || string.IsNullOrEmpty(SelectedMediaName) || string.IsNullOrEmpty(MediaLotNumber) || string.IsNullOrEmpty(SelectedResult25C) || string.IsNullOrEmpty(SelectedResult37C))
         {
             MessageBox.Show("Media Name, Lot Number, and both Results are required.");
             return;
         }
+
+        // Create Request using the correct DTO structure
+        var request = new CreateMediaSterilityCheckRequest(
+            SelectedMediaName,
+            MediaLotNumber,
+            MediaQuantity,
+            SelectedResult37C,
+            SelectedResult25C,
+            Comments
+        );
+
         try
         {
-            var request = new CreateMediaSterilityCheckRequest(SelectedMediaName, MediaLotNumber, MediaQuantity, SelectedResult37C, SelectedResult25C, Comments);
+            // 1. Try API
             await _apiClient.CreateSterilityCheckAsync(authToken, request);
+
+            // 2. Success
             Clear();
-            await LoadLogs();
+            if (File.Exists(DraftFileName)) File.Delete(DraftFileName);
+            HasUnsavedDraft = false;
+
+            await LoadLogs(); // Refresh list
+            MessageBox.Show("Sterility record saved successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        catch (Exception ex) { MessageBox.Show($"Failed to save log: {ex.Message}"); }
+        catch (Exception ex)
+        {
+            // 3. Failure: Save Draft
+            try
+            {
+                var json = JsonSerializer.Serialize(request);
+                await File.WriteAllTextAsync(DraftFileName, json);
+                HasUnsavedDraft = true;
+
+                MessageBox.Show(
+                    $"Connection failed: {ex.Message}\n\n" +
+                    "This record has been saved as a draft.\n" +
+                    "Please submit it again when the connection is restored.",
+                    "Network Error - Draft Saved",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            catch (Exception fileEx)
+            {
+                MessageBox.Show($"Critical Error: Could not save draft.\n{fileEx.Message}", "Error");
+            }
+        }
     }
 
     [RelayCommand]
@@ -89,6 +165,25 @@ public partial class MediaSterilityViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task ClearDraft()
+    {
+        try
+        {
+            if (File.Exists(DraftFileName))
+            {
+                File.Delete(DraftFileName);
+                Clear();
+                HasUnsavedDraft = false;
+                MessageBox.Show("Draft cleared successfully.", "Draft Cleared", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to clear draft: {ex.Message}", "Error");
+        }
+    }
+
+    [RelayCommand]
     private void ShowDeleteFlyout(MediaSterilityCheckResponse log)
     {
         SelectedLogToDelete = log;
@@ -97,7 +192,7 @@ public partial class MediaSterilityViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task ConfirmDeactivation()
+    private async Task ConfirmDeactivation()
     {
         if (SelectedLogToDelete is null || string.IsNullOrWhiteSpace(DeactivationReason))
         {
