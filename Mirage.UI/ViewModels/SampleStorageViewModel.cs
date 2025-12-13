@@ -5,7 +5,9 @@ using PortalMirage.Core.Dtos;
 using Refit;
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -20,6 +22,10 @@ public partial class SampleStorageViewModel : ObservableObject
     [ObservableProperty] private string _newTestName = string.Empty;
     [ObservableProperty] private DateTime _startDate = DateTime.Today;
     [ObservableProperty] private DateTime _endDate = DateTime.Today;
+
+    // DRAFT CONFIGURATION
+    private const string DraftFileName = "draft_samplestorage.json";
+    [ObservableProperty] private bool _hasUnsavedDraft;
 
     private string _activeView = "Pending";
     public bool IsPendingViewActive
@@ -62,11 +68,35 @@ public partial class SampleStorageViewModel : ObservableObject
     {
         _apiClient = apiClient;
         _authService = authService;
-        
+
+        // CHECK FOR DRAFT ON STARTUP
+        if (File.Exists(DraftFileName))
+        {
+            try
+            {
+                var json = File.ReadAllText(DraftFileName);
+                var draft = JsonSerializer.Deserialize<CreateSampleStorageRequest>(json);
+
+                if (draft != null)
+                {
+                    // Map the draft back to your form properties
+                    NewPatientSampleId = draft.PatientSampleID;
+                    NewTestName = draft.TestName;
+
+                    HasUnsavedDraft = true;
+                    MessageBox.Show("We found an unsaved sample entry and restored it.", "Draft Restored", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch
+            {
+                try { File.Delete(DraftFileName); }
+                catch { }
+            }
+        }
     }
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task Search()
+    private async Task Search()
     {
         var authToken = _authService.GetToken();
         if (string.IsNullOrEmpty(authToken)) return;
@@ -94,7 +124,7 @@ public partial class SampleStorageViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task Add()
+    private async Task Add()
     {
         var authToken = _authService.GetToken();
         if (string.IsNullOrEmpty(authToken) || string.IsNullOrEmpty(NewPatientSampleId) || string.IsNullOrEmpty(NewTestName))
@@ -102,19 +132,50 @@ public partial class SampleStorageViewModel : ObservableObject
             MessageBox.Show("Patient Sample ID and Test Name are required.");
             return;
         }
+
+        // Create the Request Object
+        var request = new CreateSampleStorageRequest(NewPatientSampleId, NewTestName);
+
         try
         {
-            var request = new CreateSampleStorageRequest(NewPatientSampleId, NewTestName);
+            // 1. Try API
             await _apiClient.CreateSampleAsync(authToken, request);
+
+            // 2. Success: Clear Form & Delete Draft
             NewPatientSampleId = string.Empty;
             NewTestName = string.Empty;
-            await Search();
+            if (File.Exists(DraftFileName)) File.Delete(DraftFileName);
+            HasUnsavedDraft = false;
+
+            await Search(); // Refresh the list
+            MessageBox.Show("Sample added successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        catch (Exception ex) { MessageBox.Show($"Failed to add sample: {ex.Message}"); }
+        catch (Exception ex)
+        {
+            // 3. Failure: Save Draft
+            try
+            {
+                var json = JsonSerializer.Serialize(request);
+                await File.WriteAllTextAsync(DraftFileName, json);
+                HasUnsavedDraft = true;
+
+                MessageBox.Show(
+                    $"Connection failed: {ex.Message}\n\n" +
+                    "Your entry has been saved as a draft.\n" +
+                    "Click 'Add' again when the connection is restored.",
+                    "Network Error - Draft Saved",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            catch (Exception fileEx)
+            {
+                MessageBox.Show($"Critical Error: Could not save draft.\n{fileEx.Message}", "Error");
+            }
+        }
     }
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task MarkAsDone(int storageId)
+    private async Task MarkAsDone(int storageId)
     {
         var authToken = _authService.GetToken();
         if (string.IsNullOrEmpty(authToken)) return;
@@ -140,7 +201,7 @@ public partial class SampleStorageViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task ConfirmDeactivation()
+    private async Task ConfirmDeactivation()
     {
         if (SelectedSampleToDelete is null || string.IsNullOrWhiteSpace(DeactivationReason))
         {
@@ -173,6 +234,26 @@ public partial class SampleStorageViewModel : ObservableObject
         catch (Exception ex)
         {
             MessageBox.Show($"An error occurred: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private void ClearDraft()
+    {
+        try
+        {
+            if (File.Exists(DraftFileName))
+            {
+                File.Delete(DraftFileName);
+                NewPatientSampleId = string.Empty;
+                NewTestName = string.Empty;
+                HasUnsavedDraft = false;
+                MessageBox.Show("Draft cleared successfully.", "Draft Cleared", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to clear draft: {ex.Message}", "Error");
         }
     }
 }

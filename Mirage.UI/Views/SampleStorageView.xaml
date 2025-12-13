@@ -39,6 +39,20 @@
                     <Label Content="Test Name:" VerticalAlignment="Center" Margin="10,0,0,0"/>
                     <TextBox Text="{Binding NewTestName}" Width="150" Margin="5,0"/>
                     <Button Content="Add Sample" Command="{Binding AddCommand}" Margin="10,0,0,0"/>
+                    <!-- Add Clear Draft Button -->
+                    <Button Content="Clear Draft" Command="{Binding ClearDraftCommand}" Margin="10,0,0,0" 
+                            Background="Transparent" BorderBrush="Orange" BorderThickness="1">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource MahApps.Styles.Button}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasUnsavedDraft}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                 </StackPanel>
             </Grid>
 
@@ -133,5 +147,38 @@
                 </StackPanel>
             </mah:Flyout>
         </mah:FlyoutsControl>
+
+        <!-- DRAFT STATUS BADGE -->
+        <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" 
+                CornerRadius="4" Padding="8,4" Margin="20"
+                Opacity="0.6" Effect="{DynamicResource MahApps.Effects.DropShadow}">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Background" Value="#E8F5E9"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding HasUnsavedDraft}" Value="True">
+                            <Setter Property="Background" Value="#FFF3E0"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+
+            <StackPanel Orientation="Horizontal">
+                <TextBlock FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="☁️ All Saved"/>
+                            <Setter Property="Foreground" Value="#2E7D32"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasUnsavedDraft}" Value="True">
+                                    <Setter Property="Text" Value="⚠️ Unsaved Draft"/>
+                                    <Setter Property="Foreground" Value="#E65100"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
+        </Border>
     </Grid>
 </UserControl>

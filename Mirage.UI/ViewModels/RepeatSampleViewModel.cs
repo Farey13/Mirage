@@ -7,6 +7,8 @@ using PortalMirage.Core.Dtos;
 using Refit;
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -29,6 +31,10 @@ public partial class RepeatSampleViewModel : ObservableObject
     [ObservableProperty] private RepeatSampleResponse? _selectedLogToDelete;
     [ObservableProperty] private string _deactivationReason = string.Empty;
 
+    // DRAFT CONFIGURATION
+    private const string DraftFileName = "draft_repeatsample.json";
+    [ObservableProperty] private bool _hasUnsavedDraft;
+
     public ObservableCollection<RepeatSampleResponse> Logs { get; } = new();
     public ObservableCollection<string> Reasons { get; } = new();
     public ObservableCollection<string> Departments { get; } = new() { "OPD", "IPD" };
@@ -43,10 +49,39 @@ public partial class RepeatSampleViewModel : ObservableObject
         Reasons.Add("Clotted");
         Reasons.Add("Insufficient Quantity");
         Reasons.Add("Instrument Error");
+
+        // CHECK FOR DRAFT ON STARTUP
+        if (File.Exists(DraftFileName))
+        {
+            try
+            {
+                var json = File.ReadAllText(DraftFileName);
+                // Verify 'CreateRepeatSampleRequest' matches your actual DTO name
+                var draft = JsonSerializer.Deserialize<CreateRepeatSampleRequest>(json);
+
+                if (draft != null)
+                {
+                    // Map the draft back to your form properties
+                    PatientIdCardNumber = draft.PatientIdCardNumber;
+                    PatientName = draft.PatientName;
+                    SelectedReason = draft.ReasonText; // Note: Your DTO uses ReasonText, not SelectedReason
+                    InformedPerson = draft.InformedPerson;
+                    SelectedDepartment = draft.Department;
+
+                    HasUnsavedDraft = true;
+                    MessageBox.Show("We found an unsaved repeat sample request and restored it.", "Draft Restored", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch
+            {
+                try { File.Delete(DraftFileName); }
+                catch { }
+            }
+        }
     }
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task FindPatient()
+    private async Task FindPatient()
     {
         if (string.IsNullOrWhiteSpace(PatientIdCardNumber)) return;
 
@@ -63,7 +98,7 @@ public partial class RepeatSampleViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task LoadLogs()
+    private async Task LoadLogs()
     {
         var authToken = _authService.GetToken();
         if (string.IsNullOrEmpty(authToken)) return;
@@ -78,22 +113,61 @@ public partial class RepeatSampleViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task Save()
+    private async Task Save()
     {
         var authToken = _authService.GetToken();
+
+        // Validate required fields based on your DTO
         if (string.IsNullOrEmpty(authToken) || string.IsNullOrEmpty(PatientIdCardNumber) || string.IsNullOrEmpty(PatientName) || PatientName == "Patient Not Found")
         {
             MessageBox.Show("A valid Patient ID and Name are required.");
             return;
         }
+
+        // Create Request (Ensure order matches your DTO constructor)
+        var request = new CreateRepeatSampleRequest(
+            PatientIdCardNumber,
+            PatientName,
+            SelectedReason,  // Note: Your DTO constructor expects string? reasonText
+            InformedPerson,
+            SelectedDepartment
+        );
+
         try
         {
-            var request = new CreateRepeatSampleRequest(PatientIdCardNumber, PatientName, SelectedReason, InformedPerson, SelectedDepartment);
+            // 1. Try API
             await _mirageApiClient.CreateRepeatSampleAsync(authToken, request);
+
+            // 2. Success - Clear Form
             Clear();
-            await LoadLogs();
+            if (File.Exists(DraftFileName)) File.Delete(DraftFileName);
+            HasUnsavedDraft = false;
+
+            await LoadLogs(); // Refresh list
+            MessageBox.Show("Repeat sample request saved successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        catch (Exception ex) { MessageBox.Show($"Failed to save log: {ex.Message}"); }
+        catch (Exception ex)
+        {
+            // 3. Failure: Save Draft
+            try
+            {
+                var json = JsonSerializer.Serialize(request);
+                await File.WriteAllTextAsync(DraftFileName, json);
+                HasUnsavedDraft = true;
+
+                MessageBox.Show(
+                    $"Connection failed: {ex.Message}\n\n" +
+                    "This request has been saved as a draft.\n" +
+                    "Please submit it again when the connection is restored.",
+                    "Network Error - Draft Saved",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            catch (Exception fileEx)
+            {
+                MessageBox.Show($"Critical Error: Could not save draft.\n{fileEx.Message}", "Error");
+            }
+        }
     }
 
     [RelayCommand]
@@ -107,6 +181,25 @@ public partial class RepeatSampleViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task ClearDraft()
+    {
+        try
+        {
+            if (File.Exists(DraftFileName))
+            {
+                File.Delete(DraftFileName);
+                Clear();
+                HasUnsavedDraft = false;
+                MessageBox.Show("Draft cleared successfully.", "Draft Cleared", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to clear draft: {ex.Message}", "Error");
+        }
+    }
+
+    [RelayCommand]
     private void ShowDeleteFlyout(RepeatSampleResponse log)
     {
         SelectedLogToDelete = log;
@@ -115,7 +208,7 @@ public partial class RepeatSampleViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task ConfirmDeactivation()
+    private async Task ConfirmDeactivation()
     {
         if (SelectedLogToDelete is null || string.IsNullOrWhiteSpace(DeactivationReason))
         {

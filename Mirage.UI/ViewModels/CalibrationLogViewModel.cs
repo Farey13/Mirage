@@ -5,6 +5,8 @@ using PortalMirage.Core.Dtos;
 using Refit;
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -34,6 +36,10 @@ public partial class CalibrationLogViewModel : ObservableObject
     [ObservableProperty]
     private string _deactivationReason = string.Empty;
 
+    // DRAFT CONFIGURATION
+    private const string DraftFileName = "draft_calibration.json";
+    [ObservableProperty] private bool _hasUnsavedDraft;
+
     public ObservableCollection<CalibrationLogResponse> Logs { get; } = new();
     public ObservableCollection<string> TestNames { get; } = new();
     public ObservableCollection<string> QcResults { get; } = new();
@@ -49,6 +55,34 @@ public partial class CalibrationLogViewModel : ObservableObject
         TestNames.Add("Glucose Meter QC");
         QcResults.Add("Passed");
         QcResults.Add("Failed");
+
+        // CHECK FOR DRAFT ON STARTUP
+        if (File.Exists(DraftFileName))
+        {
+            try
+            {
+                var json = File.ReadAllText(DraftFileName);
+                // Verify this matches your actual DTO name (e.g., CreateCalibrationRequest)
+                var draft = JsonSerializer.Deserialize<CreateCalibrationLogRequest>(json);
+
+                if (draft != null)
+                {
+                    // Map the draft back to your form properties
+                    // UPDATE THESE NAMES to match your actual variables!
+                    SelectedTestName = draft.TestName;
+                    SelectedQcResult = draft.QcResult;
+                    Reason = draft.Reason;
+
+                    HasUnsavedDraft = true;
+                    MessageBox.Show("We found an unsaved calibration record and restored it.", "Draft Restored", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch
+            {
+                try { File.Delete(DraftFileName); }
+                catch { }
+            }
+        }
     }
 
     [RelayCommand]
@@ -77,22 +111,51 @@ public partial class CalibrationLogViewModel : ObservableObject
     private async Task Save()
     {
         var authToken = _authService.GetToken();
+
+        // Validate required fields
         if (string.IsNullOrEmpty(authToken) || string.IsNullOrEmpty(SelectedTestName) || string.IsNullOrEmpty(SelectedQcResult))
         {
             MessageBox.Show("Test Name and QC Result are required.");
             return;
         }
 
+        // Create the Request Object
+        var request = new CreateCalibrationLogRequest(SelectedTestName, SelectedQcResult, Reason);
+
         try
         {
-            var request = new CreateCalibrationLogRequest(SelectedTestName, SelectedQcResult, Reason);
+            // 1. Try API
             await _apiClient.CreateCalibrationLogAsync(authToken, request);
+
+            // 2. Success: Clear Form & Delete Draft
             Clear();
-            await LoadLogs();
+            if (File.Exists(DraftFileName)) File.Delete(DraftFileName);
+            HasUnsavedDraft = false;
+
+            await LoadLogs(); // Refresh the list
+            MessageBox.Show("Calibration record saved successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to save log: {ex.Message}");
+            // 3. Failure: Save Draft
+            try
+            {
+                var json = JsonSerializer.Serialize(request);
+                await File.WriteAllTextAsync(DraftFileName, json);
+                HasUnsavedDraft = true;
+
+                MessageBox.Show(
+                    $"Connection failed: {ex.Message}\n\n" +
+                    "This calibration record has been saved as a draft.\n" +
+                    "Please submit it again when the connection is restored.",
+                    "Network Error - Draft Saved",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            catch (Exception fileEx)
+            {
+                MessageBox.Show($"Critical Error: Could not save draft.\n{fileEx.Message}", "Error");
+            }
         }
     }
 
@@ -102,6 +165,25 @@ public partial class CalibrationLogViewModel : ObservableObject
         SelectedTestName = null;
         SelectedQcResult = null;
         Reason = string.Empty;
+    }
+
+    [RelayCommand]
+    private async Task ClearDraft()
+    {
+        try
+        {
+            if (File.Exists(DraftFileName))
+            {
+                File.Delete(DraftFileName);
+                Clear();
+                HasUnsavedDraft = false;
+                MessageBox.Show("Draft cleared successfully.", "Draft Cleared", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to clear draft: {ex.Message}", "Error");
+        }
     }
 
     [RelayCommand]
