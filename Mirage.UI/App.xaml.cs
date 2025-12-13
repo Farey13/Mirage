@@ -67,8 +67,9 @@ namespace Mirage.UI
 
             // --- API Clients ---
             // Main PortalMirage API
+            //5288 for local dev for now - to be replaced with proper config management later (7210 was in use before https)
             services.AddRefitClient<IPortalMirageApi>()
-                    .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://localhost:7210"));
+                    .ConfigureHttpClient(c => c.BaseAddress = new Uri("http://localhost:5288"));
 
             // External Patient Info API
             services.AddRefitClient<PatientInfo.Api.Sdk.IPatientInfoApi>()
