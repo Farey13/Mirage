@@ -5,7 +5,9 @@ using PortalMirage.Core.Dtos;
 using Refit;
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -15,6 +17,10 @@ public partial class MachineBreakdownViewModel : ObservableObject
 {
     private readonly IPortalMirageApi _apiClient;
     private readonly IAuthService _authService;
+
+    // Draft settings
+    private const string DraftFileName = "draft_machine_breakdown.json";
+    [ObservableProperty] private bool _hasUnsavedDraft;
 
     [ObservableProperty] private string? _selectedMachineName;
     [ObservableProperty] private string _breakdownReason = string.Empty;
@@ -66,6 +72,35 @@ public partial class MachineBreakdownViewModel : ObservableObject
     {
         _apiClient = apiClient;
         _authService = authService;
+
+        // Check for draft on startup
+        if (File.Exists(DraftFileName))
+        {
+            try
+            {
+                var json = File.ReadAllText(DraftFileName);
+                var draft = JsonSerializer.Deserialize<CreateMachineBreakdownRequest>(json);
+
+                if (draft != null)
+                {
+                    SelectedMachineName = draft.MachineName;
+                    BreakdownReason = draft.BreakdownReason;
+                    HasUnsavedDraft = true;
+                    MessageBox.Show("We found unsaved work from your last session and restored it.", "Draft Restored", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch
+            {
+                try
+                {
+                    File.Delete(DraftFileName);
+                }
+                catch
+                {
+                    // Ignore delete errors
+                }
+            }
+        }
     }
 
     [RelayCommand]
@@ -126,15 +161,47 @@ public partial class MachineBreakdownViewModel : ObservableObject
             MessageBox.Show("Machine Name and Reason are required.");
             return;
         }
+
+        var request = new CreateMachineBreakdownRequest(SelectedMachineName, BreakdownReason);
+
         try
         {
-            var request = new CreateMachineBreakdownRequest(SelectedMachineName, BreakdownReason);
+            // 1. Attempt to send to API
             await _apiClient.CreateBreakdownAsync(authToken, request);
+
+            // 2. Success
             SelectedMachineName = null;
             BreakdownReason = string.Empty;
+
+            // Delete the draft file because we succeeded
+            if (File.Exists(DraftFileName)) File.Delete(DraftFileName);
+            HasUnsavedDraft = false;
+
             IsPendingViewActive = true;
+            MessageBox.Show("Report submitted successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        catch (Exception ex) { MessageBox.Show($"Failed to submit breakdown: {ex.Message}"); }
+        catch (Exception)
+        {
+            // 3. Failure (Network Error) - Save Draft
+            try
+            {
+                var json = JsonSerializer.Serialize(request);
+                await File.WriteAllTextAsync(DraftFileName, json);
+                HasUnsavedDraft = true;
+
+                MessageBox.Show(
+                    "Connection failed.\n\n" +
+                    "Don't worry! Your data has been safely saved as a draft.\n\n" +
+                    "Please check your internet connection. When you are back online, simply click 'Submit Report' again.",
+                    "Network Error - Draft Saved",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            catch (Exception fileEx)
+            {
+                MessageBox.Show($"Critical Error: Could not save draft. Data may be lost.\n{fileEx.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
     }
 
     [RelayCommand]

@@ -5,7 +5,9 @@ using PortalMirage.Core.Dtos;
 using Refit;
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -15,6 +17,10 @@ public partial class HandoverViewModel : ObservableObject
 {
     private readonly IPortalMirageApi _apiClient;
     private readonly IAuthService _authService;
+
+    // DRAFT CONFIGURATION
+    private const string DraftFileName = "draft_handover.json";
+    [ObservableProperty] private bool _hasUnsavedDraft;
 
     [ObservableProperty]
     private string _newHandoverNotes = string.Empty;
@@ -72,6 +78,27 @@ public partial class HandoverViewModel : ObservableObject
     {
         _apiClient = apiClient;
         _authService = authService;
+
+        // CHECK FOR DRAFT ON STARTUP
+        if (File.Exists(DraftFileName))
+        {
+            try
+            {
+                var json = File.ReadAllText(DraftFileName);
+                var draft = JsonSerializer.Deserialize<CreateHandoverRequest>(json);
+
+                if (draft != null)
+                {
+                    NewHandoverNotes = draft.HandoverNotes;
+                    SelectedPriority = draft.Priority;
+                    SelectedShift = draft.Shift;
+
+                    HasUnsavedDraft = true;
+                    MessageBox.Show("We found an unsaved handover from your last session and restored it.", "Draft Restored", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch { try { File.Delete(DraftFileName); } catch { } }
+        }
     }
 
     [RelayCommand]
@@ -107,14 +134,44 @@ public partial class HandoverViewModel : ObservableObject
             MessageBox.Show("Handover notes cannot be empty.");
             return;
         }
+
+        var request = new CreateHandoverRequest(NewHandoverNotes, SelectedPriority, SelectedShift);
+
         try
         {
-            var request = new CreateHandoverRequest(NewHandoverNotes, SelectedPriority, SelectedShift);
+            // 1. Try API
             await _apiClient.CreateHandoverAsync(authToken, request);
+
+            // 2. Success: Clear Form & Delete Draft
             NewHandoverNotes = string.Empty;
+            if (File.Exists(DraftFileName)) File.Delete(DraftFileName);
+            HasUnsavedDraft = false;
+
             await Search();
+            MessageBox.Show("Handover submitted successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        catch (Exception ex) { MessageBox.Show($"Failed to submit handover: {ex.Message}"); }
+        catch (Exception)
+        {
+            // 3. Failure: Save Draft
+            try
+            {
+                var json = JsonSerializer.Serialize(request);
+                await File.WriteAllTextAsync(DraftFileName, json);
+                HasUnsavedDraft = true;
+
+                MessageBox.Show(
+                    "Connection failed.\n\n" +
+                    "Don't worry! Your handover has been safely saved as a draft.\n\n" +
+                    "Please check your connection. When you are back online, click 'Submit Handover' again.",
+                    "Network Error - Draft Saved",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            catch (Exception fileEx)
+            {
+                MessageBox.Show($"Critical Error: Could not save draft.\n{fileEx.Message}", "Error");
+            }
+        }
     }
 
     [RelayCommand]
