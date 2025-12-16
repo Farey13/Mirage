@@ -6,10 +6,107 @@
              xmlns:local="clr-namespace:Mirage.UI.Views"
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
+             xmlns:converters="clr-namespace:Mirage.UI.Converters"
              mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="1000"
+             d:DesignHeight="700" d:DesignWidth="1000"
              Loaded="DailyTaskLogView_OnLoaded">
 
+    <UserControl.Resources>
+        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
+        <DataTemplate x:Key="TaskItemTemplate">
+            <Border BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="5">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <CheckBox Grid.Column="0" 
+                              VerticalAlignment="Center"
+                              IsChecked="{Binding IsChecked, Mode=TwoWay}">
+                        <CheckBox.Style>
+                            <Style TargetType="CheckBox" BasedOn="{StaticResource MahApps.Styles.CheckBox}">
+                                <Setter Property="ToolTip">
+                                    <Setter.Value>
+                                        <MultiBinding StringFormat="Status: {0}">
+                                            <Binding Path="Dto.Status"/>
+                                        </MultiBinding>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Not Available">
+                                        <Setter Property="IsEnabled" Value="False"/>
+                                        <Setter Property="IsChecked" Value="False"/>
+                                        <Setter Property="Opacity" Value="0.5"/>
+                                        <Setter Property="Background" Value="LightGray"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Incomplete">
+                                        <Setter Property="IsEnabled" Value="False"/>
+                                        <Setter Property="IsChecked" Value="False"/>
+                                        <Setter Property="Opacity" Value="0.5"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Completed">
+                                        <Setter Property="Foreground" Value="Green"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </CheckBox.Style>
+                    </CheckBox>
+
+                    <TextBlock Grid.Column="1" Text="{Binding TaskName}" VerticalAlignment="Center" Margin="10,0" TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="ToolTip" Value="{Binding TaskName}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Not Available">
+                                        <Setter Property="Foreground" Value="Gray"/>
+                                        <Setter Property="FontStyle" Value="Italic"/>
+                                        <Setter Property="ToolTip" Value="Marked as Not Available"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Incomplete">
+                                        <Setter Property="Foreground" Value="DarkRed"/>
+                                        <Setter Property="ToolTip" Value="Task incomplete - deadline passed"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Completed">
+                                        <Setter Property="Foreground" Value="Green"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="ToolTip" Value="Task completed"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Pending">
+                                        <Setter Property="Foreground" Value="DarkBlue"/>
+                                        <Setter Property="ToolTip" Value="Task pending"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <Button Grid.Column="2" Content="N/A" FontSize="10" Padding="5,2"
+                            Command="{Binding DataContext.ShowNaFlyoutCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding Dto}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource MahApps.Styles.Button}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Not Available">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Incomplete">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Completed">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
 
     <Grid>
         <Grid Margin="20">
@@ -22,149 +119,111 @@
             <TextBlock Grid.Row="0" Text="Daily Task Log" FontSize="36" FontWeight="Light" Margin="0,0,0,10"/>
 
             <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,20">
-                <DatePicker SelectedDate="{Binding SelectedDate}"/>
-                <Button Content="Get Tasks" Margin="10,0,0,0" Command="{Binding LoadTasksAsyncCommand}"/>
+                <DatePicker SelectedDate="{Binding SelectedDate}" 
+                            Width="150" 
+                            Margin="0,0,10,0"/>
+
+                <Button Content="GET TASKS" 
+                        Command="{Binding LoadTasksCommand}" 
+                        Style="{StaticResource MahApps.Styles.Button.Square.Accent}"
+                        Margin="0,0,10,0"/>
+
+                <Button Content="SAVE CHANGES" 
+                        Command="{Binding SaveChangesCommand}" 
+                        Background="Green" 
+                        Foreground="White" 
+                        FontWeight="Bold"
+                        Margin="20,0,0,0">
+                    <Button.ContentTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                                <ProgressBar Width="20" Height="20" Margin="5,0,0,0"
+                                             IsIndeterminate="True"
+                                             Visibility="{Binding DataContext.IsSaving, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </Button.ContentTemplate>
+                </Button>
             </StackPanel>
 
-            <Grid Grid.Row="2">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="20"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+            <Border Grid.Row="2" 
+                    Background="#40000000" 
+                    Visibility="{Binding IsSaving, Converter={StaticResource BooleanToVisibilityConverter}}"
+                    Panel.ZIndex="100"
+                    IsHitTestVisible="False">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <mah:ProgressRing Width="50" Height="50" 
+                                      IsActive="True" 
+                                      Foreground="White"/>
+                    <TextBlock Text="Saving changes..." 
+                               Foreground="White" 
+                               FontSize="14" 
+                               Margin="0,10,0,0"/>
+                </StackPanel>
+            </Border>
 
-                <GroupBox Grid.Column="0" Header="Morning Tasks">
+            <TabControl Grid.Row="2" mah:TabControlHelper.Underlined="TabItems">
+                <TabItem Header="Morning Tasks" FontSize="16">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <ItemsControl ItemsSource="{Binding MorningTasks}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="5">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <CheckBox Grid.Column="0" VerticalAlignment="Center"
-                                                      Command="{Binding DataContext.ToggleCompletedStatusCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                      CommandParameter="{Binding}">
-                                                <CheckBox.Style>
-                                                    <Style TargetType="CheckBox" BasedOn="{StaticResource MahApps.Styles.CheckBox}">
-                                                        <Setter Property="IsChecked" Value="False"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Status}" Value="Completed">
-                                                                <Setter Property="IsChecked" Value="True"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Status}" Value="Incomplete">
-                                                                <Setter Property="IsEnabled" Value="False"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Status}" Value="Not Available">
-                                                                <Setter Property="IsEnabled" Value="False"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </CheckBox.Style>
-                                            </CheckBox>
-                                            <TextBlock Grid.Column="1" Text="{Binding TaskName}" VerticalAlignment="Center" Margin="10,0" TextWrapping="Wrap"/>
-                                            <Button Grid.Column="2" Content="N/A" FontSize="10" Padding="5,2"
-                                                    Command="{Binding DataContext.ShowNaFlyoutCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                    CommandParameter="{Binding}"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ItemsControl ItemsSource="{Binding MorningTasks}" ItemTemplate="{StaticResource TaskItemTemplate}"/>
                     </ScrollViewer>
-                </GroupBox>
+                </TabItem>
 
-                <GroupBox Grid.Column="2" Header="Evening Tasks">
+                <TabItem Header="Evening Tasks" FontSize="16">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <ItemsControl ItemsSource="{Binding EveningTasks}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="5">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <CheckBox Grid.Column="0" VerticalAlignment="Center"
-                                                      Command="{Binding DataContext.ToggleCompletedStatusCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                      CommandParameter="{Binding}">
-                                                <CheckBox.Style>
-                                                    <Style TargetType="CheckBox" BasedOn="{StaticResource MahApps.Styles.CheckBox}">
-                                                        <Setter Property="IsChecked" Value="False"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Status}" Value="Completed">
-                                                                <Setter Property="IsChecked" Value="True"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Status}" Value="Incomplete">
-                                                                <Setter Property="IsEnabled" Value="False"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Status}" Value="Not Available">
-                                                                <Setter Property="IsEnabled" Value="False"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </CheckBox.Style>
-                                            </CheckBox>
-                                            <TextBlock Grid.Column="1" Text="{Binding TaskName}" VerticalAlignment="Center" Margin="10,0" TextWrapping="Wrap"/>
-                                            <Button Grid.Column="2" Content="N/A" FontSize="10" Padding="5,2"
-                                                    Command="{Binding DataContext.ShowNaFlyoutCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                    CommandParameter="{Binding}"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ItemsControl ItemsSource="{Binding EveningTasks}" ItemTemplate="{StaticResource TaskItemTemplate}"/>
                     </ScrollViewer>
-                </GroupBox>
-            </Grid>
+                </TabItem>
+
+                <TabItem Header="Night Tasks" FontSize="16">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding NightTasks}" ItemTemplate="{StaticResource TaskItemTemplate}"/>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
         </Grid>
 
         <mah:FlyoutsControl>
             <mah:Flyout Header="Reason for N/A" IsOpen="{Binding IsNaFlyoutOpen}" Position="Right" Width="400">
                 <StackPanel Margin="20">
                     <TextBlock Text="{Binding SelectedTaskForNa.TaskName}" FontWeight="Bold" FontSize="18" Margin="0,0,0,10" TextWrapping="Wrap"/>
+
                     <Label Content="Reason"/>
-                    <TextBox Text="{Binding NaReason}" Height="150" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10"/>
-                    <Button Content="Confirm N/A" Command="{Binding ConfirmNaCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}"/>
+
+                    <TextBox x:Name="NaReasonBox"
+                             Text="{Binding NaReason, UpdateSourceTrigger=PropertyChanged}" 
+                             Height="150" 
+                             TextWrapping="Wrap" 
+                             AcceptsReturn="True" 
+                             VerticalScrollBarVisibility="Auto" 
+                             Margin="0,0,0,5"/>
+
+                    <TextBlock Text="{Binding Text.Length, ElementName=NaReasonBox, StringFormat='{}{0}/500 characters'}" 
+                               HorizontalAlignment="Right" 
+                               FontSize="10" 
+                               Foreground="Gray" 
+                               Margin="0,0,0,10"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Cancel" Margin="0,0,10,0" 
+                                Command="{Binding DataContext.CloseNaFlyoutCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+
+                        <Button Content="Confirm N/A" Command="{Binding ConfirmNaCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}">
+                            <Button.ContentTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                                        <ProgressBar Width="16" Height="16" Margin="5,0,0,0"
+                                                     IsIndeterminate="True"
+                                                     Visibility="{Binding DataContext.IsSavingNa, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </Button.ContentTemplate>
+                        </Button>
+                    </StackPanel>
                 </StackPanel>
             </mah:Flyout>
         </mah:FlyoutsControl>
-
-        <!-- Status Badge -->
-        <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" 
-                CornerRadius="4" Padding="8,4" Margin="20"
-                Opacity="0.6" Effect="{DynamicResource MahApps.Effects.DropShadow}">
-            <Border.Style>
-                <Style TargetType="Border">
-                    <Setter Property="Background" Value="#E8F5E9"/>
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding HasUnsavedDraft}" Value="True">
-                            <Setter Property="Background" Value="#FFF3E0"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </Border.Style>
-
-            <StackPanel Orientation="Horizontal">
-                <TextBlock FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Text" Value="☁️ All Saved"/>
-                            <Setter Property="Foreground" Value="#2E7D32"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding HasUnsavedDraft}" Value="True">
-                                    <Setter Property="Text" Value="⚠️ Unsaved Draft"/>
-                                    <Setter Property="Foreground" Value="#E65100"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-            </StackPanel>
-        </Border>
     </Grid>
 </UserControl>

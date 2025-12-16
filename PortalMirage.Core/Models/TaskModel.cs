@@ -1,5 +1,7 @@
 ﻿namespace PortalMirage.Core.Models;
-public record Task
+
+// Renamed to TaskModel to avoid conflict with System.Threading.Tasks.Task
+public record TaskModel
 {
     public int TaskID { get; init; }
     public required string TaskName { get; set; }

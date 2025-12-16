@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using TaskModel = PortalMirage.Core.Models.Task;
+using TaskModel = PortalMirage.Core.Models.TaskModel;
 using PortalMirage.Core.Models;
 
 namespace PortalMirage.Business;
@@ -239,7 +239,11 @@ public class DailyTaskLogService(
         var tasks = (await taskRepository.GetByIdsAsync(taskIds)).ToDictionary(t => t.TaskID);
         var users = (await userRepository.GetByIdsAsync(userIds)).ToDictionary(u => u.UserID);
 
-        return logList.Select(log => MapToTaskLogDetailDto(log, tasks, users));
+        // === CRITICAL CHANGE: Load ALL Shifts (Morning, Evening, Night, etc.) ===
+        // This allows us to look up the name by ID later
+        var shifts = (await shiftRepository.GetAllAsync()).ToDictionary(s => s.ShiftID);
+
+        return logList.Select(log => MapToTaskLogDetailDto(log, tasks, users, shifts));
     }
 
     private async Task<TaskLogDetailDto> MapToTaskLogDetailDto(DailyTaskLog log, int? completedByUserId = null)
@@ -247,11 +251,20 @@ public class DailyTaskLogService(
         var task = await taskRepository.GetByIdAsync(log.TaskID);
         var user = completedByUserId.HasValue ? await userRepository.GetByIdAsync(completedByUserId.Value) : null;
 
+        // Load shifts to get shift name
+        var shifts = (await shiftRepository.GetAllAsync()).ToDictionary(s => s.ShiftID);
+        string categoryName = "Uncategorized";
+
+        if (task != null && task.ShiftID.HasValue && shifts.TryGetValue(task.ShiftID.Value, out var shift))
+        {
+            categoryName = shift.ShiftName;
+        }
+
         return new TaskLogDetailDto
         {
             LogID = log.LogID,
             TaskName = task?.TaskName ?? "Unknown Task",
-            TaskCategory = task?.ShiftID?.ToString() ?? "Uncategorized",
+            TaskCategory = categoryName, // Now uses actual shift name instead of ID
             Status = log.Status,
             CompletedDateTime = log.CompletedDateTime,
             CompletedByUserID = log.CompletedByUserID,
@@ -262,16 +275,28 @@ public class DailyTaskLogService(
     }
 
     // FIX 2: Changed Dictionary key from 'int' to 'long' to match the TaskID type.
-    private TaskLogDetailDto MapToTaskLogDetailDto(DailyTaskLog log, Dictionary<int, TaskModel> tasks, Dictionary<int, User> users)
+    private TaskLogDetailDto MapToTaskLogDetailDto(
+        DailyTaskLog log,
+        Dictionary<int, TaskModel> tasks,
+        Dictionary<int, User> users,
+        Dictionary<int, Shift> shifts)  // Added shifts parameter
     {
         var task = tasks.TryGetValue(log.TaskID, out var t) ? t : null;
         var user = log.CompletedByUserID.HasValue && users.TryGetValue(log.CompletedByUserID.Value, out var u) ? u : null;
+
+        // === CRITICAL CHANGE: Get Actual Name from Database ===
+        // If the shift is "Night" in the DB, this variable becomes "Night"
+        string categoryName = "Uncategorized";
+        if (task != null && task.ShiftID.HasValue && shifts.TryGetValue(task.ShiftID.Value, out var shift))
+        {
+            categoryName = shift.ShiftName;
+        }
 
         return new TaskLogDetailDto
         {
             LogID = log.LogID,
             TaskName = task?.TaskName ?? "Unknown Task",
-            TaskCategory = task?.ShiftID?.ToString() ?? "Uncategorized",
+            TaskCategory = categoryName, // Sends "Morning", "Evening", or "Night" dynamically
             Status = log.Status,
             CompletedDateTime = log.CompletedDateTime,
             CompletedByUserID = log.CompletedByUserID,
@@ -279,6 +304,13 @@ public class DailyTaskLogService(
             Comments = log.Comments,
             LockOverrideUntil = log.LockOverrideUntil
         };
+    }
+
+    // Keep the old method for backward compatibility (if needed elsewhere)
+    private TaskLogDetailDto MapToTaskLogDetailDto(DailyTaskLog log, Dictionary<int, TaskModel> tasks, Dictionary<int, User> users)
+    {
+        // Call the new method with empty shifts dictionary
+        return MapToTaskLogDetailDto(log, tasks, users, new Dictionary<int, Shift>());
     }
 
     private bool IsValidStatus(string status)

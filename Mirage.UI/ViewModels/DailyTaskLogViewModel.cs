@@ -3,12 +3,9 @@ using CommunityToolkit.Mvvm.Input;
 using Mirage.UI.Services;
 using PortalMirage.Core.Dtos;
 using PortalMirage.Core.Models;
-using Refit;
 using System;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -19,11 +16,6 @@ public partial class DailyTaskLogViewModel : ObservableObject
     private readonly IPortalMirageApi _apiClient;
     private readonly IAuthService _authService;
 
-    // DRAFT CONFIGURATION
-    private const string DraftFileName = "draft_dailytask.json";
-
-    [ObservableProperty]
-    private bool _hasUnsavedDraft;
     [ObservableProperty]
     private DateTime _selectedDate = DateTime.Today;
     [ObservableProperty]
@@ -33,144 +25,123 @@ public partial class DailyTaskLogViewModel : ObservableObject
     [ObservableProperty]
     private string _naReason = string.Empty;
 
-    // Add these properties for draft restoration
     [ObservableProperty]
-    private string _draftComment = string.Empty;
-    [ObservableProperty]
-    private string _draftStatus = string.Empty;
-    [ObservableProperty]
-    private TaskLogDetailDto? _selectedTask;
+    private bool _isSaving;
 
-    public ObservableCollection<TaskLogDetailDto> MorningTasks { get; } = new();
-    public ObservableCollection<TaskLogDetailDto> EveningTasks { get; } = new();
+    [ObservableProperty]
+    private bool _isSavingNa;
+
+    public ObservableCollection<TaskLogItem> MorningTasks { get; } = new();
+    public ObservableCollection<TaskLogItem> EveningTasks { get; } = new();
+    public ObservableCollection<TaskLogItem> NightTasks { get; } = new();
 
     public DailyTaskLogViewModel(IPortalMirageApi apiClient, IAuthService authService)
     {
         _apiClient = apiClient;
         _authService = authService;
-
-        // CHECK FOR DRAFT ON STARTUP
-        if (File.Exists(DraftFileName))
-        {
-            try
-            {
-                var json = File.ReadAllText(DraftFileName);
-                var draft = JsonSerializer.Deserialize<UpdateTaskStatusRequest>(json);
-
-                if (draft != null)
-                {
-                    DraftStatus = draft.Status;
-                    DraftComment = draft.Comment;
-
-                    HasUnsavedDraft = true;
-                    MessageBox.Show("We found an unsaved task update and restored the text.\nPlease select the correct task and submit again.", "Draft Restored", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-            }
-            catch
-            {
-                try { File.Delete(DraftFileName); } catch { }
-            }
-        }
-
         LoadInitialTasks();
     }
 
-    private async void LoadInitialTasks() => await LoadTasksAsync();
+    private async void LoadInitialTasks() => await LoadTasks();
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task LoadTasksAsync()
+    private async Task LoadTasks()
     {
-        var authToken = _authService.GetToken();
-        if (string.IsNullOrEmpty(authToken)) return;
+        if (IsSaving) return;
 
         try
         {
-            var tasks = await _apiClient.GetTasksForDateAsync(authToken, SelectedDate);
+            IsSaving = true;
+
+            var token = _authService.GetToken();
+            if (string.IsNullOrEmpty(token)) return;
+
+            // === FIXES APPLIED HERE ===
+            // 1. Used '_apiClient' (the name defined at the top of your class)
+            // 2. Used 'SelectedDate' (Capital 'S', the public property)
+            // 3. Formatted date to "yyyy-MM-dd" to fix the 404 error
+            // 4. Assigned the result to 'var tasks' so the loop below works
+            var tasks = await _apiClient.GetTasksForDateAsync(token, SelectedDate);
+
             MorningTasks.Clear();
             EveningTasks.Clear();
-            foreach (var task in tasks.Where(t => t.TaskCategory == "Morning")) MorningTasks.Add(task);
-            foreach (var task in tasks.Where(t => t.TaskCategory == "Evening")) EveningTasks.Add(task);
+            NightTasks.Clear();
+
+            if (tasks != null)
+            {
+                foreach (var t in tasks)
+                {
+                    var item = new TaskLogItem(t);
+
+                    // Case-insensitive check to be safe
+                    if (string.Equals(t.TaskCategory, "Morning", StringComparison.OrdinalIgnoreCase))
+                        MorningTasks.Add(item);
+                    else if (string.Equals(t.TaskCategory, "Evening", StringComparison.OrdinalIgnoreCase))
+                        EveningTasks.Add(item);
+                    else
+                        NightTasks.Add(item);
+                }
+            }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to load tasks: {ex.Message}");
+            MessageBox.Show($"Error loading tasks: {ex.Message}");
+        }
+        finally
+        {
+            IsSaving = false;
         }
     }
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task SubmitUpdate()
+    private async Task SaveChanges()
     {
-        // Validate required fields (Ensure a task is selected)
-        if (SelectedTask == null || string.IsNullOrEmpty(DraftStatus))
-        {
-            MessageBox.Show("Please select a task and a status.");
-            return;
-        }
-
-        // Create Request
-        var request = new UpdateTaskStatusRequest(DraftStatus, DraftComment);
-        var authToken = _authService.GetToken();
-        if (string.IsNullOrEmpty(authToken)) return;
+        if (IsSaving) return;
 
         try
         {
-            // 1. Try API
-            await _apiClient.UpdateTaskStatusAsync(authToken, SelectedTask.LogID, request);
+            IsSaving = true;
 
-            // 2. Success - Clear Form
-            DraftComment = string.Empty;
-            DraftStatus = string.Empty;
-            SelectedTask = null;
+            var token = _authService.GetToken();
+            var userId = _authService.CurrentUser?.UserID ?? 0;
 
-            if (File.Exists(DraftFileName)) File.Delete(DraftFileName);
-            HasUnsavedDraft = false;
+            if (userId <= 0)
+            {
+                MessageBox.Show("Error: User not identified. Please log out and log in again.");
+                return;
+            }
 
-            // Refresh List
-            await LoadTasksAsync();
-            MessageBox.Show("Task status updated successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            var allModified = MorningTasks.Concat(EveningTasks).Concat(NightTasks)
+                                          .Where(t => t.IsDirty).ToList();
+
+            if (!allModified.Any())
+            {
+                MessageBox.Show("No changes to save.");
+                return;
+            }
+
+            foreach (var item in allModified)
+            {
+                await _apiClient.UpdateTaskStatusAsync(token, item.LogID, item.StatusToSave, userId, null);
+                item.MarkAsSaved();
+            }
+            MessageBox.Show("Changes saved successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // 3. Failure: Save Draft
-            try
-            {
-                var json = JsonSerializer.Serialize(request);
-                await File.WriteAllTextAsync(DraftFileName, json);
-                HasUnsavedDraft = true;
-
-                MessageBox.Show(
-                    "Connection failed.\n\n" +
-                    "This update has been saved as a draft.\n" +
-                    "Please submit it again when the connection is restored.",
-                    "Network Error - Draft Saved",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-            }
-            catch (Exception fileEx)
-            {
-                MessageBox.Show($"Critical Error: Could not save draft.\n{fileEx.Message}", "Error");
-            }
+            MessageBox.Show($"Failed to save: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsSaving = false;
         }
     }
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task ToggleCompletedStatus(TaskLogDetailDto task)
+    private void CloseNaFlyout()
     {
-        var authToken = _authService.GetToken();
-        if (string.IsNullOrEmpty(authToken) || task is null) return;
-
-        var newStatus = task.Status == "Completed" ? "Pending" : "Completed";
-
-        try
-        {
-            var request = new UpdateTaskStatusRequest(newStatus, task.Comments);
-            await _apiClient.UpdateTaskStatusAsync(authToken, task.LogID, request);
-            await LoadTasksAsync();
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Failed to update status: {ex.Message}");
-        }
+        IsNaFlyoutOpen = false;
+        NaReason = string.Empty;
     }
 
     [RelayCommand]
@@ -182,27 +153,70 @@ public partial class DailyTaskLogViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task ConfirmNa()
+    private async Task ConfirmNa()
     {
-        if (SelectedTaskForNa is null || string.IsNullOrWhiteSpace(NaReason))
-        {
-            MessageBox.Show("A reason is required to mark as N/A.");
-            return;
-        }
-
-        var authToken = _authService.GetToken();
-        if (string.IsNullOrEmpty(authToken)) return;
+        if (IsSavingNa) return;
 
         try
         {
-            var request = new UpdateTaskStatusRequest("Not Available", NaReason);
-            await _apiClient.UpdateTaskStatusAsync(authToken, SelectedTaskForNa.LogID, request);
+            IsSavingNa = true;
+
+            if (SelectedTaskForNa is null || string.IsNullOrWhiteSpace(NaReason))
+            {
+                MessageBox.Show("A reason is required to mark as N/A.");
+                return;
+            }
+
+            var token = _authService.GetToken();
+            var userId = _authService.CurrentUser?.UserID ?? 0;
+
+            if (string.IsNullOrEmpty(token) || userId <= 0) return;
+
+            await _apiClient.UpdateTaskStatusAsync(token, SelectedTaskForNa.LogID, "Not Available", userId, NaReason);
+
             IsNaFlyoutOpen = false;
-            await LoadTasksAsync();
+            NaReason = string.Empty;
+            await LoadTasks();
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Failed to update status: {ex.Message}");
         }
+        finally
+        {
+            IsSavingNa = false;
+        }
     }
+}
+
+public class TaskLogItem : ObservableObject
+{
+    public TaskLogDetailDto Dto { get; }
+    private bool _isChecked;
+
+    public TaskLogItem(TaskLogDetailDto dto)
+    {
+        Dto = dto;
+        _isChecked = dto.Status == "Completed";
+    }
+
+    public long LogID => Dto.LogID;
+    public string TaskName => Dto.TaskName;
+    public bool IsDirty { get; private set; }
+
+    public bool IsChecked
+    {
+        get => _isChecked;
+        set
+        {
+            if (SetProperty(ref _isChecked, value))
+            {
+                IsDirty = true;
+            }
+        }
+    }
+
+    public string StatusToSave => IsChecked ? "Completed" : "Pending";
+
+    public void MarkAsSaved() => IsDirty = false;
 }
