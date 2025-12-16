@@ -3,7 +3,7 @@ using PortalMirage.Core.Models;
 using PortalMirage.Data.Abstractions;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using TaskModel = PortalMirage.Core.Models.Task; // Alias for our model
+
 
 namespace PortalMirage.Data;
 
@@ -14,6 +14,13 @@ public class TaskRepository(IDbConnectionFactory connectionFactory) : ITaskRepos
         using var connection = await connectionFactory.CreateConnectionAsync();
         const string sql = "SELECT * FROM Tasks WHERE IsActive = 1";
         return await connection.QueryAsync<TaskModel>(sql);
+    }
+
+    public async System.Threading.Tasks.Task DeactivateAsync(int taskId)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = "UPDATE Tasks SET IsActive = 0 WHERE TaskID = @TaskId";
+        await connection.ExecuteAsync(sql, new { TaskId = taskId });
     }
 
     public async Task<TaskModel> CreateAsync(TaskModel task)

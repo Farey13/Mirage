@@ -99,7 +99,8 @@ namespace Mirage.UI
             services.AddSingleton<DailyTaskLogViewModel>();
             services.AddSingleton<IInactivityService, InactivityService>();
             services.AddSingleton<SystemSettingsViewModel>();
-
+            services.AddSingleton<TaskManagementViewModel>();
+            services.AddTransient<TaskManagementView>();
 
             // --- Views (Registered as Transient so a new one is created each time) ---
             services.AddTransient<LoginView>();

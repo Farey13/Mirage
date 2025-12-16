@@ -26,6 +26,9 @@
         <DataTemplate DataType="{x:Type viewModels:SystemSettingsViewModel}">
             <views:SystemSettingsView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type viewModels:TaskManagementViewModel}">
+            <views:TaskManagementView />
+        </DataTemplate>
 
         <!-- Nice styling from old code -->
         <Style x:Key="CompactTabItem" TargetType="TabItem" BasedOn="{StaticResource MahApps.Styles.TabItem}">

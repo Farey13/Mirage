@@ -669,11 +669,16 @@ namespace Mirage.UI.Properties {
 ========================================
 FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Services\AuthService.cs
 ========================================
+using PortalMirage.Core.Models;
+
 namespace Mirage.UI.Services
 {
     public class AuthService : IAuthService
     {
         private string? _token;
+
+        // Add this property
+        public User? CurrentUser { get; private set; }
 
         public string? GetToken()
         {
@@ -683,6 +688,24 @@ namespace Mirage.UI.Services
         public void SetToken(string? token)
         {
             _token = token;
+
+            // Optional: When token is set, you might want to clear CurrentUser
+            // if the token is being cleared (logged out)
+            if (string.IsNullOrEmpty(token))
+            {
+                CurrentUser = null;
+            }
+        }
+
+        // Optional: Add methods to set and clear CurrentUser
+        public void SetCurrentUser(User user)
+        {
+            CurrentUser = user;
+        }
+
+        public void ClearCurrentUser()
+        {
+            CurrentUser = null;
         }
     }
 }
@@ -691,12 +714,17 @@ namespace Mirage.UI.Services
 ========================================
 FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Services\IAuthService.cs
 ========================================
+using PortalMirage.Core.Models;
+
 namespace Mirage.UI.Services
 {
     public interface IAuthService
     {
         string? GetToken();
         void SetToken(string? token);
+
+        // Add this property
+        User? CurrentUser { get; }
     }
 }
 
@@ -894,11 +922,20 @@ public interface IPortalMirageApi
     [Get("/api/dailytasklogs")]
     System.Threading.Tasks.Task<List<TaskLogDetailDto>> GetTasksForDateAsync([Header("Authorization")] string token, [Query] DateTime date);
 
-    [Put("/api/dailytasklogs/{id}/status")]
-    System.Threading.Tasks.Task<TaskLogDetailDto> UpdateTaskStatusAsync([Header("Authorization")] string token, long id, [Body] UpdateTaskStatusRequest request);
+    [Put("/api/dailytasklog/{logId}/status")]
+    System.Threading.Tasks.Task UpdateTaskStatusAsync(
+    [Header("Authorization")] string token,
+    long logId,
+    string status,
+    int userId,
+    string? comment
+);
 
     [Put("/api/dailytasklogs/{id}/extend")]
     System.Threading.Tasks.Task<DailyTaskLog> ExtendTaskDeadlineAsync([Header("Authorization")] string token, long id, [Body] ExtendTaskDeadlineRequest request);
+
+    [Get("/api/dailytasklog/{date}")]
+    System.Threading.Tasks.Task<List<TaskLogDetailDto>> GetDailyTaskLogsAsync([Header("Authorization")] string token, DateTime date);
 
     // --- Admin Panel ---
     [Get("/api/admin/users")]
@@ -965,6 +1002,17 @@ public interface IPortalMirageApi
     // === Dashboard ===
     [Get("/api/dashboard/summary")] // ADD THIS ENDPOINT
     System.Threading.Tasks.Task<DashboardSummaryDto> GetDashboardSummaryAsync([Header("Authorization")] string token);
+
+
+    // --- Task Definitions (Admin) ---
+    [Get("/api/tasks")]
+    System.Threading.Tasks.Task<List<TaskModel>> GetAllTasksAsync([Header("Authorization")] string token);
+
+    [Post("/api/tasks")]
+    System.Threading.Tasks.Task<TaskModel> CreateTaskAsync([Header("Authorization")] string token, [Body] TaskModel task);
+
+    [Delete("/api/tasks/{id}")]
+    Task DeactivateTaskAsync([Header("Authorization")] string token, int id);
 
     // === Reports ===
     [Get("/api/reports/machine-breakdowns")] // ADD THIS
@@ -1266,10 +1314,12 @@ public partial class AdminViewModel : ObservableObject
         ShiftManagementViewModel shiftManagementViewModel,
         MasterListViewModel masterListViewModel,
         AuditLogViewModel auditLogViewModel,
-        SystemSettingsViewModel systemSettingsViewModel)
+        SystemSettingsViewModel systemSettingsViewModel,
+        TaskManagementViewModel taskManagementViewModel) // <--- Add this parameter
     {
         // Create the list of tabs to be displayed
         TabItems.Add(new AdminTabItem("Users", "??", userManagementViewModel));
+        TabItems.Add(new AdminTabItem("Daily Tasks", "?", taskManagementViewModel)); // <--- Add this tab
         TabItems.Add(new AdminTabItem("Shifts", "??", shiftManagementViewModel));
         TabItems.Add(new AdminTabItem("Master Lists", "??", masterListViewModel));
         TabItems.Add(new AdminTabItem("Audit Log", "??", auditLogViewModel));
@@ -1754,12 +1804,9 @@ using CommunityToolkit.Mvvm.Input;
 using Mirage.UI.Services;
 using PortalMirage.Core.Dtos;
 using PortalMirage.Core.Models;
-using Refit;
 using System;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -1770,11 +1817,6 @@ public partial class DailyTaskLogViewModel : ObservableObject
     private readonly IPortalMirageApi _apiClient;
     private readonly IAuthService _authService;
 
-    // DRAFT CONFIGURATION
-    private const string DraftFileName = "draft_dailytask.json";
-
-    [ObservableProperty]
-    private bool _hasUnsavedDraft;
     [ObservableProperty]
     private DateTime _selectedDate = DateTime.Today;
     [ObservableProperty]
@@ -1784,144 +1826,129 @@ public partial class DailyTaskLogViewModel : ObservableObject
     [ObservableProperty]
     private string _naReason = string.Empty;
 
-    // Add these properties for draft restoration
+    // 1. Add Loading State Properties (as per snippet)
     [ObservableProperty]
-    private string _draftComment = string.Empty;
-    [ObservableProperty]
-    private string _draftStatus = string.Empty;
-    [ObservableProperty]
-    private TaskLogDetailDto? _selectedTask;
+    private bool _isSaving;
 
-    public ObservableCollection<TaskLogDetailDto> MorningTasks { get; } = new();
-    public ObservableCollection<TaskLogDetailDto> EveningTasks { get; } = new();
+    [ObservableProperty]
+    private bool _isSavingNa;
+
+    public ObservableCollection<TaskLogItem> MorningTasks { get; } = new();
+    public ObservableCollection<TaskLogItem> EveningTasks { get; } = new();
+    public ObservableCollection<TaskLogItem> NightTasks { get; } = new();
 
     public DailyTaskLogViewModel(IPortalMirageApi apiClient, IAuthService authService)
     {
         _apiClient = apiClient;
         _authService = authService;
-
-        // CHECK FOR DRAFT ON STARTUP
-        if (File.Exists(DraftFileName))
-        {
-            try
-            {
-                var json = File.ReadAllText(DraftFileName);
-                var draft = JsonSerializer.Deserialize<UpdateTaskStatusRequest>(json);
-
-                if (draft != null)
-                {
-                    DraftStatus = draft.Status;
-                    DraftComment = draft.Comment;
-
-                    HasUnsavedDraft = true;
-                    MessageBox.Show("We found an unsaved task update and restored the text.\nPlease select the correct task and submit again.", "Draft Restored", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-            }
-            catch
-            {
-                try { File.Delete(DraftFileName); } catch { }
-            }
-        }
-
         LoadInitialTasks();
     }
 
-    private async void LoadInitialTasks() => await LoadTasksAsync();
+    private async void LoadInitialTasks() => await LoadTasks();
 
+    // 3. Updated Load Command (as per snippet)
     [RelayCommand]
-    private async System.Threading.Tasks.Task LoadTasksAsync()
+    private async Task LoadTasks()
     {
-        var authToken = _authService.GetToken();
-        if (string.IsNullOrEmpty(authToken)) return;
+        if (IsSaving) return; // Prevent double clicks (as per snippet)
 
         try
         {
-            var tasks = await _apiClient.GetTasksForDateAsync(authToken, SelectedDate);
+            IsSaving = true; // Re-use the overlay for loading (as per snippet)
+
+            var token = _authService.GetToken();
+            if (string.IsNullOrEmpty(token)) return;
+
+            var tasks = await _apiClient.GetDailyTaskLogsAsync(token, SelectedDate);
+
             MorningTasks.Clear();
             EveningTasks.Clear();
-            foreach (var task in tasks.Where(t => t.TaskCategory == "Morning")) MorningTasks.Add(task);
-            foreach (var task in tasks.Where(t => t.TaskCategory == "Evening")) EveningTasks.Add(task);
+            NightTasks.Clear();
+
+            foreach (var t in tasks)
+            {
+                var item = new TaskLogItem(t);
+
+                // Case-insensitive check to be safe
+                if (string.Equals(t.TaskCategory, "Morning", StringComparison.OrdinalIgnoreCase))
+                    MorningTasks.Add(item);
+                else if (string.Equals(t.TaskCategory, "Evening", StringComparison.OrdinalIgnoreCase))
+                    EveningTasks.Add(item);
+                else
+                    NightTasks.Add(item);
+            }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to load tasks: {ex.Message}");
+            MessageBox.Show($"Error loading tasks: {ex.Message}");
+        }
+        finally
+        {
+            // CRITICAL: Ensure spinner turns off (as per snippet)
+            IsSaving = false;
         }
     }
 
+    // 2. Updated Save Command (as per snippet)
     [RelayCommand]
-    private async System.Threading.Tasks.Task SubmitUpdate()
+    private async Task SaveChanges()
     {
-        // Validate required fields (Ensure a task is selected)
-        if (SelectedTask == null || string.IsNullOrEmpty(DraftStatus))
-        {
-            MessageBox.Show("Please select a task and a status.");
-            return;
-        }
-
-        // Create Request
-        var request = new UpdateTaskStatusRequest(DraftStatus, DraftComment);
-        var authToken = _authService.GetToken();
-        if (string.IsNullOrEmpty(authToken)) return;
+        if (IsSaving) return; // Prevent double clicks (as per snippet)
 
         try
         {
-            // 1. Try API
-            await _apiClient.UpdateTaskStatusAsync(authToken, SelectedTask.LogID, request);
+            IsSaving = true; // (as per snippet)
 
-            // 2. Success - Clear Form
-            DraftComment = string.Empty;
-            DraftStatus = string.Empty;
-            SelectedTask = null;
+            var token = _authService.GetToken();
+            var userId = _authService.CurrentUser?.UserID ?? 0;
 
-            if (File.Exists(DraftFileName)) File.Delete(DraftFileName);
-            HasUnsavedDraft = false;
-
-            // Refresh List
-            await LoadTasksAsync();
-            MessageBox.Show("Task status updated successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        catch (Exception)
-        {
-            // 3. Failure: Save Draft
-            try
+            if (userId <= 0)
             {
-                var json = JsonSerializer.Serialize(request);
-                await File.WriteAllTextAsync(DraftFileName, json);
-                HasUnsavedDraft = true;
-
-                MessageBox.Show(
-                    "Connection failed.\n\n" +
-                    "This update has been saved as a draft.\n" +
-                    "Please submit it again when the connection is restored.",
-                    "Network Error - Draft Saved",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                MessageBox.Show("Error: User not identified. Please log out and log in again.");
+                return;
             }
-            catch (Exception fileEx)
+
+            // Find only modified items across all lists
+            var allModified = MorningTasks.Concat(EveningTasks).Concat(NightTasks)
+                                          .Where(t => t.IsDirty).ToList();
+
+            if (!allModified.Any())
             {
-                MessageBox.Show($"Critical Error: Could not save draft.\n{fileEx.Message}", "Error");
+                MessageBox.Show("No changes to save.");
+                return;
             }
-        }
-    }
 
-    [RelayCommand]
-    private async System.Threading.Tasks.Task ToggleCompletedStatus(TaskLogDetailDto task)
-    {
-        var authToken = _authService.GetToken();
-        if (string.IsNullOrEmpty(authToken) || task is null) return;
-
-        var newStatus = task.Status == "Completed" ? "Pending" : "Completed";
-
-        try
-        {
-            var request = new UpdateTaskStatusRequest(newStatus, task.Comments);
-            await _apiClient.UpdateTaskStatusAsync(authToken, task.LogID, request);
-            await LoadTasksAsync();
+            // Your existing save logic here (as per snippet)
+            foreach (var item in allModified)
+            {
+                // Update status (Completed or Pending)
+                await _apiClient.UpdateTaskStatusAsync(token, item.LogID, item.StatusToSave, userId, null);
+                item.MarkAsSaved();
+            }
+            MessageBox.Show("Changes saved successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to update status: {ex.Message}");
+            MessageBox.Show($"Failed to save: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+        finally
+        {
+            // CRITICAL: Ensure spinner turns off (as per snippet)
+            IsSaving = false;
+        }
+    }
+
+
+    // DailyTaskLogViewModel.cs
+
+    [RelayCommand]
+    private void CloseNaFlyout()
+    {
+        // Close the flyout
+        IsNaFlyoutOpen = false;
+
+        // Clear the text box so the next task doesn't show the previous reason
+        NaReason = string.Empty;
     }
 
     [RelayCommand]
@@ -1932,30 +1959,84 @@ public partial class DailyTaskLogViewModel : ObservableObject
         IsNaFlyoutOpen = true;
     }
 
+    // 4. Updated Confirm N/A Command (as per snippet)
     [RelayCommand]
-    private async System.Threading.Tasks.Task ConfirmNa()
+    private async Task ConfirmNa()
     {
-        if (SelectedTaskForNa is null || string.IsNullOrWhiteSpace(NaReason))
-        {
-            MessageBox.Show("A reason is required to mark as N/A.");
-            return;
-        }
-
-        var authToken = _authService.GetToken();
-        if (string.IsNullOrEmpty(authToken)) return;
+        if (IsSavingNa) return; // (as per snippet)
 
         try
         {
-            var request = new UpdateTaskStatusRequest("Not Available", NaReason);
-            await _apiClient.UpdateTaskStatusAsync(authToken, SelectedTaskForNa.LogID, request);
+            IsSavingNa = true; // (as per snippet)
+
+            // Validate (as per snippet)
+            if (SelectedTaskForNa is null || string.IsNullOrWhiteSpace(NaReason))
+            {
+                MessageBox.Show("A reason is required to mark as N/A.");
+                return;
+            }
+
+            // Your existing N/A logic (as per snippet)
+            var token = _authService.GetToken();
+            var userId = _authService.CurrentUser?.UserID ?? 0;
+
+            if (string.IsNullOrEmpty(token) || userId <= 0) return;
+
+            // SelectedTaskForNa.Dto.Status = "Not Available"; (example from snippet)
+            // SelectedTaskForNa.Dto.Reason = NaReason; (example from snippet)
+            // await _taskService.UpdateTaskAsync(SelectedTaskForNa.Dto); (example from snippet)
+            await _apiClient.UpdateTaskStatusAsync(token, SelectedTaskForNa.LogID, "Not Available", userId, NaReason);
+
+            // Close Flyout (as per snippet)
             IsNaFlyoutOpen = false;
-            await LoadTasksAsync();
+            NaReason = string.Empty; // Reset reason
+
+            // Reload to show "N/A" status
+            await LoadTasks();
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Failed to update status: {ex.Message}");
         }
+        finally
+        {
+            IsSavingNa = false; // (as per snippet)
+        }
     }
+}
+
+public class TaskLogItem : ObservableObject
+{
+    public TaskLogDetailDto Dto { get; }
+    private bool _isChecked;
+
+    public TaskLogItem(TaskLogDetailDto dto)
+    {
+        Dto = dto;
+        // Map "Completed" database status to the Checkbox
+        _isChecked = dto.Status == "Completed";
+    }
+
+    public long LogID => Dto.LogID;
+    public string TaskName => Dto.TaskName;
+    public bool IsDirty { get; private set; }
+
+    public bool IsChecked
+    {
+        get => _isChecked;
+        set
+        {
+            if (SetProperty(ref _isChecked, value))
+            {
+                IsDirty = true; // Mark as modified when clicked
+            }
+        }
+    }
+
+    // Returns the correct API status string based on the checkbox
+    public string StatusToSave => IsChecked ? "Completed" : "Pending";
+
+    public void MarkAsSaved() => IsDirty = false;
 }
 
 
@@ -4944,6 +5025,162 @@ public partial class SystemSettingsViewModel : ObservableObject
 
 
 ========================================
+FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\ViewModels\TaskManagementViewModel.cs
+========================================
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Mirage.UI.Services;
+using PortalMirage.Core.Dtos;
+using PortalMirage.Core.Models; // This contains your TaskModel and Shift
+using System;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+
+namespace Mirage.UI.ViewModels;
+
+public partial class TaskManagementViewModel : ObservableObject
+{
+    private readonly IPortalMirageApi _apiClient;
+    private readonly IAuthService _authService;
+
+    // Collections for UI Binding
+    public ObservableCollection<TaskModel> Tasks { get; } = new();
+    public ObservableCollection<ShiftResponse> Shifts { get; } = new();
+
+    public ObservableCollection<string> ScheduleTypes { get; } = new() { "Daily", "Weekly", "Monthly" };
+    public ObservableCollection<string> DaysOfWeek { get; } = new()
+    {
+        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+    };
+
+    // Form Properties
+    [ObservableProperty]
+    private string _newTaskName = string.Empty;
+
+    [ObservableProperty]
+    private ShiftResponse? _selectedShift;
+
+    [ObservableProperty]
+    private string _selectedScheduleType = "Daily";
+
+    [ObservableProperty]
+    private string? _scheduleValue; // Stores "Monday" or "15" (day of month)
+
+    public TaskManagementViewModel(IPortalMirageApi apiClient, IAuthService authService)
+    {
+        _apiClient = apiClient;
+        _authService = authService;
+
+        // Load data immediately upon creation
+        _ = LoadDataAsync();
+    }
+
+    [RelayCommand]
+    private async System.Threading.Tasks.Task LoadDataAsync()
+    {
+        var token = _authService.GetToken();
+        if (string.IsNullOrEmpty(token)) return;
+
+        try
+        {
+            // Load Tasks and Shifts in parallel
+            var tasksTask = _apiClient.GetAllTasksAsync(token);
+            var shiftsTask = _apiClient.GetAllShiftsAsync(token);
+
+            await System.Threading.Tasks.Task.WhenAll(tasksTask, shiftsTask);
+
+            // Update UI Lists
+            Tasks.Clear();
+            foreach (var t in await tasksTask) Tasks.Add(t);
+
+            Shifts.Clear();
+            foreach (var s in await shiftsTask) Shifts.Add(s);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error loading data: {ex.Message}");
+        }
+    }
+
+
+    [RelayCommand]
+    private async Task DeleteTask(TaskModel task)
+    {
+        if (task == null) return;
+
+        var confirm = MessageBox.Show($"Are you sure you want to delete '{task.TaskName}'?",
+                                      "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+        if (confirm == MessageBoxResult.Yes)
+        {
+            var token = _authService.GetToken();
+            if (string.IsNullOrEmpty(token)) return;
+
+            try
+            {
+                await _apiClient.DeactivateTaskAsync(token, task.TaskID);
+                await LoadDataAsync(); // Refresh list
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to delete task: {ex.Message}");
+            }
+        }
+    }
+
+
+    [RelayCommand]
+    private async System.Threading.Tasks.Task SaveTask()
+    {
+        if (string.IsNullOrWhiteSpace(NewTaskName))
+        {
+            MessageBox.Show("Task Name is required.");
+            return;
+        }
+
+        if (SelectedShift == null)
+        {
+            MessageBox.Show("Please select a Shift.");
+            return;
+        }
+
+        var token = _authService.GetToken();
+        if (string.IsNullOrEmpty(token)) return;
+
+        try
+        {
+            // Create object based on PortalMirage.Core.Models.TaskModel
+            var newTask = new TaskModel
+            {
+                TaskID = 0, // DB handles ID
+                TaskName = NewTaskName,
+                ShiftID = SelectedShift.ShiftID,
+                ScheduleType = SelectedScheduleType,
+                ScheduleValue = ScheduleValue,
+                IsActive = true
+            };
+
+            await _apiClient.CreateTaskAsync(token, newTask);
+
+            // Clear inputs
+            NewTaskName = string.Empty;
+            ScheduleValue = null;
+
+            // Refresh list
+            await LoadDataAsync();
+            MessageBox.Show("Task created successfully!");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to create task: {ex.Message}");
+        }
+    }
+}
+
+
+========================================
 FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\ViewModels\UserManagementViewModel.cs
 ========================================
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -5280,6 +5517,9 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\AdminView.xaml
         </DataTemplate>
         <DataTemplate DataType="{x:Type viewModels:SystemSettingsViewModel}">
             <views:SystemSettingsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewModels:TaskManagementViewModel}">
+            <views:TaskManagementView />
         </DataTemplate>
 
         <!-- Nice styling from old code -->
@@ -5698,10 +5938,107 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\DailyTaskLogView.xaml
              xmlns:local="clr-namespace:Mirage.UI.Views"
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
+             xmlns:converters="clr-namespace:Mirage.UI.Converters"
              mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="1000"
+             d:DesignHeight="700" d:DesignWidth="1000"
              Loaded="DailyTaskLogView_OnLoaded">
 
+    <UserControl.Resources>
+        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
+        <DataTemplate x:Key="TaskItemTemplate">
+            <Border BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="5">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <CheckBox Grid.Column="0" 
+                              VerticalAlignment="Center"
+                              IsChecked="{Binding IsChecked, Mode=TwoWay}">
+                        <CheckBox.Style>
+                            <Style TargetType="CheckBox" BasedOn="{StaticResource MahApps.Styles.CheckBox}">
+                                <Setter Property="ToolTip">
+                                    <Setter.Value>
+                                        <MultiBinding StringFormat="Status: {0}">
+                                            <Binding Path="Dto.Status"/>
+                                        </MultiBinding>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Not Available">
+                                        <Setter Property="IsEnabled" Value="False"/>
+                                        <Setter Property="IsChecked" Value="False"/>
+                                        <Setter Property="Opacity" Value="0.5"/>
+                                        <Setter Property="Background" Value="LightGray"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Incomplete">
+                                        <Setter Property="IsEnabled" Value="False"/>
+                                        <Setter Property="IsChecked" Value="False"/>
+                                        <Setter Property="Opacity" Value="0.5"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Completed">
+                                        <Setter Property="Foreground" Value="Green"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </CheckBox.Style>
+                    </CheckBox>
+
+                    <TextBlock Grid.Column="1" Text="{Binding TaskName}" VerticalAlignment="Center" Margin="10,0" TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="ToolTip" Value="{Binding TaskName}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Not Available">
+                                        <Setter Property="Foreground" Value="Gray"/>
+                                        <Setter Property="FontStyle" Value="Italic"/>
+                                        <Setter Property="ToolTip" Value="Marked as Not Available"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Incomplete">
+                                        <Setter Property="Foreground" Value="DarkRed"/>
+                                        <Setter Property="ToolTip" Value="Task incomplete - deadline passed"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Completed">
+                                        <Setter Property="Foreground" Value="Green"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="ToolTip" Value="Task completed"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Pending">
+                                        <Setter Property="Foreground" Value="DarkBlue"/>
+                                        <Setter Property="ToolTip" Value="Task pending"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <Button Grid.Column="2" Content="N/A" FontSize="10" Padding="5,2"
+                            Command="{Binding DataContext.ShowNaFlyoutCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding Dto}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource MahApps.Styles.Button}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Not Available">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Incomplete">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Completed">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
 
     <Grid>
         <Grid Margin="20">
@@ -5714,150 +6051,112 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\DailyTaskLogView.xaml
             <TextBlock Grid.Row="0" Text="Daily Task Log" FontSize="36" FontWeight="Light" Margin="0,0,0,10"/>
 
             <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,20">
-                <DatePicker SelectedDate="{Binding SelectedDate}"/>
-                <Button Content="Get Tasks" Margin="10,0,0,0" Command="{Binding LoadTasksAsyncCommand}"/>
+                <DatePicker SelectedDate="{Binding SelectedDate}" 
+                            Width="150" 
+                            Margin="0,0,10,0"/>
+
+                <Button Content="GET TASKS" 
+                        Command="{Binding LoadTasksCommand}" 
+                        Style="{StaticResource MahApps.Styles.Button.Square.Accent}"
+                        Margin="0,0,10,0"/>
+
+                <Button Content="SAVE CHANGES" 
+                        Command="{Binding SaveChangesCommand}" 
+                        Background="Green" 
+                        Foreground="White" 
+                        FontWeight="Bold"
+                        Margin="20,0,0,0">
+                    <Button.ContentTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                                <ProgressBar Width="20" Height="20" Margin="5,0,0,0"
+                                             IsIndeterminate="True"
+                                             Visibility="{Binding DataContext.IsSaving, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </Button.ContentTemplate>
+                </Button>
             </StackPanel>
 
-            <Grid Grid.Row="2">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="20"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+            <Border Grid.Row="2" 
+                    Background="#40000000" 
+                    Visibility="{Binding IsSaving, Converter={StaticResource BooleanToVisibilityConverter}}"
+                    Panel.ZIndex="100"
+                    IsHitTestVisible="False">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <mah:ProgressRing Width="50" Height="50" 
+                                      IsActive="True" 
+                                      Foreground="White"/>
+                    <TextBlock Text="Saving changes..." 
+                               Foreground="White" 
+                               FontSize="14" 
+                               Margin="0,10,0,0"/>
+                </StackPanel>
+            </Border>
 
-                <GroupBox Grid.Column="0" Header="Morning Tasks">
+            <TabControl Grid.Row="2" mah:TabControlHelper.Underlined="TabItems">
+                <TabItem Header="Morning Tasks" FontSize="16">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <ItemsControl ItemsSource="{Binding MorningTasks}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="5">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <CheckBox Grid.Column="0" VerticalAlignment="Center"
-                                                      Command="{Binding DataContext.ToggleCompletedStatusCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                      CommandParameter="{Binding}">
-                                                <CheckBox.Style>
-                                                    <Style TargetType="CheckBox" BasedOn="{StaticResource MahApps.Styles.CheckBox}">
-                                                        <Setter Property="IsChecked" Value="False"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Status}" Value="Completed">
-                                                                <Setter Property="IsChecked" Value="True"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Status}" Value="Incomplete">
-                                                                <Setter Property="IsEnabled" Value="False"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Status}" Value="Not Available">
-                                                                <Setter Property="IsEnabled" Value="False"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </CheckBox.Style>
-                                            </CheckBox>
-                                            <TextBlock Grid.Column="1" Text="{Binding TaskName}" VerticalAlignment="Center" Margin="10,0" TextWrapping="Wrap"/>
-                                            <Button Grid.Column="2" Content="N/A" FontSize="10" Padding="5,2"
-                                                    Command="{Binding DataContext.ShowNaFlyoutCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                    CommandParameter="{Binding}"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ItemsControl ItemsSource="{Binding MorningTasks}" ItemTemplate="{StaticResource TaskItemTemplate}"/>
                     </ScrollViewer>
-                </GroupBox>
+                </TabItem>
 
-                <GroupBox Grid.Column="2" Header="Evening Tasks">
+                <TabItem Header="Evening Tasks" FontSize="16">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <ItemsControl ItemsSource="{Binding EveningTasks}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="5">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <CheckBox Grid.Column="0" VerticalAlignment="Center"
-                                                      Command="{Binding DataContext.ToggleCompletedStatusCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                      CommandParameter="{Binding}">
-                                                <CheckBox.Style>
-                                                    <Style TargetType="CheckBox" BasedOn="{StaticResource MahApps.Styles.CheckBox}">
-                                                        <Setter Property="IsChecked" Value="False"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Status}" Value="Completed">
-                                                                <Setter Property="IsChecked" Value="True"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Status}" Value="Incomplete">
-                                                                <Setter Property="IsEnabled" Value="False"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Status}" Value="Not Available">
-                                                                <Setter Property="IsEnabled" Value="False"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </CheckBox.Style>
-                                            </CheckBox>
-                                            <TextBlock Grid.Column="1" Text="{Binding TaskName}" VerticalAlignment="Center" Margin="10,0" TextWrapping="Wrap"/>
-                                            <Button Grid.Column="2" Content="N/A" FontSize="10" Padding="5,2"
-                                                    Command="{Binding DataContext.ShowNaFlyoutCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                    CommandParameter="{Binding}"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ItemsControl ItemsSource="{Binding EveningTasks}" ItemTemplate="{StaticResource TaskItemTemplate}"/>
                     </ScrollViewer>
-                </GroupBox>
-            </Grid>
+                </TabItem>
+
+                <TabItem Header="Night Tasks" FontSize="16">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding NightTasks}" ItemTemplate="{StaticResource TaskItemTemplate}"/>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
         </Grid>
 
         <mah:FlyoutsControl>
             <mah:Flyout Header="Reason for N/A" IsOpen="{Binding IsNaFlyoutOpen}" Position="Right" Width="400">
                 <StackPanel Margin="20">
                     <TextBlock Text="{Binding SelectedTaskForNa.TaskName}" FontWeight="Bold" FontSize="18" Margin="0,0,0,10" TextWrapping="Wrap"/>
+
                     <Label Content="Reason"/>
-                    <TextBox Text="{Binding NaReason}" Height="150" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10"/>
-                    <Button Content="Confirm N/A" Command="{Binding ConfirmNaCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}"/>
+
+                    <TextBox x:Name="NaReasonBox"
+                             Text="{Binding NaReason, UpdateSourceTrigger=PropertyChanged}" 
+                             Height="150" 
+                             TextWrapping="Wrap" 
+                             AcceptsReturn="True" 
+                             VerticalScrollBarVisibility="Auto" 
+                             Margin="0,0,0,5"/>
+
+                    <TextBlock Text="{Binding Text.Length, ElementName=NaReasonBox, StringFormat='{}{0}/500 characters'}" 
+                               HorizontalAlignment="Right" 
+                               FontSize="10" 
+                               Foreground="Gray" 
+                               Margin="0,0,0,10"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Cancel" Margin="0,0,10,0" 
+                                Command="{Binding DataContext.CloseNaFlyoutCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+
+                        <Button Content="Confirm N/A" Command="{Binding ConfirmNaCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}">
+                            <Button.ContentTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                                        <ProgressBar Width="16" Height="16" Margin="5,0,0,0"
+                                                     IsIndeterminate="True"
+                                                     Visibility="{Binding DataContext.IsSavingNa, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </Button.ContentTemplate>
+                        </Button>
+                    </StackPanel>
                 </StackPanel>
             </mah:Flyout>
         </mah:FlyoutsControl>
-
-        <!-- Status Badge -->
-        <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" 
-                CornerRadius="4" Padding="8,4" Margin="20"
-                Opacity="0.6" Effect="{DynamicResource MahApps.Effects.DropShadow}">
-            <Border.Style>
-                <Style TargetType="Border">
-                    <Setter Property="Background" Value="#E8F5E9"/>
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding HasUnsavedDraft}" Value="True">
-                            <Setter Property="Background" Value="#FFF3E0"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </Border.Style>
-
-            <StackPanel Orientation="Horizontal">
-                <TextBlock FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Text" Value="?? All Saved"/>
-                            <Setter Property="Foreground" Value="#2E7D32"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding HasUnsavedDraft}" Value="True">
-                                    <Setter Property="Text" Value="?? Unsaved Draft"/>
-                                    <Setter Property="Foreground" Value="#E65100"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-            </StackPanel>
-        </Border>
     </Grid>
 </UserControl>
 
@@ -8417,28 +8716,51 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\ShiftManagementView.xam
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
-             mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="900">
-    
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="900"
+             Loaded="ShiftManagementView_OnLoaded">
+
     <Grid Margin="10">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="2*"/>
             <ColumnDefinition Width="5"/>
             <ColumnDefinition Width="1*"/>
         </Grid.ColumnDefinitions>
+
         <GroupBox Grid.Column="0" Header="Defined Shifts">
-            <DataGrid ItemsSource="{Binding Shifts}" SelectedItem="{Binding SelectedShift}" AutoGenerateColumns="False" IsReadOnly="True">
+            <DataGrid ItemsSource="{Binding Shifts}" 
+                      SelectedItem="{Binding SelectedShift}" 
+                      AutoGenerateColumns="False" 
+                      IsReadOnly="True">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Name" Binding="{Binding ShiftName}" Width="*"/>
-                    <DataGridTextColumn Header="Start Time" Binding="{Binding StartTime, StringFormat='hh:mm tt'}" Width="Auto"/>
-                    <DataGridTextColumn Header="End Time" Binding="{Binding EndTime, StringFormat='hh:mm tt'}" Width="Auto"/>
-                    <DataGridTextColumn Header="Grace (Hrs)" Binding="{Binding GracePeriodHours}" Width="Auto"/>
+                    <DataGridTextColumn Header="Name" 
+                                        Binding="{Binding ShiftName}" 
+                                        Width="*"/>
+                    <DataGridTextColumn Header="Start Time" 
+                                        Binding="{Binding StartTime, StringFormat='{}{0:hh\\:mm tt}'}" 
+                                        Width="Auto"/>
+                    <DataGridTextColumn Header="End Time" 
+                                        Binding="{Binding EndTime, StringFormat='{}{0:hh\\:mm tt}'}" 
+                                        Width="Auto"/>
+                    <DataGridTextColumn Header="Grace (Hrs)" 
+                                        Binding="{Binding GracePeriodHours}" 
+                                        Width="Auto"/>
                 </DataGrid.Columns>
             </DataGrid>
         </GroupBox>
+
         <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="LightGray"/>
+
         <StackPanel Grid.Column="2">
-            <Button Content="Add New Shift" Command="{Binding NewShiftCommand}" Margin="0,0,0,10"/>
-            <Button Content="Deactivate Selected" Command="{Binding DeleteShiftCommand}" Background="IndianRed" Foreground="White" Margin="0,0,0,10">
+            <Button Content="Add New Shift" 
+                    Command="{Binding NewShiftCommand}" 
+                    Margin="0,0,0,10"/>
+
+            <Button Content="Deactivate Selected" 
+                    Command="{Binding DeleteShiftCommand}" 
+                    Background="IndianRed" 
+                    Foreground="White" 
+                    Margin="0,0,0,10">
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource MahApps.Styles.Button}">
                         <Setter Property="IsEnabled" Value="True"/>
@@ -8450,17 +8772,30 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\ShiftManagementView.xam
                     </Style>
                 </Button.Style>
             </Button>
+
             <GroupBox Header="Edit Shift" IsEnabled="{Binding IsEditing}">
                 <StackPanel Margin="10">
                     <Label Content="Shift Name"/>
-                    <TextBox Text="{Binding EditShiftName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+                    <TextBox Text="{Binding EditShiftName, UpdateSourceTrigger=PropertyChanged}" 
+                             Margin="0,0,0,10"/>
+
                     <Label Content="Start Time"/>
-                    <mah:TimePicker SelectedDateTime="{Binding EditStartTime, Mode=TwoWay}" Margin="0,0,0,10"/>
+                    <mah:TimePicker SelectedDateTime="{Binding EditStartTime, Mode=TwoWay}" 
+                                    Margin="0,0,0,10"/>
+
                     <Label Content="End Time"/>
-                    <mah:TimePicker SelectedDateTime="{Binding EditEndTime, Mode=TwoWay}" Margin="0,0,0,10"/>
+                    <mah:TimePicker SelectedDateTime="{Binding EditEndTime, Mode=TwoWay}" 
+                                    Margin="0,0,0,10"/>
+
                     <Label Content="Grace Period (Hours)"/>
-                    <mah:NumericUpDown Value="{Binding EditGracePeriodHours}" Minimum="0" Maximum="12" Margin="0,0,0,20"/>
-                    <Button Content="Save Changes" Command="{Binding SaveShiftCommand}" Style="{DynamicResource MahApps.Styles.Button.Accent}"/>
+                    <mah:NumericUpDown Value="{Binding EditGracePeriodHours}" 
+                                       Minimum="0" 
+                                       Maximum="12" 
+                                       Margin="0,0,0,20"/>
+
+                    <Button Content="Save Changes" 
+                            Command="{Binding SaveShiftCommand}" 
+                            Style="{DynamicResource MahApps.Styles.Button.Accent}"/>
                 </StackPanel>
             </GroupBox>
         </StackPanel>
@@ -8473,6 +8808,7 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\ShiftManagementView.xam
 ========================================
 using Microsoft.Extensions.DependencyInjection;
 using Mirage.UI.ViewModels;
+using System.Windows;             // Required for RoutedEventArgs
 using System.Windows.Controls;
 
 namespace Mirage.UI.Views
@@ -8482,7 +8818,21 @@ namespace Mirage.UI.Views
         public ShiftManagementView()
         {
             InitializeComponent();
+            // Connect the View to the ViewModel
             this.DataContext = App.ServiceProvider?.GetRequiredService<ShiftManagementViewModel>();
+        }
+
+        // This runs every time the tab becomes visible
+        private void ShiftManagementView_OnLoaded(object sender, RoutedEventArgs e)
+        {
+            if (this.DataContext is ShiftManagementViewModel viewModel)
+            {
+                // Force a refresh of the list from the database
+                if (viewModel.LoadShiftsCommand.CanExecute(null))
+                {
+                    viewModel.LoadShiftsCommand.Execute(null);
+                }
+            }
         }
     }
 }
@@ -8546,6 +8896,132 @@ namespace Mirage.UI.Views
             if (this.DataContext is SystemSettingsViewModel viewModel && viewModel.LoadSettingsCommand.CanExecute(null)) // Use LoadSettingsCommand
             {
                 viewModel.LoadSettingsCommand.Execute(null); // Use LoadSettingsCommand
+            }
+        }
+    }
+}
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\TaskManagementView.xaml
+========================================
+<UserControl x:Class="Mirage.UI.Views.TaskManagementView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="900"
+             Loaded="TaskManagementView_OnLoaded">
+
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="2*"/>
+            <ColumnDefinition Width="5"/>
+            <ColumnDefinition Width="1*"/>
+        </Grid.ColumnDefinitions>
+
+        <GroupBox Grid.Column="0" Header="Daily Task Definitions">
+            <DataGrid ItemsSource="{Binding Tasks}" AutoGenerateColumns="False" IsReadOnly="True"
+                      RowStyle="{StaticResource StandardDataGridRowStyle}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Task Name" Binding="{Binding TaskName}" Width="2*"/>
+                    <DataGridTextColumn Header="Schedule" Binding="{Binding ScheduleType}" Width="*"/>
+                    <DataGridTextColumn Header="Value" Binding="{Binding ScheduleValue}" Width="*"/>
+                    <DataGridTextColumn Header="Shift ID" Binding="{Binding ShiftID}" Width="*"/>
+                    <DataGridCheckBoxColumn Header="Active" Binding="{Binding IsActive}" Width="50"/>
+
+                    <!-- New Actions Column -->
+                    <DataGridTemplateColumn Header="Actions" Width="80">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="Delete" 
+                                        Background="IndianRed" 
+                                        Foreground="White"
+                                        Command="{Binding DataContext.DeleteTaskCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </GroupBox>
+
+        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="LightGray"/>
+
+        <StackPanel Grid.Column="2" Margin="10,0,0,0">
+            <TextBlock Text="Add New Task" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
+
+            <Label Content="Task Name"/>
+            <TextBox Text="{Binding NewTaskName}" Margin="0,0,0,10"/>
+
+            <Label Content="Assign to Shift"/>
+            <ComboBox ItemsSource="{Binding Shifts}" 
+                      SelectedItem="{Binding SelectedShift}"
+                      DisplayMemberPath="ShiftName"
+                      Margin="0,0,0,10"/>
+
+            <Label Content="Schedule Type"/>
+            <ComboBox ItemsSource="{Binding ScheduleTypes}" 
+                      SelectedItem="{Binding SelectedScheduleType}"
+                      Margin="0,0,0,10"/>
+
+            <Label Content="Schedule Value (Optional)"/>
+            <ComboBox ItemsSource="{Binding DaysOfWeek}" 
+                      SelectedItem="{Binding ScheduleValue}"
+                      mah:TextBoxHelper.Watermark="Select Day (if Weekly)"
+                      Margin="0,0,0,20"/>
+
+            <Button Content="Create Task" 
+                    Command="{Binding SaveTaskCommand}" 
+                    Style="{DynamicResource MahApps.Styles.Button.Accent}"/>
+        </StackPanel>
+    </Grid>
+</UserControl>
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\TaskManagementView.xaml.cs
+========================================
+using Mirage.UI.ViewModels;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+
+namespace Mirage.UI.Views
+{
+    /// <summary>
+    /// Interaction logic for TaskManagementView.xaml
+    /// </summary>
+    public partial class TaskManagementView : UserControl
+    {
+        public TaskManagementView()
+        {
+            InitializeComponent();
+        }
+
+        private void TaskManagementView_OnLoaded(object sender, RoutedEventArgs e)
+        {
+            if (this.DataContext is TaskManagementViewModel viewModel)
+            {
+                // Triggers the data load every time you open the tab
+                if (viewModel.LoadDataCommand.CanExecute(null))
+                {
+                    viewModel.LoadDataCommand.Execute(null);
+                }
             }
         }
     }
@@ -8957,7 +9433,8 @@ namespace Mirage.UI
             services.AddSingleton<DailyTaskLogViewModel>();
             services.AddSingleton<IInactivityService, InactivityService>();
             services.AddSingleton<SystemSettingsViewModel>();
-
+            services.AddSingleton<TaskManagementViewModel>();
+            services.AddTransient<TaskManagementView>();
 
             // --- Views (Registered as Transient so a new one is created each time) ---
             services.AddTransient<LoginView>();
@@ -12498,6 +12975,49 @@ namespace PortalMirage.Api.Controllers
 
 
 ========================================
+FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Api\Controllers\TasksController.cs
+========================================
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using PortalMirage.Data.Abstractions;
+using PortalMirage.Core.Models;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using TaskModel = PortalMirage.Core.Models.TaskModel; // Specific alias to avoid conflict
+
+namespace PortalMirage.Api.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    [Authorize(Roles = "Admin")] // Only Admins can define master tasks
+    public class TasksController(ITaskRepository taskRepository) : ControllerBase
+    {
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            var tasks = await taskRepository.GetAllAsync();
+            return Ok(tasks);
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Deactivate(int id)
+        {
+            await taskRepository.DeactivateAsync(id);
+            return NoContent();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] TaskModel task)
+        {
+            // The UI will send the ShiftID and ScheduleType
+            var createdTask = await taskRepository.CreateAsync(task);
+            return Ok(createdTask);
+        }
+    }
+}
+
+
+========================================
 FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Api\Controllers\WeatherForecastController.cs
 ========================================
 using Microsoft.AspNetCore.Mvc;
@@ -12569,6 +13089,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
+using Dapper; // Add this using line
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12662,6 +13184,10 @@ builder.Services.AddScoped<PortalMirage.Data.Abstractions.IRoleRepository, Porta
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IUserRoleRepository, PortalMirage.Data.UserRoleRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IPermissionRepository, PortalMirage.Data.PermissionRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IRolePermissionRepository, PortalMirage.Data.RolePermissionRepository>();
+
+// =================================================================
+
+// =================================================================
 
 // 4. Add the Services (BLL)
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IUserService, PortalMirage.Business.UserService>();
@@ -13241,7 +13767,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using TaskModel = PortalMirage.Core.Models.Task;
+using TaskModel = PortalMirage.Core.Models.TaskModel;
 using PortalMirage.Core.Models;
 
 namespace PortalMirage.Business;
@@ -13476,7 +14002,11 @@ public class DailyTaskLogService(
         var tasks = (await taskRepository.GetByIdsAsync(taskIds)).ToDictionary(t => t.TaskID);
         var users = (await userRepository.GetByIdsAsync(userIds)).ToDictionary(u => u.UserID);
 
-        return logList.Select(log => MapToTaskLogDetailDto(log, tasks, users));
+        // === CRITICAL CHANGE: Load ALL Shifts (Morning, Evening, Night, etc.) ===
+        // This allows us to look up the name by ID later
+        var shifts = (await shiftRepository.GetAllAsync()).ToDictionary(s => s.ShiftID);
+
+        return logList.Select(log => MapToTaskLogDetailDto(log, tasks, users, shifts));
     }
 
     private async Task<TaskLogDetailDto> MapToTaskLogDetailDto(DailyTaskLog log, int? completedByUserId = null)
@@ -13484,11 +14014,20 @@ public class DailyTaskLogService(
         var task = await taskRepository.GetByIdAsync(log.TaskID);
         var user = completedByUserId.HasValue ? await userRepository.GetByIdAsync(completedByUserId.Value) : null;
 
+        // Load shifts to get shift name
+        var shifts = (await shiftRepository.GetAllAsync()).ToDictionary(s => s.ShiftID);
+        string categoryName = "Uncategorized";
+
+        if (task != null && task.ShiftID.HasValue && shifts.TryGetValue(task.ShiftID.Value, out var shift))
+        {
+            categoryName = shift.ShiftName;
+        }
+
         return new TaskLogDetailDto
         {
             LogID = log.LogID,
             TaskName = task?.TaskName ?? "Unknown Task",
-            TaskCategory = task?.ShiftID?.ToString() ?? "Uncategorized",
+            TaskCategory = categoryName, // Now uses actual shift name instead of ID
             Status = log.Status,
             CompletedDateTime = log.CompletedDateTime,
             CompletedByUserID = log.CompletedByUserID,
@@ -13499,16 +14038,28 @@ public class DailyTaskLogService(
     }
 
     // FIX 2: Changed Dictionary key from 'int' to 'long' to match the TaskID type.
-    private TaskLogDetailDto MapToTaskLogDetailDto(DailyTaskLog log, Dictionary<int, TaskModel> tasks, Dictionary<int, User> users)
+    private TaskLogDetailDto MapToTaskLogDetailDto(
+        DailyTaskLog log,
+        Dictionary<int, TaskModel> tasks,
+        Dictionary<int, User> users,
+        Dictionary<int, Shift> shifts)  // Added shifts parameter
     {
         var task = tasks.TryGetValue(log.TaskID, out var t) ? t : null;
         var user = log.CompletedByUserID.HasValue && users.TryGetValue(log.CompletedByUserID.Value, out var u) ? u : null;
+
+        // === CRITICAL CHANGE: Get Actual Name from Database ===
+        // If the shift is "Night" in the DB, this variable becomes "Night"
+        string categoryName = "Uncategorized";
+        if (task != null && task.ShiftID.HasValue && shifts.TryGetValue(task.ShiftID.Value, out var shift))
+        {
+            categoryName = shift.ShiftName;
+        }
 
         return new TaskLogDetailDto
         {
             LogID = log.LogID,
             TaskName = task?.TaskName ?? "Unknown Task",
-            TaskCategory = task?.ShiftID?.ToString() ?? "Uncategorized",
+            TaskCategory = categoryName, // Sends "Morning", "Evening", or "Night" dynamically
             Status = log.Status,
             CompletedDateTime = log.CompletedDateTime,
             CompletedByUserID = log.CompletedByUserID,
@@ -13516,6 +14067,13 @@ public class DailyTaskLogService(
             Comments = log.Comments,
             LockOverrideUntil = log.LockOverrideUntil
         };
+    }
+
+    // Keep the old method for backward compatibility (if needed elsewhere)
+    private TaskLogDetailDto MapToTaskLogDetailDto(DailyTaskLog log, Dictionary<int, TaskModel> tasks, Dictionary<int, User> users)
+    {
+        // Call the new method with empty shifts dictionary
+        return MapToTaskLogDetailDto(log, tasks, users, new Dictionary<int, Shift>());
     }
 
     private bool IsValidStatus(string status)
@@ -15156,21 +15714,6 @@ public record Shift
 
 
 ========================================
-FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Core\Models\Task.cs
-========================================
-namespace PortalMirage.Core.Models;
-public record Task
-{
-    public int TaskID { get; init; }
-    public required string TaskName { get; set; }
-    public int? ShiftID { get; set; }
-    public required string ScheduleType { get; set; }
-    public string? ScheduleValue { get; set; }
-    public bool IsActive { get; set; }
-}
-
-
-========================================
 FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Core\Models\TaskLogDetailDto.cs
 ========================================
 using System;
@@ -15187,6 +15730,23 @@ public record TaskLogDetailDto
     public string? CompletedByUsername { get; set; }
     public string? Comments { get; set; }
     public DateTime? LockOverrideUntil { get; set; }
+}
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Core\Models\TaskModel.cs
+========================================
+namespace PortalMirage.Core.Models;
+
+// Renamed to TaskModel to avoid conflict with System.Threading.Tasks.Task
+public record TaskModel
+{
+    public int TaskID { get; init; }
+    public required string TaskName { get; set; }
+    public int? ShiftID { get; set; }
+    public required string ScheduleType { get; set; }
+    public string? ScheduleValue { get; set; }
+    public bool IsActive { get; set; }
 }
 
 
@@ -15552,7 +16112,7 @@ FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Data\Abstractions\ITaskRep
 using PortalMirage.Core.Models;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using TaskModel = PortalMirage.Core.Models.Task;
+
 
 namespace PortalMirage.Data.Abstractions;
 
@@ -15562,6 +16122,8 @@ public interface ITaskRepository
     Task<TaskModel> CreateAsync(TaskModel task);
     Task<IEnumerable<TaskModel>> GetByIdsAsync(IEnumerable<int> taskIds);
     Task<TaskModel?> GetByIdAsync(int taskId);
+
+    Task DeactivateAsync(int taskId);
 }
 
 
@@ -16809,54 +17371,100 @@ FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Data\ShiftRepository.cs
 using Dapper;
 using PortalMirage.Core.Models;
 using PortalMirage.Data.Abstractions;
+using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 
 namespace PortalMirage.Data;
 
 public class ShiftRepository(IDbConnectionFactory connectionFactory) : IShiftRepository
 {
+    // === 1. READ ALL ===
     public async Task<IEnumerable<Shift>> GetAllAsync()
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
         const string sql = "SELECT * FROM Shifts WHERE IsActive = 1";
-        return await connection.QueryAsync<Shift>(sql);
+
+        // Use dynamic to read raw values
+        var rows = await connection.QueryAsync<dynamic>(sql);
+        var shifts = new List<Shift>();
+
+        foreach (var row in rows)
+        {
+            // Manual mapping - simple and explicit
+            shifts.Add(MapRowToShift(row));
+        }
+
+        return shifts;
     }
 
+    // === 2. READ BY ID ===
     public async Task<Shift?> GetByIdAsync(int shiftId)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
         const string sql = "SELECT * FROM Shifts WHERE ShiftID = @ShiftId";
-        return await connection.QuerySingleOrDefaultAsync<Shift>(sql, new { ShiftId = shiftId });
+
+        var row = await connection.QuerySingleOrDefaultAsync<dynamic>(sql, new { ShiftId = shiftId });
+
+        if (row == null) return null;
+
+        return MapRowToShift(row);
     }
 
+    // === 3. CREATE ===
     public async Task<Shift> CreateAsync(Shift shift)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
         const string sql = """
-                           INSERT INTO Shifts (ShiftName, StartTime, EndTime, GracePeriodHours, IsActive)
-                           OUTPUT INSERTED.*
-                           VALUES (@ShiftName, @StartTime, @EndTime, @GracePeriodHours, @IsActive);
-                           """;
-        return await connection.QuerySingleAsync<Shift>(sql, shift);
+            INSERT INTO Shifts (ShiftName, StartTime, EndTime, GracePeriodHours, IsActive)
+            OUTPUT INSERTED.ShiftID
+            VALUES (@ShiftName, @StartTime, @EndTime, @GracePeriodHours, @IsActive);
+            """;
+
+        // Explicitly convert TimeOnly -> TimeSpan for SQL
+        var parameters = new
+        {
+            shift.ShiftName,
+            StartTime = shift.StartTime.ToTimeSpan(),
+            EndTime = shift.EndTime.ToTimeSpan(),
+            shift.GracePeriodHours,
+            shift.IsActive
+        };
+
+        var newId = await connection.ExecuteScalarAsync<int>(sql, parameters);
+        return shift with { ShiftID = newId };
     }
 
+    // === 4. UPDATE ===
     public async Task<Shift> UpdateAsync(Shift shift)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
         const string sql = """
-                           UPDATE Shifts
-                           SET ShiftName = @ShiftName,
-                               StartTime = @StartTime,
-                               EndTime = @EndTime,
-                               GracePeriodHours = @GracePeriodHours,
-                               IsActive = @IsActive
-                           OUTPUT INSERTED.*
-                           WHERE ShiftID = @ShiftID;
-                           """;
-        return await connection.QuerySingleAsync<Shift>(sql, shift);
+            UPDATE Shifts
+            SET ShiftName = @ShiftName,
+                StartTime = @StartTime,
+                EndTime = @EndTime,
+                GracePeriodHours = @GracePeriodHours,
+                IsActive = @IsActive
+            WHERE ShiftID = @ShiftID;
+            """;
+
+        var parameters = new
+        {
+            shift.ShiftID,
+            shift.ShiftName,
+            StartTime = shift.StartTime.ToTimeSpan(),
+            EndTime = shift.EndTime.ToTimeSpan(),
+            shift.GracePeriodHours,
+            shift.IsActive
+        };
+
+        await connection.ExecuteAsync(sql, parameters);
+        return shift;
     }
 
+    // === 5. DEACTIVATE ===
     public async System.Threading.Tasks.Task DeactivateAsync(int shiftId)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
@@ -16864,6 +17472,40 @@ public class ShiftRepository(IDbConnectionFactory connectionFactory) : IShiftRep
         await connection.ExecuteAsync(sql, new { ShiftId = shiftId });
     }
 
+    // === HELPER: Centralized Mapping Logic ===
+    private Shift MapRowToShift(dynamic row)
+    {
+        return new Shift
+        {
+            ShiftID = (int)row.ShiftID,
+            ShiftName = (string)row.ShiftName,
+            // Safe conversion logic
+            StartTime = ParseTime(row.StartTime),
+            EndTime = ParseTime(row.EndTime),
+            GracePeriodHours = row.GracePeriodHours != null ? (int)row.GracePeriodHours : 2,
+            IsActive = row.IsActive != null && Convert.ToBoolean(row.IsActive)
+        };
+    }
+
+    // === HELPER: Safe Time Conversion ===
+    private TimeOnly ParseTime(object value)
+    {
+        if (value == null) return TimeOnly.MinValue;
+
+        // Standard SQL Time maps to TimeSpan
+        if (value is TimeSpan ts)
+            return TimeOnly.FromTimeSpan(ts);
+
+        // Legacy SQL DateTime maps to DateTime
+        if (value is DateTime dt)
+            return TimeOnly.FromDateTime(dt);
+
+        // Fallback for strings
+        if (TimeSpan.TryParse(value.ToString(), out var parsedTs))
+            return TimeOnly.FromTimeSpan(parsedTs);
+
+        return TimeOnly.MinValue;
+    }
 }
 
 
@@ -16895,7 +17537,7 @@ using PortalMirage.Core.Models;
 using PortalMirage.Data.Abstractions;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using TaskModel = PortalMirage.Core.Models.Task; // Alias for our model
+
 
 namespace PortalMirage.Data;
 
@@ -16906,6 +17548,13 @@ public class TaskRepository(IDbConnectionFactory connectionFactory) : ITaskRepos
         using var connection = await connectionFactory.CreateConnectionAsync();
         const string sql = "SELECT * FROM Tasks WHERE IsActive = 1";
         return await connection.QueryAsync<TaskModel>(sql);
+    }
+
+    public async System.Threading.Tasks.Task DeactivateAsync(int taskId)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        const string sql = "UPDATE Tasks SET IsActive = 0 WHERE TaskID = @TaskId";
+        await connection.ExecuteAsync(sql, new { TaskId = taskId });
     }
 
     public async Task<TaskModel> CreateAsync(TaskModel task)
@@ -17066,6 +17715,123 @@ BEGIN
     INSERT INTO AdminListItems (ListType, ItemValue, Description, IsActive)
     VALUES ('SystemSetting', 'InactivityTimeoutMinutes', '15', 1); -- The '15' in Description is the timeout in minutes
 END
+GO
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\shift query 2.sql
+========================================
+USE MirageDB;
+GO
+
+-- 1. Force all existing shifts to be Active (Visible)
+UPDATE Shifts
+SET IsActive = 1
+WHERE IsActive IS NULL OR IsActive = 0;
+
+-- 2. Ensure GracePeriodHours has a valid value (required by C# code)
+UPDATE Shifts
+SET GracePeriodHours = 2
+WHERE GracePeriodHours IS NULL;
+
+-- 3. Verify the data is now correct
+SELECT * FROM Shifts;
+GO
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\shift query1.sql
+========================================
+USE MirageDB;
+GO
+
+-- 1. Check if the conflicting column 'TaskCategory' exists
+IF EXISTS (SELECT * FROM sys.columns WHERE Name = N'TaskCategory' AND Object_ID = Object_ID(N'Tasks'))
+BEGIN
+    -- Option A: Make it nullable (Safe option, keeps old data)
+    ALTER TABLE Tasks ALTER COLUMN TaskCategory NVARCHAR(50) NULL;
+    
+    -- Option B: Drop it completely (Cleaner, if you don't need old category data)
+    -- ALTER TABLE Tasks DROP COLUMN TaskCategory;
+END
+GO
+
+-- 2. Verification: Check table structure
+SELECT * FROM Tasks;
+GO
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\shifts query schema.sql
+========================================
+USE MirageDB;
+GO
+
+-- 1. Check if Shifts table exists; if NOT, create it entirely
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Shifts')
+BEGIN
+    CREATE TABLE Shifts (
+        ShiftID INT IDENTITY(1,1) PRIMARY KEY,
+        ShiftName NVARCHAR(100) NOT NULL UNIQUE,
+        StartTime TIME NOT NULL,
+        EndTime TIME NOT NULL,
+        GracePeriodHours INT NOT NULL DEFAULT 2,
+        IsActive BIT NOT NULL DEFAULT 1
+    );
+END
+ELSE
+BEGIN
+    -- 2. If table EXISTS, check for missing columns and add them
+    
+    -- Check for GracePeriodHours
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = N'GracePeriodHours' AND Object_ID = Object_ID(N'Shifts'))
+    BEGIN
+        ALTER TABLE Shifts ADD GracePeriodHours INT NOT NULL DEFAULT 2;
+    END
+
+    -- Check for IsActive
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = N'IsActive' AND Object_ID = Object_ID(N'Shifts'))
+    BEGIN
+        ALTER TABLE Shifts ADD IsActive BIT NOT NULL DEFAULT 1;
+    END
+END
+GO
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\SQLQuery3.sql
+========================================
+USE MirageDB;
+GO
+
+-- 1. Add 'GracePeriodHours' column if it is missing
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = N'GracePeriodHours' AND Object_ID = Object_ID(N'Shifts'))
+BEGIN
+    ALTER TABLE Shifts ADD GracePeriodHours INT NOT NULL DEFAULT 2;
+END
+GO
+
+-- 2. Add 'IsActive' column if it is missing
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = N'IsActive' AND Object_ID = Object_ID(N'Shifts'))
+BEGIN
+    ALTER TABLE Shifts ADD IsActive BIT NOT NULL DEFAULT 1;
+END
+GO
+
+-- 3. FIX THE DATA: Make sure old shifts are visible
+-- This updates any record where IsActive is NULL or 0 to be 1 (Active)
+UPDATE Shifts
+SET IsActive = 1
+WHERE IsActive IS NULL OR IsActive = 0;
+
+-- 4. FIX THE DATA: Ensure Grace Period has a valid value
+UPDATE Shifts
+SET GracePeriodHours = 2
+WHERE GracePeriodHours IS NULL;
+GO
+
+-- 5. Verification: Show the fixed data
+SELECT * FROM Shifts;
 GO
 
 

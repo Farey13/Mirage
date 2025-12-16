@@ -105,11 +105,20 @@ public interface IPortalMirageApi
     [Get("/api/dailytasklogs")]
     System.Threading.Tasks.Task<List<TaskLogDetailDto>> GetTasksForDateAsync([Header("Authorization")] string token, [Query] DateTime date);
 
-    [Put("/api/dailytasklogs/{id}/status")]
-    System.Threading.Tasks.Task<TaskLogDetailDto> UpdateTaskStatusAsync([Header("Authorization")] string token, long id, [Body] UpdateTaskStatusRequest request);
+    [Put("/api/dailytasklog/{logId}/status")]
+    System.Threading.Tasks.Task UpdateTaskStatusAsync(
+    [Header("Authorization")] string token,
+    long logId,
+    string status,
+    int userId,
+    string? comment
+);
 
     [Put("/api/dailytasklogs/{id}/extend")]
     System.Threading.Tasks.Task<DailyTaskLog> ExtendTaskDeadlineAsync([Header("Authorization")] string token, long id, [Body] ExtendTaskDeadlineRequest request);
+
+    [Get("/api/dailytasklog/{date}")]
+    System.Threading.Tasks.Task<List<TaskLogDetailDto>> GetDailyTaskLogsAsync([Header("Authorization")] string token, DateTime date);
 
     // --- Admin Panel ---
     [Get("/api/admin/users")]
@@ -176,6 +185,17 @@ public interface IPortalMirageApi
     // === Dashboard ===
     [Get("/api/dashboard/summary")] // ADD THIS ENDPOINT
     System.Threading.Tasks.Task<DashboardSummaryDto> GetDashboardSummaryAsync([Header("Authorization")] string token);
+
+
+    // --- Task Definitions (Admin) ---
+    [Get("/api/tasks")]
+    System.Threading.Tasks.Task<List<TaskModel>> GetAllTasksAsync([Header("Authorization")] string token);
+
+    [Post("/api/tasks")]
+    System.Threading.Tasks.Task<TaskModel> CreateTaskAsync([Header("Authorization")] string token, [Body] TaskModel task);
+
+    [Delete("/api/tasks/{id}")]
+    Task DeactivateTaskAsync([Header("Authorization")] string token, int id);
 
     // === Reports ===
     [Get("/api/reports/machine-breakdowns")] // ADD THIS

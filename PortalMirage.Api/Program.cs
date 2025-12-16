@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
+using Dapper; // Add this using line
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -95,6 +97,10 @@ builder.Services.AddScoped<PortalMirage.Data.Abstractions.IRoleRepository, Porta
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IUserRoleRepository, PortalMirage.Data.UserRoleRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IPermissionRepository, PortalMirage.Data.PermissionRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IRolePermissionRepository, PortalMirage.Data.RolePermissionRepository>();
+
+// =================================================================
+
+// =================================================================
 
 // 4. Add the Services (BLL)
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IUserService, PortalMirage.Business.UserService>();

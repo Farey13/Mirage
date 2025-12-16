@@ -19,10 +19,12 @@ public partial class AdminViewModel : ObservableObject
         ShiftManagementViewModel shiftManagementViewModel,
         MasterListViewModel masterListViewModel,
         AuditLogViewModel auditLogViewModel,
-        SystemSettingsViewModel systemSettingsViewModel)
+        SystemSettingsViewModel systemSettingsViewModel,
+        TaskManagementViewModel taskManagementViewModel) // <--- Add this parameter
     {
         // Create the list of tabs to be displayed
         TabItems.Add(new AdminTabItem("Users", "👥", userManagementViewModel));
+        TabItems.Add(new AdminTabItem("Daily Tasks", "✅", taskManagementViewModel)); // <--- Add this tab
         TabItems.Add(new AdminTabItem("Shifts", "🕒", shiftManagementViewModel));
         TabItems.Add(new AdminTabItem("Master Lists", "📋", masterListViewModel));
         TabItems.Add(new AdminTabItem("Audit Log", "📜", auditLogViewModel));
