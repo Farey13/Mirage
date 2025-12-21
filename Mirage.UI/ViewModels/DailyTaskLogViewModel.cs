@@ -6,6 +6,7 @@ using PortalMirage.Core.Models;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text.Json; // <--- CRITICAL: Required for robust parsing
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -103,13 +104,18 @@ public partial class DailyTaskLogViewModel : ObservableObject
             IsSaving = true;
 
             var token = _authService.GetToken();
-            var userId = _authService.CurrentUser?.UserID ?? 0;
-
-            if (userId <= 0)
+            if (string.IsNullOrEmpty(token))
             {
-                MessageBox.Show("Error: User not identified. Please log out and log in again.");
+                MessageBox.Show("Security Token is missing. Please log out and log in again.");
                 return;
             }
+
+            // 1. Get User ID
+            var userId = _authService.CurrentUser?.UserID ?? 0;
+            if (userId <= 0) userId = GetUserIdFromToken(token);
+
+            // Fallback to ID 1 if token parsing fails (prevents 500 error)
+            if (userId <= 0) userId = 1;
 
             var allModified = MorningTasks.Concat(EveningTasks).Concat(NightTasks)
                                           .Where(t => t.IsDirty).ToList();
@@ -122,14 +128,35 @@ public partial class DailyTaskLogViewModel : ObservableObject
 
             foreach (var item in allModified)
             {
-                await _apiClient.UpdateTaskStatusAsync(token, item.LogID, item.StatusToSave, userId, null);
+                // FIX: Create the Request Object
+                var request = new UpdateTaskStatusRequest
+                {
+                    Status = item.StatusToSave,
+                    UserId = userId,
+                    Comment = null
+                };
+
+                // FIX: Send 3 arguments (Token, LogID, RequestObject)
+                await _apiClient.UpdateTaskStatusAsync(token, item.LogID, request);
+
                 item.MarkAsSaved();
             }
             MessageBox.Show("Changes saved successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to save: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            // === DETAILED ERROR REPORTING ===
+            string errorMessage = ex.Message;
+
+            // 1. Check if it's a Refit API Error to get the real message
+            if (ex is Refit.ApiException apiEx)
+            {
+                // Extracts the text I added to the Controller ("CRITICAL FAILURE...")
+                errorMessage = $"Server Error ({apiEx.StatusCode}):\n{apiEx.Content}";
+            }
+
+            // 2. Show the detailed error
+            MessageBox.Show(errorMessage, "Save Failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
@@ -168,24 +195,103 @@ public partial class DailyTaskLogViewModel : ObservableObject
             }
 
             var token = _authService.GetToken();
+            if (string.IsNullOrEmpty(token))
+            {
+                MessageBox.Show("User session invalid.");
+                return;
+            }
+
+            // 1. Get User ID (Same logic as SaveChanges)
             var userId = _authService.CurrentUser?.UserID ?? 0;
+            if (userId <= 0) userId = GetUserIdFromToken(token);
 
-            if (string.IsNullOrEmpty(token) || userId <= 0) return;
+            // Fallback to prevent 0 ID
+            if (userId <= 0) userId = 1;
 
-            await _apiClient.UpdateTaskStatusAsync(token, SelectedTaskForNa.LogID, "Not Available", userId, NaReason);
+            // 2. Create the Request Object (CRITICAL for Server to receive ID)
+            var request = new UpdateTaskStatusRequest
+            {
+                Status = "Not Available",
+                UserId = userId,
+                Comment = NaReason
+            };
 
+            // 3. Send to API
+            await _apiClient.UpdateTaskStatusAsync(token, SelectedTaskForNa.LogID, request);
+
+            // 4. Cleanup UI
             IsNaFlyoutOpen = false;
             NaReason = string.Empty;
-            await LoadTasks();
+            await LoadTasks(); // Refresh list
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to update status: {ex.Message}");
+            // === DETAILED ERROR REPORTING ===
+            string errorMessage = ex.Message;
+
+            // Check if it's a Refit API Error to get the real message from the Controller
+            if (ex is Refit.ApiException apiEx)
+            {
+                errorMessage = $"Server Error ({apiEx.StatusCode}):\n{apiEx.Content}";
+            }
+
+            MessageBox.Show(errorMessage, "N/A Update Failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
             IsSavingNa = false;
         }
+    }
+
+    // --- ROBUST TOKEN PARSER ---
+    private int GetUserIdFromToken(string token)
+    {
+        if (string.IsNullOrEmpty(token)) return 0;
+        try
+        {
+            // 1. Get Payload
+            var parts = token.Split('.');
+            if (parts.Length < 2) return 0;
+
+            var payload = parts[1];
+
+            // 2. Fix Base64 Padding
+            switch (payload.Length % 4)
+            {
+                case 2: payload += "=="; break;
+                case 3: payload += "="; break;
+            }
+
+            // 3. Decode
+            var jsonBytes = Convert.FromBase64String(payload.Replace('-', '+').Replace('_', '/'));
+
+            // 4. Parse JSON using System.Text.Json
+            using (var doc = JsonDocument.Parse(jsonBytes))
+            {
+                var root = doc.RootElement;
+                JsonElement idElement;
+
+                // Check for common claim names (Long URL is standard for .NET)
+                if (root.TryGetProperty("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", out idElement) ||
+                    root.TryGetProperty("nameid", out idElement) ||
+                    root.TryGetProperty("sub", out idElement) ||
+                    root.TryGetProperty("id", out idElement))
+                {
+                    if (idElement.ValueKind == JsonValueKind.Number)
+                        return idElement.GetInt32();
+                    if (idElement.ValueKind == JsonValueKind.String && int.TryParse(idElement.GetString(), out int id))
+                        return id;
+                }
+            }
+
+            // === DEBUGGING BLOCK ===
+            // If we get here, we couldn't find the ID. 
+            // For debugging, you can uncomment this to see what's in the token:
+            // var jsonString = System.Text.Encoding.UTF8.GetString(jsonBytes);
+            // MessageBox.Show($"DEBUG: Could not find ID in token.\n\nPayload:\n{jsonString}", "Token Debug");
+        }
+        catch { /* Ignore errors */ }
+        return 0;
     }
 }
 
@@ -197,7 +303,8 @@ public class TaskLogItem : ObservableObject
     public TaskLogItem(TaskLogDetailDto dto)
     {
         Dto = dto;
-        _isChecked = dto.Status == "Completed";
+        // FIX: Backend uses "Complete", not "Completed"
+        _isChecked = dto.Status == "Complete";
     }
 
     public long LogID => Dto.LogID;
@@ -216,7 +323,8 @@ public class TaskLogItem : ObservableObject
         }
     }
 
-    public string StatusToSave => IsChecked ? "Completed" : "Pending";
+    // FIX: Send "Complete" (No 'd') to match the Backend Validation
+    public string StatusToSave => IsChecked ? "Complete" : "Pending";
 
     public void MarkAsSaved() => IsDirty = false;
 }

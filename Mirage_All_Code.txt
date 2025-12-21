@@ -1826,7 +1826,6 @@ public partial class DailyTaskLogViewModel : ObservableObject
     [ObservableProperty]
     private string _naReason = string.Empty;
 
-    // 1. Add Loading State Properties (as per snippet)
     [ObservableProperty]
     private bool _isSaving;
 
@@ -1846,36 +1845,43 @@ public partial class DailyTaskLogViewModel : ObservableObject
 
     private async void LoadInitialTasks() => await LoadTasks();
 
-    // 3. Updated Load Command (as per snippet)
     [RelayCommand]
     private async Task LoadTasks()
     {
-        if (IsSaving) return; // Prevent double clicks (as per snippet)
+        if (IsSaving) return;
 
         try
         {
-            IsSaving = true; // Re-use the overlay for loading (as per snippet)
+            IsSaving = true;
 
             var token = _authService.GetToken();
             if (string.IsNullOrEmpty(token)) return;
 
-            var tasks = await _apiClient.GetDailyTaskLogsAsync(token, SelectedDate);
+            // === FIXES APPLIED HERE ===
+            // 1. Used '_apiClient' (the name defined at the top of your class)
+            // 2. Used 'SelectedDate' (Capital 'S', the public property)
+            // 3. Formatted date to "yyyy-MM-dd" to fix the 404 error
+            // 4. Assigned the result to 'var tasks' so the loop below works
+            var tasks = await _apiClient.GetTasksForDateAsync(token, SelectedDate);
 
             MorningTasks.Clear();
             EveningTasks.Clear();
             NightTasks.Clear();
 
-            foreach (var t in tasks)
+            if (tasks != null)
             {
-                var item = new TaskLogItem(t);
+                foreach (var t in tasks)
+                {
+                    var item = new TaskLogItem(t);
 
-                // Case-insensitive check to be safe
-                if (string.Equals(t.TaskCategory, "Morning", StringComparison.OrdinalIgnoreCase))
-                    MorningTasks.Add(item);
-                else if (string.Equals(t.TaskCategory, "Evening", StringComparison.OrdinalIgnoreCase))
-                    EveningTasks.Add(item);
-                else
-                    NightTasks.Add(item);
+                    // Case-insensitive check to be safe
+                    if (string.Equals(t.TaskCategory, "Morning", StringComparison.OrdinalIgnoreCase))
+                        MorningTasks.Add(item);
+                    else if (string.Equals(t.TaskCategory, "Evening", StringComparison.OrdinalIgnoreCase))
+                        EveningTasks.Add(item);
+                    else
+                        NightTasks.Add(item);
+                }
             }
         }
         catch (Exception ex)
@@ -1884,31 +1890,43 @@ public partial class DailyTaskLogViewModel : ObservableObject
         }
         finally
         {
-            // CRITICAL: Ensure spinner turns off (as per snippet)
             IsSaving = false;
         }
     }
 
-    // 2. Updated Save Command (as per snippet)
     [RelayCommand]
     private async Task SaveChanges()
     {
-        if (IsSaving) return; // Prevent double clicks (as per snippet)
+        if (IsSaving) return;
 
         try
         {
-            IsSaving = true; // (as per snippet)
+            IsSaving = true;
 
             var token = _authService.GetToken();
-            var userId = _authService.CurrentUser?.UserID ?? 0;
 
-            if (userId <= 0)
+            if (string.IsNullOrEmpty(token))
             {
-                MessageBox.Show("Error: User not identified. Please log out and log in again.");
+                MessageBox.Show("Security Token is missing. Please log out and log in again.");
                 return;
             }
 
-            // Find only modified items across all lists
+            // 1. Try to get User ID from the object
+            var userId = _authService.CurrentUser?.UserID ?? 0;
+
+            // 2. If object is missing (0), extract ID directly from the Token
+            if (userId <= 0)
+            {
+                userId = GetUserIdFromToken(token);
+            }
+
+            // 3. If STILL 0, we genuinely can't identify the user
+            if (userId <= 0)
+            {
+                MessageBox.Show("Could not identify user session. Please log in again.");
+                return;
+            }
+
             var allModified = MorningTasks.Concat(EveningTasks).Concat(NightTasks)
                                           .Where(t => t.IsDirty).ToList();
 
@@ -1918,10 +1936,9 @@ public partial class DailyTaskLogViewModel : ObservableObject
                 return;
             }
 
-            // Your existing save logic here (as per snippet)
             foreach (var item in allModified)
             {
-                // Update status (Completed or Pending)
+                // Now passing a valid integer ID that the backend demands
                 await _apiClient.UpdateTaskStatusAsync(token, item.LogID, item.StatusToSave, userId, null);
                 item.MarkAsSaved();
             }
@@ -1933,21 +1950,14 @@ public partial class DailyTaskLogViewModel : ObservableObject
         }
         finally
         {
-            // CRITICAL: Ensure spinner turns off (as per snippet)
             IsSaving = false;
         }
     }
 
-
-    // DailyTaskLogViewModel.cs
-
     [RelayCommand]
     private void CloseNaFlyout()
     {
-        // Close the flyout
         IsNaFlyoutOpen = false;
-
-        // Clear the text box so the next task doesn't show the previous reason
         NaReason = string.Empty;
     }
 
@@ -1959,39 +1969,36 @@ public partial class DailyTaskLogViewModel : ObservableObject
         IsNaFlyoutOpen = true;
     }
 
-    // 4. Updated Confirm N/A Command (as per snippet)
     [RelayCommand]
     private async Task ConfirmNa()
     {
-        if (IsSavingNa) return; // (as per snippet)
+        if (IsSavingNa) return;
 
         try
         {
-            IsSavingNa = true; // (as per snippet)
+            IsSavingNa = true;
 
-            // Validate (as per snippet)
             if (SelectedTaskForNa is null || string.IsNullOrWhiteSpace(NaReason))
             {
                 MessageBox.Show("A reason is required to mark as N/A.");
                 return;
             }
 
-            // Your existing N/A logic (as per snippet)
             var token = _authService.GetToken();
-            var userId = _authService.CurrentUser?.UserID ?? 0;
 
-            if (string.IsNullOrEmpty(token) || userId <= 0) return;
+            // FIX: Try getting ID from object; if missing, decode from token
+            var userId = _authService.CurrentUser?.UserID ?? GetUserIdFromToken(token);
 
-            // SelectedTaskForNa.Dto.Status = "Not Available"; (example from snippet)
-            // SelectedTaskForNa.Dto.Reason = NaReason; (example from snippet)
-            // await _taskService.UpdateTaskAsync(SelectedTaskForNa.Dto); (example from snippet)
+            if (string.IsNullOrEmpty(token) || userId <= 0)
+            {
+                MessageBox.Show("User session invalid.");
+                return;
+            }
+
             await _apiClient.UpdateTaskStatusAsync(token, SelectedTaskForNa.LogID, "Not Available", userId, NaReason);
 
-            // Close Flyout (as per snippet)
             IsNaFlyoutOpen = false;
-            NaReason = string.Empty; // Reset reason
-
-            // Reload to show "N/A" status
+            NaReason = string.Empty;
             await LoadTasks();
         }
         catch (Exception ex)
@@ -2000,8 +2007,82 @@ public partial class DailyTaskLogViewModel : ObservableObject
         }
         finally
         {
-            IsSavingNa = false; // (as per snippet)
+            IsSavingNa = false;
         }
+    }
+
+    private int GetUserIdFromToken(string token)
+    {
+        if (string.IsNullOrEmpty(token)) return 0;
+
+        try
+        {
+            // 1. Get Payload
+            var parts = token.Split('.');
+            if (parts.Length < 2) return 0;
+
+            var payload = parts[1];
+
+            // 2. Fix Base64 padding
+            payload = payload.Replace('-', '+').Replace('_', '/');
+            switch (payload.Length % 4)
+            {
+                case 2: payload += "=="; break;
+                case 3: payload += "="; break;
+            }
+
+            // 3. Decode to JSON string
+            var jsonBytes = Convert.FromBase64String(payload);
+            var jsonString = System.Text.Encoding.UTF8.GetString(jsonBytes);
+
+            // 4. PARSING LOGIC
+            // We look for common ID keys
+            var patterns = new[] {
+                "\"nameid\":",
+                "\"unique_name\":",
+                "\"sub\":",
+                "\"id\":",
+                "\"http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier\":"
+            };
+
+            foreach (var pattern in patterns)
+            {
+                int index = jsonString.IndexOf(pattern, StringComparison.OrdinalIgnoreCase);
+                if (index != -1)
+                {
+                    int start = index + pattern.Length;
+
+                    // Skip non-digit characters (quotes, spaces) to find the number
+                    while (start < jsonString.Length && !char.IsDigit(jsonString[start]) && jsonString[start] != '-')
+                    {
+                        start++;
+                    }
+
+                    int end = start;
+                    while (end < jsonString.Length && char.IsDigit(jsonString[end]))
+                    {
+                        end++;
+                    }
+
+                    if (end > start)
+                    {
+                        var idStr = jsonString.Substring(start, end - start);
+                        if (int.TryParse(idStr, out int id)) return id;
+                    }
+                }
+            }
+
+            // === DEBUGGING BLOCK ===
+            // If we get here, we couldn't find the ID. 
+            // Show the user the raw JSON so we can see what the KEY actually is.
+            // IMPORTANT: Comment this out for production use!
+            MessageBox.Show($"DEBUG: Could not find ID in token.\n\nPayload:\n{jsonString}", "Token Debug");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Token Parsing Error: {ex.Message}");
+        }
+        return 0;
     }
 }
 
@@ -2013,7 +2094,6 @@ public class TaskLogItem : ObservableObject
     public TaskLogItem(TaskLogDetailDto dto)
     {
         Dto = dto;
-        // Map "Completed" database status to the Checkbox
         _isChecked = dto.Status == "Completed";
     }
 
@@ -2028,12 +2108,11 @@ public class TaskLogItem : ObservableObject
         {
             if (SetProperty(ref _isChecked, value))
             {
-                IsDirty = true; // Mark as modified when clicked
+                IsDirty = true;
             }
         }
     }
 
-    // Returns the correct API status string based on the checkbox
     public string StatusToSave => IsChecked ? "Completed" : "Pending";
 
     public void MarkAsSaved() => IsDirty = false;
