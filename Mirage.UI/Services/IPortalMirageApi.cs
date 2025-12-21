@@ -105,14 +105,14 @@ public interface IPortalMirageApi
     [Get("/api/dailytasklogs")]
     System.Threading.Tasks.Task<List<TaskLogDetailDto>> GetTasksForDateAsync([Header("Authorization")] string token, [Query] DateTime date);
 
-    [Put("/api/dailytasklog/{logId}/status")]
-    System.Threading.Tasks.Task UpdateTaskStatusAsync(
-    [Header("Authorization")] string token,
-    long logId,
-    string status,
-    int userId,
-    string? comment
-);
+    // FIX: Use [Body] because 415 error proves server wants JSON.
+    // We also use the DTO from Core to package the data.
+    [Put("/api/dailytasklogs/{logId}/status")]
+    Task UpdateTaskStatusAsync(
+        [Header("Authorization")] string token,
+        long logId,
+        [Body] UpdateTaskStatusRequest request
+    );
 
     [Put("/api/dailytasklogs/{id}/extend")]
     System.Threading.Tasks.Task<DailyTaskLog> ExtendTaskDeadlineAsync([Header("Authorization")] string token, long id, [Body] ExtendTaskDeadlineRequest request);
@@ -142,8 +142,6 @@ public interface IPortalMirageApi
     [Post("/api/shifts")]
     System.Threading.Tasks.Task<ShiftResponse> CreateShiftAsync([Header("Authorization")] string token, [Body] CreateShiftRequest request);
 
-
-
     [Put("/api/shifts/{id}")]
     System.Threading.Tasks.Task<ShiftResponse> UpdateShiftAsync([Header("Authorization")] string token, int id, [Body] UpdateShiftRequest request);
 
@@ -161,7 +159,6 @@ public interface IPortalMirageApi
     [Get("/api/admin/lists/{listType}")]
     System.Threading.Tasks.Task<List<AdminListItemDto>> GetListItemsByTypeAsync([Header("Authorization")] string token, string listType);
 
-
     [Post("/api/admin/lists")]
     System.Threading.Tasks.Task<AdminListItemDto> CreateListItemAsync([Header("Authorization")] string token, [Body] CreateAdminListItemRequest request);
 
@@ -172,6 +169,7 @@ public interface IPortalMirageApi
     [Get("/api/auditlogs")]
     // This is the correct, final version
     System.Threading.Tasks.Task<List<PortalMirage.Core.Dtos.AuditLogDto>> GetAuditLogsAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
+
     // === Admin User Management ===
     [Post("/api/admin/users/create")]
     System.Threading.Tasks.Task<UserResponse> CreateUserAsync([Header("Authorization")] string token, [Body] CreateUserRequest request);
@@ -185,7 +183,6 @@ public interface IPortalMirageApi
     // === Dashboard ===
     [Get("/api/dashboard/summary")] // ADD THIS ENDPOINT
     System.Threading.Tasks.Task<DashboardSummaryDto> GetDashboardSummaryAsync([Header("Authorization")] string token);
-
 
     // --- Task Definitions (Admin) ---
     [Get("/api/tasks")]
@@ -231,7 +228,7 @@ public interface IPortalMirageApi
         [Query] string? reason,
         [Query] string? department);
 
-[Get("/api/reports/daily-task-compliance")] // ADD THIS NEW METHOD
+    [Get("/api/reports/daily-task-compliance")] // ADD THIS NEW METHOD
     System.Threading.Tasks.Task<DailyTaskComplianceReportDto> GetDailyTaskComplianceReportAsync(
         [Header("Authorization")] string token,
         [Query] DateTime startDate,
@@ -269,5 +266,3 @@ public interface IPortalMirageApi
         [Query] string? testName,
         [Query] string? status);
 }
-
-
