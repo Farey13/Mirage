@@ -6,12 +6,14 @@
              xmlns:local="clr-namespace:Mirage.UI.Views"
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
+             xmlns:converters="clr-namespace:Mirage.UI.Converters"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="1000"
              Loaded="MachineBreakdownView_OnLoaded">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:MinutesToDurationConverter x:Key="MinutesToDurationConverter"/>
     </UserControl.Resources>
 
     <Grid>
@@ -116,7 +118,9 @@
                             <DataGridTextColumn Header="Resolved On" Binding="{Binding ResolvedDateTime, StringFormat='g'}" Width="0.8*"/>
                             <DataGridTextColumn Header="Resolved By" Binding="{Binding ResolvedByUsername}" Width="*"/>
                             <DataGridTextColumn Header="Notes" Binding="{Binding ResolutionNotes}" Width="1.5*"/>
-                            <DataGridTextColumn Header="Downtime (Mins)" Binding="{Binding DowntimeMinutes}" Width="Auto"/>
+                            <DataGridTextColumn Header="Downtime" 
+                                                Binding="{Binding DowntimeMinutes, Converter={StaticResource MinutesToDurationConverter}}" 
+                                                Width="Auto"/>
                             <DataGridTemplateColumn Header="Actions" Width="Auto">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
