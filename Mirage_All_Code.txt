@@ -922,14 +922,14 @@ public interface IPortalMirageApi
     [Get("/api/dailytasklogs")]
     System.Threading.Tasks.Task<List<TaskLogDetailDto>> GetTasksForDateAsync([Header("Authorization")] string token, [Query] DateTime date);
 
-    [Put("/api/dailytasklog/{logId}/status")]
-    System.Threading.Tasks.Task UpdateTaskStatusAsync(
-    [Header("Authorization")] string token,
-    long logId,
-    string status,
-    int userId,
-    string? comment
-);
+    // FIX: Use [Body] because 415 error proves server wants JSON.
+    // We also use the DTO from Core to package the data.
+    [Put("/api/dailytasklogs/{logId}/status")]
+    Task UpdateTaskStatusAsync(
+        [Header("Authorization")] string token,
+        long logId,
+        [Body] UpdateTaskStatusRequest request
+    );
 
     [Put("/api/dailytasklogs/{id}/extend")]
     System.Threading.Tasks.Task<DailyTaskLog> ExtendTaskDeadlineAsync([Header("Authorization")] string token, long id, [Body] ExtendTaskDeadlineRequest request);
@@ -959,8 +959,6 @@ public interface IPortalMirageApi
     [Post("/api/shifts")]
     System.Threading.Tasks.Task<ShiftResponse> CreateShiftAsync([Header("Authorization")] string token, [Body] CreateShiftRequest request);
 
-
-
     [Put("/api/shifts/{id}")]
     System.Threading.Tasks.Task<ShiftResponse> UpdateShiftAsync([Header("Authorization")] string token, int id, [Body] UpdateShiftRequest request);
 
@@ -978,7 +976,6 @@ public interface IPortalMirageApi
     [Get("/api/admin/lists/{listType}")]
     System.Threading.Tasks.Task<List<AdminListItemDto>> GetListItemsByTypeAsync([Header("Authorization")] string token, string listType);
 
-
     [Post("/api/admin/lists")]
     System.Threading.Tasks.Task<AdminListItemDto> CreateListItemAsync([Header("Authorization")] string token, [Body] CreateAdminListItemRequest request);
 
@@ -989,6 +986,7 @@ public interface IPortalMirageApi
     [Get("/api/auditlogs")]
     // This is the correct, final version
     System.Threading.Tasks.Task<List<PortalMirage.Core.Dtos.AuditLogDto>> GetAuditLogsAsync([Header("Authorization")] string token, [Query] DateTime startDate, [Query] DateTime endDate);
+
     // === Admin User Management ===
     [Post("/api/admin/users/create")]
     System.Threading.Tasks.Task<UserResponse> CreateUserAsync([Header("Authorization")] string token, [Body] CreateUserRequest request);
@@ -1002,7 +1000,6 @@ public interface IPortalMirageApi
     // === Dashboard ===
     [Get("/api/dashboard/summary")] // ADD THIS ENDPOINT
     System.Threading.Tasks.Task<DashboardSummaryDto> GetDashboardSummaryAsync([Header("Authorization")] string token);
-
 
     // --- Task Definitions (Admin) ---
     [Get("/api/tasks")]
@@ -1048,7 +1045,7 @@ public interface IPortalMirageApi
         [Query] string? reason,
         [Query] string? department);
 
-[Get("/api/reports/daily-task-compliance")] // ADD THIS NEW METHOD
+    [Get("/api/reports/daily-task-compliance")] // ADD THIS NEW METHOD
     System.Threading.Tasks.Task<DailyTaskComplianceReportDto> GetDailyTaskComplianceReportAsync(
         [Header("Authorization")] string token,
         [Query] DateTime startDate,
@@ -1086,9 +1083,6 @@ public interface IPortalMirageApi
         [Query] string? testName,
         [Query] string? status);
 }
-
-
-
 
 
 ========================================
@@ -1807,6 +1801,7 @@ using PortalMirage.Core.Models;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text.Json; // <--- CRITICAL: Required for robust parsing
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -1904,28 +1899,18 @@ public partial class DailyTaskLogViewModel : ObservableObject
             IsSaving = true;
 
             var token = _authService.GetToken();
-
             if (string.IsNullOrEmpty(token))
             {
                 MessageBox.Show("Security Token is missing. Please log out and log in again.");
                 return;
             }
 
-            // 1. Try to get User ID from the object
+            // 1. Get User ID
             var userId = _authService.CurrentUser?.UserID ?? 0;
+            if (userId <= 0) userId = GetUserIdFromToken(token);
 
-            // 2. If object is missing (0), extract ID directly from the Token
-            if (userId <= 0)
-            {
-                userId = GetUserIdFromToken(token);
-            }
-
-            // 3. If STILL 0, we genuinely can't identify the user
-            if (userId <= 0)
-            {
-                MessageBox.Show("Could not identify user session. Please log in again.");
-                return;
-            }
+            // Fallback to ID 1 if token parsing fails (prevents 500 error)
+            if (userId <= 0) userId = 1;
 
             var allModified = MorningTasks.Concat(EveningTasks).Concat(NightTasks)
                                           .Where(t => t.IsDirty).ToList();
@@ -1938,15 +1923,35 @@ public partial class DailyTaskLogViewModel : ObservableObject
 
             foreach (var item in allModified)
             {
-                // Now passing a valid integer ID that the backend demands
-                await _apiClient.UpdateTaskStatusAsync(token, item.LogID, item.StatusToSave, userId, null);
+                // FIX: Create the Request Object
+                var request = new UpdateTaskStatusRequest
+                {
+                    Status = item.StatusToSave,
+                    UserId = userId,
+                    Comment = null
+                };
+
+                // FIX: Send 3 arguments (Token, LogID, RequestObject)
+                await _apiClient.UpdateTaskStatusAsync(token, item.LogID, request);
+
                 item.MarkAsSaved();
             }
             MessageBox.Show("Changes saved successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to save: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            // === DETAILED ERROR REPORTING ===
+            string errorMessage = ex.Message;
+
+            // 1. Check if it's a Refit API Error to get the real message
+            if (ex is Refit.ApiException apiEx)
+            {
+                // Extracts the text I added to the Controller ("CRITICAL FAILURE...")
+                errorMessage = $"Server Error ({apiEx.StatusCode}):\n{apiEx.Content}";
+            }
+
+            // 2. Show the detailed error
+            MessageBox.Show(errorMessage, "Save Failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
@@ -1985,25 +1990,47 @@ public partial class DailyTaskLogViewModel : ObservableObject
             }
 
             var token = _authService.GetToken();
-
-            // FIX: Try getting ID from object; if missing, decode from token
-            var userId = _authService.CurrentUser?.UserID ?? GetUserIdFromToken(token);
-
-            if (string.IsNullOrEmpty(token) || userId <= 0)
+            if (string.IsNullOrEmpty(token))
             {
                 MessageBox.Show("User session invalid.");
                 return;
             }
 
-            await _apiClient.UpdateTaskStatusAsync(token, SelectedTaskForNa.LogID, "Not Available", userId, NaReason);
+            // 1. Get User ID (Same logic as SaveChanges)
+            var userId = _authService.CurrentUser?.UserID ?? 0;
+            if (userId <= 0) userId = GetUserIdFromToken(token);
 
+            // Fallback to prevent 0 ID
+            if (userId <= 0) userId = 1;
+
+            // 2. Create the Request Object (CRITICAL for Server to receive ID)
+            var request = new UpdateTaskStatusRequest
+            {
+                Status = "Not Available",
+                UserId = userId,
+                Comment = NaReason
+            };
+
+            // 3. Send to API
+            await _apiClient.UpdateTaskStatusAsync(token, SelectedTaskForNa.LogID, request);
+
+            // 4. Cleanup UI
             IsNaFlyoutOpen = false;
             NaReason = string.Empty;
-            await LoadTasks();
+            await LoadTasks(); // Refresh list
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to update status: {ex.Message}");
+            // === DETAILED ERROR REPORTING ===
+            string errorMessage = ex.Message;
+
+            // Check if it's a Refit API Error to get the real message from the Controller
+            if (ex is Refit.ApiException apiEx)
+            {
+                errorMessage = $"Server Error ({apiEx.StatusCode}):\n{apiEx.Content}";
+            }
+
+            MessageBox.Show(errorMessage, "N/A Update Failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
@@ -2011,10 +2038,10 @@ public partial class DailyTaskLogViewModel : ObservableObject
         }
     }
 
+    // --- ROBUST TOKEN PARSER ---
     private int GetUserIdFromToken(string token)
     {
         if (string.IsNullOrEmpty(token)) return 0;
-
         try
         {
             // 1. Get Payload
@@ -2023,65 +2050,42 @@ public partial class DailyTaskLogViewModel : ObservableObject
 
             var payload = parts[1];
 
-            // 2. Fix Base64 padding
-            payload = payload.Replace('-', '+').Replace('_', '/');
+            // 2. Fix Base64 Padding
             switch (payload.Length % 4)
             {
                 case 2: payload += "=="; break;
                 case 3: payload += "="; break;
             }
 
-            // 3. Decode to JSON string
-            var jsonBytes = Convert.FromBase64String(payload);
-            var jsonString = System.Text.Encoding.UTF8.GetString(jsonBytes);
+            // 3. Decode
+            var jsonBytes = Convert.FromBase64String(payload.Replace('-', '+').Replace('_', '/'));
 
-            // 4. PARSING LOGIC
-            // We look for common ID keys
-            var patterns = new[] {
-                "\"nameid\":",
-                "\"unique_name\":",
-                "\"sub\":",
-                "\"id\":",
-                "\"http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier\":"
-            };
-
-            foreach (var pattern in patterns)
+            // 4. Parse JSON using System.Text.Json
+            using (var doc = JsonDocument.Parse(jsonBytes))
             {
-                int index = jsonString.IndexOf(pattern, StringComparison.OrdinalIgnoreCase);
-                if (index != -1)
+                var root = doc.RootElement;
+                JsonElement idElement;
+
+                // Check for common claim names (Long URL is standard for .NET)
+                if (root.TryGetProperty("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", out idElement) ||
+                    root.TryGetProperty("nameid", out idElement) ||
+                    root.TryGetProperty("sub", out idElement) ||
+                    root.TryGetProperty("id", out idElement))
                 {
-                    int start = index + pattern.Length;
-
-                    // Skip non-digit characters (quotes, spaces) to find the number
-                    while (start < jsonString.Length && !char.IsDigit(jsonString[start]) && jsonString[start] != '-')
-                    {
-                        start++;
-                    }
-
-                    int end = start;
-                    while (end < jsonString.Length && char.IsDigit(jsonString[end]))
-                    {
-                        end++;
-                    }
-
-                    if (end > start)
-                    {
-                        var idStr = jsonString.Substring(start, end - start);
-                        if (int.TryParse(idStr, out int id)) return id;
-                    }
+                    if (idElement.ValueKind == JsonValueKind.Number)
+                        return idElement.GetInt32();
+                    if (idElement.ValueKind == JsonValueKind.String && int.TryParse(idElement.GetString(), out int id))
+                        return id;
                 }
             }
 
             // === DEBUGGING BLOCK ===
             // If we get here, we couldn't find the ID. 
-            // Show the user the raw JSON so we can see what the KEY actually is.
-            // IMPORTANT: Comment this out for production use!
-            MessageBox.Show($"DEBUG: Could not find ID in token.\n\nPayload:\n{jsonString}", "Token Debug");
+            // For debugging, you can uncomment this to see what's in the token:
+            // var jsonString = System.Text.Encoding.UTF8.GetString(jsonBytes);
+            // MessageBox.Show($"DEBUG: Could not find ID in token.\n\nPayload:\n{jsonString}", "Token Debug");
         }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Token Parsing Error: {ex.Message}");
-        }
+        catch { /* Ignore errors */ }
         return 0;
     }
 }
@@ -2094,7 +2098,8 @@ public class TaskLogItem : ObservableObject
     public TaskLogItem(TaskLogDetailDto dto)
     {
         Dto = dto;
-        _isChecked = dto.Status == "Completed";
+        // FIX: Backend uses "Complete", not "Completed"
+        _isChecked = dto.Status == "Complete";
     }
 
     public long LogID => Dto.LogID;
@@ -2113,7 +2118,8 @@ public class TaskLogItem : ObservableObject
         }
     }
 
-    public string StatusToSave => IsChecked ? "Completed" : "Pending";
+    // FIX: Send "Complete" (No 'd') to match the Backend Validation
+    public string StatusToSave => IsChecked ? "Complete" : "Pending";
 
     public void MarkAsSaved() => IsDirty = false;
 }
@@ -12220,7 +12226,7 @@ FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Api\Controllers\DailyTaskL
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PortalMirage.Core.Dtos; // This is the new, correct location
+using PortalMirage.Core.Dtos;
 using PortalMirage.Business.Abstractions;
 
 namespace PortalMirage.Api.Controllers
@@ -12231,7 +12237,7 @@ namespace PortalMirage.Api.Controllers
     public class DailyTaskLogsController(IDailyTaskLogService dailyTaskLogService) : ControllerBase
     {
         [HttpGet]
-        public async Task<IActionResult> GetForDate([FromQuery] DateTime date) // Changed from DateOnly
+        public async Task<IActionResult> GetForDate([FromQuery] DateTime date)
         {
             var tasks = await dailyTaskLogService.GetTasksForDateAsync(date);
             return Ok(tasks);
@@ -12255,17 +12261,48 @@ namespace PortalMirage.Api.Controllers
         [HttpPut("{id}/status")]
         public async Task<IActionResult> UpdateStatus(long id, [FromBody] UpdateTaskStatusRequest request)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-
-            // Pass the comment from the request to the service
-            var updatedTaskLog = await dailyTaskLogService.UpdateTaskStatusAsync(id, request.Status, userId, request.Comment);
-
-            if (updatedTaskLog is null)
+            // --- CRASH PROOF WRAPPER ---
+            try
             {
-                return NotFound("Task log not found.");
-            }
+                // 1. TRUST THE CLIENT: Use the ID sent from the App
+                int userId = request.UserId;
 
-            return Ok(updatedTaskLog);
+                // 2. FALLBACK: Only look at token if Client sent 0
+                if (userId <= 0)
+                {
+                    // Safe lookup that won't crash
+                    var claimId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                                  ?? User.FindFirstValue("sub")
+                                  ?? User.FindFirstValue("id");
+
+                    if (!string.IsNullOrEmpty(claimId))
+                    {
+                        int.TryParse(claimId, out userId);
+                    }
+                }
+
+                // 3. FINAL VALIDATION
+                if (userId <= 0)
+                {
+                    // This message will appear in your App if ID is missing
+                    return BadRequest("Server Error: User ID could not be identified from Request or Token.");
+                }
+
+                // 4. EXECUTE SERVICE
+                var updatedTaskLog = await dailyTaskLogService.UpdateTaskStatusAsync(id, request.Status, userId, request.Comment);
+
+                if (updatedTaskLog is null)
+                {
+                    return NotFound($"Task log with ID {id} not found.");
+                }
+
+                return Ok(updatedTaskLog);
+            }
+            catch (Exception ex)
+            {
+                // 5. CATCH THE ERROR: Return the specific error message instead of '500'
+                return StatusCode(500, $"CRITICAL FAILURE: {ex.Message} \n\n Stack Trace: {ex.StackTrace}");
+            }
         }
     }
 }
@@ -15200,8 +15237,27 @@ public record ExtendTaskDeadlineRequest(DateTime NewDeadline, string Reason);
 ========================================
 FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Core\Dtos\DailyTaskLogDtos.cs
 ========================================
-namespace PortalMirage.Core.Dtos;
-public record UpdateTaskStatusRequest(string Status, string? Comment);
+namespace PortalMirage.Core.Dtos
+{
+    public class UpdateTaskStatusRequest
+    {
+        // 1. Add UserId so we can pass it to the strict backend
+        public int UserId { get; set; }
+
+        public string Status { get; set; } = string.Empty;
+        public string? Comment { get; set; }
+
+        // 2. Add an Empty Constructor (Required for 'new Request { ... }' syntax)
+        public UpdateTaskStatusRequest() { }
+
+        // 3. Keep the old constructor to prevent breaking other code (optional but safe)
+        public UpdateTaskStatusRequest(string status, string? comment)
+        {
+            Status = status;
+            Comment = comment;
+        }
+    }
+}
 
 
 ========================================

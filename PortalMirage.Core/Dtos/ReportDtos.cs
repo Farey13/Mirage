@@ -21,10 +21,16 @@ public partial class MachineBreakdownReportDto : ObservableObject
         {
             if (IsResolved)
             {
-                return $"{DowntimeMinutes} mins";
+                // === NEW CODE ===
+                if (!DowntimeMinutes.HasValue) return "-";
+
+                var ts = TimeSpan.FromMinutes(DowntimeMinutes.Value);
+                if (ts.TotalDays >= 1) return $"{ts.Days}d {ts.Hours}h";
+                return $"{ts.Hours}h {ts.Minutes}m";
             }
             else
             {
+                // The existing "Pending" logic that you noticed was working
                 var elapsed = DateTime.Now - ReportedDateTime;
                 if (elapsed.Days > 0) return $"{elapsed.Days}d {elapsed.Hours}h";
                 if (elapsed.Hours > 0) return $"{elapsed.Hours}h {elapsed.Minutes}m";
