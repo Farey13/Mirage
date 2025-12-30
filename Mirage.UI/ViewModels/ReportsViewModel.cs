@@ -63,7 +63,7 @@ public partial class ReportsViewModel : ObservableObject
     // Daily Task Compliance
     [ObservableProperty] private ShiftFilterItem? _selectedTaskShift;
     [ObservableProperty] private string? _selectedTaskStatus = "All";
-    public ObservableCollection<DailyTaskComplianceReportItemDto> DailyTaskReportData { get; } = new();
+    public ObservableCollection<DailyTaskLogDto> DailyTaskReportData { get; } = new();
     public ObservableCollection<ShiftFilterItem> TaskShiftOptions { get; } = new();
     public ObservableCollection<string> TaskStatusOptions { get; } = new() { "All", "Pending", "Completed", "Incomplete", "Not Available" };
     [ObservableProperty] private int _totalTasks;
