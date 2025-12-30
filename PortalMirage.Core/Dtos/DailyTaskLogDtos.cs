@@ -12,6 +12,7 @@
         public UpdateTaskStatusRequest() { }
 
         // 3. Keep the old constructor to prevent breaking other code (optional but safe)
+
         public UpdateTaskStatusRequest(string status, string? comment)
         {
             Status = status;

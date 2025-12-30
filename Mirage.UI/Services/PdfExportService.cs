@@ -100,7 +100,6 @@ public class ReportDocument : IDocument
 
     void ComposeHeader(IContainer container)
     {
-        // Header logic remains the same...
         var titleStyle = TextStyle.Default.FontSize(20).SemiBold().FontColor(Colors.Blue.Medium);
         container.Row(row =>
         {
@@ -117,7 +116,7 @@ public class ReportDocument : IDocument
     {
         container.PaddingVertical(20).Table(table =>
         {
-            // Column width logic remains the same
+            // Column width logic
             table.ColumnsDefinition(columns =>
             {
                 switch (_title)
@@ -145,17 +144,23 @@ public class ReportDocument : IDocument
                 }
             });
 
-            // UPDATED: Header styling
+            // Header styling
             table.Header(header =>
             {
                 foreach (var text in _headers)
                 {
-                    // 1. Changed AlignCenter to AlignLeft and added FontSize(10)
-                    header.Cell().Background(Colors.Grey.Darken2).Padding(5).AlignLeft().Text(text).FontColor(Colors.White).SemiBold().FontSize(10);
+                    header.Cell()
+                        .Background(Colors.Grey.Darken2)
+                        .Padding(5)
+                        .AlignLeft()
+                        .Text(text)
+                        .FontColor(Colors.White)
+                        .SemiBold()
+                        .FontSize(10);
                 }
             });
 
-            // UPDATED: Data row styling
+            // Data row styling - FIXED VERSION
             if (_items.Any())
             {
                 var properties = _items.First().GetType().GetProperties();
@@ -165,22 +170,29 @@ public class ReportDocument : IDocument
                     {
                         var value = prop.GetValue(item);
                         var formattedValue = FormatValue(value);
-                        var cell = table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5);
 
-                        if (index % 2 != 0)
-                        {
-                            cell.Background(Colors.Grey.Lighten4);
-                        }
-
-                        // 2. Added AlignLeft to ensure all content is left-aligned
-                        cell.AlignLeft().AlignMiddle().Text(formattedValue);
+                        // ✅ FIX: Chain everything in one go using .Element() for the background
+                        table.Cell()
+                            .BorderBottom(1)
+                            .BorderColor(Colors.Grey.Lighten2)
+                            .Element(container =>
+                            {
+                                // Apply background conditionally without breaking the chain
+                                return index % 2 != 0
+                                    ? container.Background(Colors.Grey.Lighten4)
+                                    : container;
+                            })
+                            .Padding(5)
+                            .AlignLeft()
+                            .AlignMiddle()
+                            .Text(formattedValue)
+                            .FontSize(10);
                     }
                 }
             }
         });
     }
 
-    // FormatValue helper method remains the same...
     string FormatValue(object? value)
     {
         if (value is null) return "N/A";

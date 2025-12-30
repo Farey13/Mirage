@@ -112,7 +112,7 @@ public class DailyTaskLogRepository(IDbConnectionFactory connectionFactory) : ID
         });
     }
 
-    public async Task<IEnumerable<DailyTaskComplianceReportItemDto>> GetComplianceReportDataAsync(DateTime startDate, DateTime endDate, int? shiftId, string? status)
+    public async Task<IEnumerable<DailyTaskLogDto>> GetComplianceReportDataAsync(DateTime startDate, DateTime endDate, int? shiftId, string? status)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
         var inclusiveEndDate = endDate.Date.AddDays(1);
@@ -123,9 +123,8 @@ public class DailyTaskLogRepository(IDbConnectionFactory connectionFactory) : ID
                 t.TaskName,
                 s.ShiftName,
                 dtl.Status,
-                dtl.CompletedDateTime,
-                u.FullName AS CompletedByUsername,
-                dtl.Comments
+                dtl.Comments,
+                u.FullName AS CompletedByUsername
             FROM DailyTaskLogs dtl
             INNER JOIN Tasks t ON dtl.TaskID = t.TaskID
             LEFT JOIN Shifts s ON t.ShiftID = s.ShiftID
@@ -151,6 +150,6 @@ public class DailyTaskLogRepository(IDbConnectionFactory connectionFactory) : ID
 
         sqlBuilder.Append(" ORDER BY dtl.LogDate, s.StartTime;");
 
-        return await connection.QueryAsync<DailyTaskComplianceReportItemDto>(sqlBuilder.ToString(), parameters);
+        return await connection.QueryAsync<DailyTaskLogDto>(sqlBuilder.ToString(), parameters);
     }
 }
