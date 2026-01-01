@@ -124,28 +124,32 @@ public class DailyTaskLogRepository(IDbConnectionFactory connectionFactory) : ID
                 s.ShiftName,
                 dtl.Status,
                 dtl.Comments,
-                u.FullName AS CompletedByUsername
+                u.FullName AS CompletedByUserName,
+                dtl.CompletedDateTime
             FROM DailyTaskLogs dtl
             INNER JOIN Tasks t ON dtl.TaskID = t.TaskID
             LEFT JOIN Shifts s ON t.ShiftID = s.ShiftID
             LEFT JOIN Users u ON dtl.CompletedByUserID = u.UserID
-            WHERE dtl.LogDate >= @StartDate AND dtl.LogDate < @InclusiveEndDate
+            WHERE dtl.LogDate >= @startDate AND dtl.LogDate < @inclusiveEndDate
         ");
 
-        var parameters = new DynamicParameters();
-        parameters.Add("StartDate", startDate.Date);
-        parameters.Add("InclusiveEndDate", inclusiveEndDate);
+        // Create anonymous object with parameter names that match SQL placeholders
+        var parameters = new
+        {
+            startDate = startDate.Date,
+            inclusiveEndDate,
+            shiftId,
+            status
+        };
 
         if (shiftId.HasValue)
         {
-            sqlBuilder.Append(" AND t.ShiftID = @ShiftID");
-            parameters.Add("ShiftID", shiftId.Value);
+            sqlBuilder.Append(" AND t.ShiftID = @shiftId");
         }
 
         if (!string.IsNullOrEmpty(status) && status != "All")
         {
-            sqlBuilder.Append(" AND dtl.Status = @Status");
-            parameters.Add("Status", status);
+            sqlBuilder.Append(" AND dtl.Status = @status");
         }
 
         sqlBuilder.Append(" ORDER BY dtl.LogDate, s.StartTime;");

@@ -113,27 +113,33 @@ public partial class CalibrationReportDto : ObservableObject
 
 public partial class DailyTaskLogDto : ObservableObject
 {
-    // Properties used by UI / Database
+    // Matches SQL: dtl.LogDate
     public DateTime LogDate { get; set; }
+
+    // Matches SQL: t.TaskName
     public string TaskName { get; set; }
+
+    // Matches SQL: s.ShiftName
+    public string? ShiftName { get; set; }
+
+    // Matches SQL: dtl.Status
     public string Status { get; set; }
+
+    // Matches SQL: dtl.Comments
     public string? Comments { get; set; }
-    public string? CompletedByUserName { get; set; } // Fixed casing
 
-    // --- ADDED FOR REPORT SERVICE COMPATIBILITY ---
-    // These redirect to the existing properties to satisfy ReportService logic
+    // Matches SQL: u.FullName AS CompletedByUserName
+    public string? CompletedByUserName { get; set; }
 
-    // 1. Map TaskDate to LogDate
+    // Matches SQL: dtl.CompletedDateTime
+    public DateTime? CompletedDateTime { get; set; }
+
+    // --- Helpers for ReportService.cs ---
     public DateTime TaskDate => LogDate;
 
-    // 2. Add Shift property (Needs to be added to your SQL query if missing)
-    // For now, we add it as a nullable property so the code compiles.
-    public string? Shift { get; set; }
-
-    // 3. Add CompletedDateTime (Needs to be added to your SQL query if missing)
-    public DateTime? CompletedDateTime { get; set; }
+    // Compatibility property for reports/UI expecting "Shift"
+    public string? Shift => ShiftName;
 }
-
 // Wrapper for the Compliance Report
 public record DailyTaskComplianceReportDto(
     List<DailyTaskLogDto> Items,
