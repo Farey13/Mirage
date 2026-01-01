@@ -68,7 +68,8 @@ public partial class ReportsViewModel : ObservableObject
     public ObservableCollection<string> TaskStatusOptions { get; } = new() { "All", "Pending", "Completed", "Incomplete", "Not Available" };
     [ObservableProperty] private int _totalTasks;
     [ObservableProperty] private int _completedTasks;
-    public double CompletionPercentage => TotalTasks > 0 ? (double)CompletedTasks / TotalTasks * 100 : 0;
+    // The UI 'P' format automatically multiplies by 100, so we just return the fraction (0.0 to 1.0)
+    public double CompletionPercentage => TotalTasks > 0 ? (double)CompletedTasks / TotalTasks : 0;
 
     // Media Sterility Report Properties
     [ObservableProperty] private string? _selectedMediaName;
@@ -282,8 +283,21 @@ public partial class ReportsViewModel : ObservableObject
                 break;
 
             case "Daily Task Compliance":
+                // 1. Define the headers exactly as you want them in the PDF
                 headers = new[] { "Date", "Task Name", "Shift", "Status", "Completed On", "Completed By", "Comments" };
-                items = DailyTaskReportData;
+
+                // 2. FIX: Create a "Projection" (Select new {...}) 
+                // This strips out LogID, TaskID, and formats the data cleanly.
+                items = DailyTaskReportData.Select(x => new
+                {
+                    Date = x.LogDate.ToString("yyyy-MM-dd"), // Format Date
+                    TaskName = x.TaskName,
+                    Shift = x.Shift, // Use the helper property Shift (which returns ShiftName)
+                    Status = x.Status,
+                    CompletedOn = x.CompletedDateTime?.ToString("yyyy-MM-dd HH:mm") ?? "-", // Format DateTime or show dash
+                    CompletedBy = x.CompletedByUserName,
+                    Comments = x.Comments
+                }).ToList();
                 break;
 
             case "Media Sterility Log":

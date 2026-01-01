@@ -294,9 +294,9 @@
                         <DataGridTextColumn Header="Reported On" Binding="{Binding ReportedDateTime, StringFormat='g'}" Width="1.5*"/>
                         <DataGridTextColumn Header="Machine" Binding="{Binding MachineName}" Width="1.5*"/>
                         <DataGridTextColumn Header="Reason" Binding="{Binding BreakdownReason}" Width="2*"/>
-                        <DataGridTextColumn Header="Reported By" Binding="{Binding ReportedByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Reported By" Binding="{Binding ReportedByUserName}" Width="*"/>
                         <DataGridTextColumn Header="Resolved On" Binding="{Binding ResolvedDateTime, StringFormat='g'}" Width="1.5*"/>
-                        <DataGridTextColumn Header="Resolved By" Binding="{Binding ResolvedByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Resolved By" Binding="{Binding ResolvedByUserName}" Width="*"/>
                         <DataGridTextColumn Header="Resolution" Binding="{Binding ResolutionNotes}" Width="2*"/>
                         <DataGridTextColumn Header="Downtime" Binding="{Binding ElapsedDowntimeDisplay}" Width="*" FontWeight="SemiBold"/>
                     </DataGrid.Columns>
@@ -315,12 +315,12 @@
                     </DataGrid.Style>
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Given On" Binding="{Binding GivenDateTime, StringFormat='g'}" Width="1.5*"/>
-                        <DataGridTextColumn Header="Given By" Binding="{Binding GivenByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Given By" Binding="{Binding GivenByUserName}" Width="*"/>
                         <DataGridTextColumn Header="Shift" Binding="{Binding Shift}" Width="*"/>
                         <DataGridTextColumn Header="Priority" Binding="{Binding Priority}" Width="*"/>
                         <DataGridTextColumn Header="Notes" Binding="{Binding HandoverNotes}" Width="3*"/>
                         <DataGridTextColumn Header="Received On" Binding="{Binding ReceivedDateTime, StringFormat='g'}" Width="1.5*"/>
-                        <DataGridTextColumn Header="Received By" Binding="{Binding ReceivedByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Received By" Binding="{Binding ReceivedByUserName}" Width="*"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -342,7 +342,7 @@
                         <DataGridTextColumn Header="Expiry Date" Binding="{Binding KitExpiryDate, StringFormat='d'}" Width="*"/>
                         <DataGridTextColumn Header="Status" Binding="{Binding ValidationStatus}" Width="*"/>
                         <DataGridTextColumn Header="Comments" Binding="{Binding Comments}" Width="2*"/>
-                        <DataGridTextColumn Header="Validated By" Binding="{Binding ValidatedByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Validated By" Binding="{Binding ValidatedByUserName}" Width="*"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -364,7 +364,7 @@
                         <DataGridTextColumn Header="Reason" Binding="{Binding ReasonText}" Width="2*"/>
                         <DataGridTextColumn Header="Department" Binding="{Binding Department}" Width="*"/>
                         <DataGridTextColumn Header="Informed" Binding="{Binding InformedPerson}" Width="*"/>
-                        <DataGridTextColumn Header="Logged By" Binding="{Binding LoggedByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Logged By" Binding="{Binding LoggedByUserName}" Width="*"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -397,10 +397,10 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Date" Binding="{Binding LogDate, StringFormat='d'}" Width="*"/>
                             <DataGridTextColumn Header="Task Name" Binding="{Binding TaskName}" Width="2*"/>
-                            <DataGridTextColumn Header="Shift" Binding="{Binding ShiftName}" Width="*"/>
+                            <DataGridTextColumn Header="Shift" Binding="{Binding Shift}" Width="*"/>
                             <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
                             <DataGridTextColumn Header="Completed On" Binding="{Binding CompletedDateTime, StringFormat='g'}" Width="1.5*"/>
-                            <DataGridTextColumn Header="Completed By" Binding="{Binding CompletedByUsername}" Width="*"/>
+                            <DataGridTextColumn Header="Completed By" Binding="{Binding CompletedByUserName}" Width="*"/>
                             <DataGridTextColumn Header="Comments" Binding="{Binding Comments}" Width="2*"/>
                         </DataGrid.Columns>
                     </DataGrid>
@@ -424,7 +424,7 @@
                         <DataGridTextColumn Header="Result 37°C" Binding="{Binding Result37C}" Width="*"/>
                         <DataGridTextColumn Header="Result 25°C" Binding="{Binding Result25C}" Width="*"/>
                         <DataGridTextColumn Header="Overall Status" Binding="{Binding OverallStatus}" Width="*"/>
-                        <DataGridTextColumn Header="Performed By" Binding="{Binding PerformedByUsername}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Performed By" Binding="{Binding PerformedByUserName}" Width="1.5*"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -443,9 +443,9 @@
                         <DataGridTextColumn Header="Stored On" Binding="{Binding StorageDateTime, StringFormat='g'}" Width="1.5*"/>
                         <DataGridTextColumn Header="Sample ID" Binding="{Binding PatientSampleID}" Width="*"/>
                         <DataGridTextColumn Header="Test Name" Binding="{Binding TestName}" Width="1.5*"/>
-                        <DataGridTextColumn Header="Stored By" Binding="{Binding StoredByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Stored By" Binding="{Binding StoredByUserName}" Width="*"/>
                         <DataGridTextColumn Header="Completed On" Binding="{Binding TestDoneDateTime, StringFormat='g'}" Width="1.5*"/>
-                        <DataGridTextColumn Header="Completed By" Binding="{Binding TestDoneByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Completed By" Binding="{Binding TestDoneByUserName}" Width="*"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -465,7 +465,7 @@
                         <DataGridTextColumn Header="Test/Instrument" Binding="{Binding TestName}" Width="2*"/>
                         <DataGridTextColumn Header="QC Result" Binding="{Binding QcResult}" Width="*"/>
                         <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*"/>
-                        <DataGridTextColumn Header="Performed By" Binding="{Binding PerformedByUsername}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Performed By" Binding="{Binding PerformedByUserName}" Width="1.5*"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
