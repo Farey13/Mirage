@@ -82,7 +82,8 @@ public class DailyTaskLogRepository(IDbConnectionFactory connectionFactory) : ID
             INNER JOIN Tasks t ON dtl.TaskID = t.TaskID
             INNER JOIN Shifts s ON t.ShiftID = s.ShiftID
             WHERE dtl.LogDate = @Date 
-              AND dtl.Status = 'Pending'
+              AND (dtl.Status IS NULL OR 
+                   dtl.Status NOT IN ('Complete', 'Completed'))  -- Fixed: Check for both 'Complete' and 'Completed'
               AND (
                 dtl.LockOverrideUntil IS NULL OR dtl.LockOverrideUntil < GETDATE()
               )

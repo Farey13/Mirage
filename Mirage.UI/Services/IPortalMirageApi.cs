@@ -114,8 +114,9 @@ public interface IPortalMirageApi
         [Body] UpdateTaskStatusRequest request
     );
 
+    // --- THIS IS THE MISSING METHOD CAUSING YOUR ERROR ---
     [Put("/api/dailytasklogs/{id}/extend")]
-    System.Threading.Tasks.Task<DailyTaskLog> ExtendTaskDeadlineAsync([Header("Authorization")] string token, long id, [Body] ExtendTaskDeadlineRequest request);
+    System.Threading.Tasks.Task<DailyTaskLog> ExtendTaskDeadlineAsync([Authorize("Bearer")] string token, long id, [Body] ExtendTaskDeadlineRequest request);
 
     [Get("/api/dailytasklog/{date}")]
     System.Threading.Tasks.Task<List<TaskLogDetailDto>> GetDailyTaskLogsAsync([Header("Authorization")] string token, DateTime date);
