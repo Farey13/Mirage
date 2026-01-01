@@ -13,6 +13,7 @@
 
     <UserControl.Resources>
         <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:BooleanAndConverter x:Key="BooleanAndConverter"/>
 
         <DataTemplate x:Key="TaskItemTemplate">
             <Border BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="5">
@@ -20,6 +21,7 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
@@ -84,7 +86,7 @@
                         </TextBlock.Style>
                     </TextBlock>
 
-                    <Button Grid.Column="2" Content="N/A" FontSize="10" Padding="5,2"
+                    <Button Grid.Column="2" Content="N/A" FontSize="10" Padding="5,2" Margin="0,0,5,0"
                             Command="{Binding DataContext.ShowNaFlyoutCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                             CommandParameter="{Binding Dto}">
                         <Button.Style>
@@ -99,6 +101,36 @@
                                     <DataTrigger Binding="{Binding Dto.Status}" Value="Completed">
                                         <Setter Property="Visibility" Value="Collapsed"/>
                                     </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <!-- Extend Button (Admin Only) - Fixed Grid.Column to 3 -->
+                    <Button Grid.Column="3" Content="EXTEND" FontSize="10" Padding="5,2" Margin="5,0,0,0"
+                            Background="#CC0000" Foreground="White" FontWeight="Bold"
+                            Command="{Binding DataContext.ShowExtendFlyoutCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding Dto}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource MahApps.Styles.Button.Flat}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding DataContext.IsAdmin, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True"/>
+                                            <Condition Binding="{Binding Dto.Status}" Value="Incomplete"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
+
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding DataContext.IsAdmin, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True"/>
+                                            <Condition Binding="{Binding Dto.Status}" Value="Pending"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </Button.Style>
@@ -185,6 +217,7 @@
         </Grid>
 
         <mah:FlyoutsControl>
+            <!-- Existing N/A Flyout -->
             <mah:Flyout Header="Reason for N/A" IsOpen="{Binding IsNaFlyoutOpen}" Position="Right" Width="400">
                 <StackPanel Margin="20">
                     <TextBlock Text="{Binding SelectedTaskForNa.TaskName}" FontWeight="Bold" FontSize="18" Margin="0,0,0,10" TextWrapping="Wrap"/>
@@ -217,6 +250,45 @@
                                         <ProgressBar Width="16" Height="16" Margin="5,0,0,0"
                                                      IsIndeterminate="True"
                                                      Visibility="{Binding DataContext.IsSavingNa, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </Button.ContentTemplate>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </mah:Flyout>
+
+            <!-- B. Add Extend Deadline Flyout (Admin Only) -->
+            <mah:Flyout Header="Extend Deadline (Admin)" IsOpen="{Binding IsExtendFlyoutOpen}" Position="Right" Width="400" Theme="Inverse">
+                <StackPanel Margin="20">
+                    <TextBlock Text="Extend Grace Period" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                    <Label Content="Extend by (Hours):" FontWeight="Bold"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <Slider Minimum="1" Maximum="8" Interval="1" IsSnapToTickEnabled="True" 
+                                Value="{Binding ExtensionHours}" Width="250" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding ExtensionHours, StringFormat='{} +{0} Hrs'}" 
+                                   FontSize="16" FontWeight="Bold" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                    </StackPanel>
+
+                    <Label Content="Reason for Override (Mandatory):" FontWeight="Bold"/>
+                    <TextBox Text="{Binding ExtensionReason, UpdateSourceTrigger=PropertyChanged}" 
+                             Height="100" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,20"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Cancel" Margin="0,0,10,0" 
+                                Command="{Binding CloseExtendFlyoutCommand}"/>
+
+                        <Button Content="Confirm Extension" 
+                                Command="{Binding ConfirmExtendCommand}" 
+                                Style="{StaticResource MahApps.Styles.Button.Square.Accent}">
+                            <Button.ContentTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                                        <ProgressBar Width="16" Height="16" Margin="5,0,0,0"
+                                                     IsIndeterminate="True"
+                                                     Visibility="{Binding DataContext.IsSavingExtension, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </Button.ContentTemplate>

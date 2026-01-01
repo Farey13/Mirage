@@ -32,6 +32,24 @@ public partial class DailyTaskLogViewModel : ObservableObject
     [ObservableProperty]
     private bool _isSavingNa;
 
+    // 1. Add new Properties for Admin Extension
+    [ObservableProperty]
+    private bool _isAdmin;
+
+    [ObservableProperty]
+    private bool _isExtendFlyoutOpen;
+
+    [ObservableProperty]
+    private string _extensionReason = string.Empty;
+
+    [ObservableProperty]
+    private int _extensionHours = 2; // Default to 2 hours
+
+    [ObservableProperty]
+    private bool _isSavingExtension;
+
+    private TaskLogDetailDto? _selectedTaskForExtension;
+
     public ObservableCollection<TaskLogItem> MorningTasks { get; } = new();
     public ObservableCollection<TaskLogItem> EveningTasks { get; } = new();
     public ObservableCollection<TaskLogItem> NightTasks { get; } = new();
@@ -40,6 +58,11 @@ public partial class DailyTaskLogViewModel : ObservableObject
     {
         _apiClient = apiClient;
         _authService = authService;
+
+        // 2. Add logic to check if user is Admin
+        var currentUser = _authService.CurrentUser;
+        IsAdmin = currentUser?.Role == "Admin";
+
         LoadInitialTasks();
     }
 
@@ -240,6 +263,74 @@ public partial class DailyTaskLogViewModel : ObservableObject
         finally
         {
             IsSavingNa = false;
+        }
+    }
+
+    // 3. Add new Commands for Admin Extension
+    [RelayCommand]
+    private void ShowExtendFlyout(TaskLogDetailDto task)
+    {
+        if (!IsAdmin) return; // Double check
+        _selectedTaskForExtension = task;
+        ExtensionReason = string.Empty;
+        ExtensionHours = 2; // Reset to default
+        IsExtendFlyoutOpen = true;
+    }
+
+    [RelayCommand]
+    private void CloseExtendFlyout()
+    {
+        IsExtendFlyoutOpen = false;
+        _selectedTaskForExtension = null;
+    }
+
+    [RelayCommand]
+    private async Task ConfirmExtend()
+    {
+        if (IsSavingExtension) return;
+
+        if (_selectedTaskForExtension == null || string.IsNullOrWhiteSpace(ExtensionReason))
+        {
+            MessageBox.Show("A reason is required to extend the deadline.");
+            return;
+        }
+
+        try
+        {
+            IsSavingExtension = true;
+            var token = _authService.GetToken();
+
+            // Calculate New Deadline: Current Time + Selected Hours
+            var newDeadline = DateTime.Now.AddHours(ExtensionHours);
+
+            var request = new ExtendTaskDeadlineRequest(newDeadline, ExtensionReason);
+
+            // IMPORTANT: Check which method name you have in your IPortalMirageApi interface
+            // If it's called ExtendTaskDeadlineAsync:
+            await _apiClient.ExtendTaskDeadlineAsync(token, _selectedTaskForExtension.LogID, request);
+            // OR if it's called ExtendDeadlineAsync:
+            // await _apiClient.ExtendDeadlineAsync(token, _selectedTaskForExtension.LogID, request);
+
+            IsExtendFlyoutOpen = false;
+            await LoadTasks(); // Refresh list to turn the Red task back to Blue
+            MessageBox.Show($"Deadline extended until {newDeadline:HH:mm}.", "Success");
+        }
+        catch (Exception ex)
+        {
+            // === DETAILED ERROR REPORTING ===
+            string errorMessage = ex.Message;
+
+            // Check if it's a Refit API Error to get the real message
+            if (ex is Refit.ApiException apiEx)
+            {
+                errorMessage = $"Server Error ({apiEx.StatusCode}):\n{apiEx.Content}";
+            }
+
+            MessageBox.Show($"Extension Failed: {errorMessage}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsSavingExtension = false;
         }
     }
 
