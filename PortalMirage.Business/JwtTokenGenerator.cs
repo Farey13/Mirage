@@ -25,12 +25,18 @@ public class JwtTokenGenerator(IConfiguration configuration, IUserRepository use
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        // Fetch and add role claims to the token
+        // --- FETCH ROLES FROM DB ---
         var roles = await userRepository.GetUserRolesAsync(user.UserID);
+
         foreach (var role in roles)
         {
+            // 1. Add Standard Claim (Long URL format)
             claims.Add(new Claim(ClaimTypes.Role, role));
+
+            // 2. CRITICAL FIX: Add Simple "role" Claim for Frontend Compatibility
+            claims.Add(new Claim("role", role));
         }
+        // ---------------------------
 
         var token = new JwtSecurityToken(
             issuer: jwtSettings["Issuer"],
