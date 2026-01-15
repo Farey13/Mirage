@@ -3,10 +3,11 @@ using CommunityToolkit.Mvvm.Input;
 using Mirage.UI.Services;
 using PortalMirage.Core.Dtos;
 using PortalMirage.Core.Models;
+using Refit;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Text.Json; // <--- CRITICAL: Required for robust parsing
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -19,36 +20,36 @@ public partial class DailyTaskLogViewModel : ObservableObject
 
     [ObservableProperty]
     private DateTime _selectedDate = DateTime.Today;
+
+    [ObservableProperty]
+    private bool _showPendingOnly;
+    [ObservableProperty]
+    private int _pendingCount;
+    [ObservableProperty]
+    private string _shiftInfoText = "Loading...";
+
+    [ObservableProperty]
+    private bool _isAdmin;
+    [ObservableProperty]
+    private bool _isExtendFlyoutOpen;
+    [ObservableProperty]
+    private string _extensionReason = string.Empty;
+    [ObservableProperty]
+    private int _extensionHours = 2;
+    [ObservableProperty]
+    private bool _isSavingExtension;
+    private TaskLogDetailDto? _selectedTaskForExtension;
+
     [ObservableProperty]
     private bool _isNaFlyoutOpen;
     [ObservableProperty]
     private TaskLogDetailDto? _selectedTaskForNa;
     [ObservableProperty]
     private string _naReason = string.Empty;
-
-    [ObservableProperty]
-    private bool _isSaving;
-
     [ObservableProperty]
     private bool _isSavingNa;
-
-    // 1. Add new Properties for Admin Extension
     [ObservableProperty]
-    private bool _isAdmin;
-
-    [ObservableProperty]
-    private bool _isExtendFlyoutOpen;
-
-    [ObservableProperty]
-    private string _extensionReason = string.Empty;
-
-    [ObservableProperty]
-    private int _extensionHours = 2; // Default to 2 hours
-
-    [ObservableProperty]
-    private bool _isSavingExtension;
-
-    private TaskLogDetailDto? _selectedTaskForExtension;
+    private bool _isSaving;
 
     public ObservableCollection<TaskLogItem> MorningTasks { get; } = new();
     public ObservableCollection<TaskLogItem> EveningTasks { get; } = new();
@@ -58,15 +59,29 @@ public partial class DailyTaskLogViewModel : ObservableObject
     {
         _apiClient = apiClient;
         _authService = authService;
-
-        // 2. Add logic to check if user is Admin
-        var currentUser = _authService.CurrentUser;
-        IsAdmin = currentUser?.Role == "Admin";
-
         LoadInitialTasks();
     }
 
     private async void LoadInitialTasks() => await LoadTasks();
+
+    [RelayCommand]
+    private void PreviousDay()
+    {
+        SelectedDate = SelectedDate.AddDays(-1);
+        LoadTasksCommand.Execute(null);
+    }
+
+    [RelayCommand]
+    private void NextDay()
+    {
+        SelectedDate = SelectedDate.AddDays(1);
+        LoadTasksCommand.Execute(null);
+    }
+
+    partial void OnShowPendingOnlyChanged(bool value)
+    {
+        LoadTasksCommand.Execute(null);
+    }
 
     [RelayCommand]
     private async Task LoadTasks()
@@ -76,28 +91,32 @@ public partial class DailyTaskLogViewModel : ObservableObject
         try
         {
             IsSaving = true;
-
             var token = _authService.GetToken();
             if (string.IsNullOrEmpty(token)) return;
 
-            // === FIXES APPLIED HERE ===
-            // 1. Used '_apiClient' (the name defined at the top of your class)
-            // 2. Used 'SelectedDate' (Capital 'S', the public property)
-            // 3. Formatted date to "yyyy-MM-dd" to fix the 404 error
-            // 4. Assigned the result to 'var tasks' so the loop below works
+            var currentUser = _authService.CurrentUser;
+            IsAdmin = currentUser?.Role == "Admin";
+
+            UpdateShiftInfo();
+
             var tasks = await _apiClient.GetTasksForDateAsync(token, SelectedDate);
 
             MorningTasks.Clear();
             EveningTasks.Clear();
             NightTasks.Clear();
 
+            int pCount = 0;
+
             if (tasks != null)
             {
                 foreach (var t in tasks)
                 {
-                    var item = new TaskLogItem(t);
+                    if (ShowPendingOnly && t.Status == "Complete") continue;
 
-                    // Case-insensitive check to be safe
+                    var item = new TaskLogItem(t, SelectedDate, IsAdmin);
+
+                    if (item.StatusToSave == "Pending") pCount++;
+
                     if (string.Equals(t.TaskCategory, "Morning", StringComparison.OrdinalIgnoreCase))
                         MorningTasks.Add(item);
                     else if (string.Equals(t.TaskCategory, "Evening", StringComparison.OrdinalIgnoreCase))
@@ -106,6 +125,7 @@ public partial class DailyTaskLogViewModel : ObservableObject
                         NightTasks.Add(item);
                 }
             }
+            PendingCount = pCount;
         }
         catch (Exception ex)
         {
@@ -117,6 +137,16 @@ public partial class DailyTaskLogViewModel : ObservableObject
         }
     }
 
+    private void UpdateShiftInfo()
+    {
+        if (SelectedDate.Date == DateTime.Today)
+            ShiftInfoText = "📅 Today's Log - Grace Periods Active";
+        else if (SelectedDate.Date < DateTime.Today)
+            ShiftInfoText = "🔒 Past Date - Log Locked (Admin Override Required)";
+        else
+            ShiftInfoText = "📅 Future Date";
+    }
+
     [RelayCommand]
     private async Task SaveChanges()
     {
@@ -125,7 +155,6 @@ public partial class DailyTaskLogViewModel : ObservableObject
         try
         {
             IsSaving = true;
-
             var token = _authService.GetToken();
             if (string.IsNullOrEmpty(token))
             {
@@ -133,11 +162,8 @@ public partial class DailyTaskLogViewModel : ObservableObject
                 return;
             }
 
-            // 1. Get User ID
             var userId = _authService.CurrentUser?.UserID ?? 0;
             if (userId <= 0) userId = GetUserIdFromToken(token);
-
-            // Fallback to ID 1 if token parsing fails (prevents 500 error)
             if (userId <= 0) userId = 1;
 
             var allModified = MorningTasks.Concat(EveningTasks).Concat(NightTasks)
@@ -151,7 +177,12 @@ public partial class DailyTaskLogViewModel : ObservableObject
 
             foreach (var item in allModified)
             {
-                // FIX: Create the Request Object
+                if (!item.IsEditable)
+                {
+                    MessageBox.Show($"Task '{item.TaskName}' is locked and cannot be modified.", "Locked Task", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    continue;
+                }
+
                 var request = new UpdateTaskStatusRequest
                 {
                     Status = item.StatusToSave,
@@ -159,26 +190,20 @@ public partial class DailyTaskLogViewModel : ObservableObject
                     Comment = null
                 };
 
-                // FIX: Send 3 arguments (Token, LogID, RequestObject)
                 await _apiClient.UpdateTaskStatusAsync(token, item.LogID, request);
-
                 item.MarkAsSaved();
             }
+
             MessageBox.Show("Changes saved successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            await LoadTasks();
         }
         catch (Exception ex)
         {
-            // === DETAILED ERROR REPORTING ===
             string errorMessage = ex.Message;
-
-            // 1. Check if it's a Refit API Error to get the real message
             if (ex is Refit.ApiException apiEx)
             {
-                // Extracts the text I added to the Controller ("CRITICAL FAILURE...")
                 errorMessage = $"Server Error ({apiEx.StatusCode}):\n{apiEx.Content}";
             }
-
-            // 2. Show the detailed error
             MessageBox.Show(errorMessage, "Save Failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -197,6 +222,13 @@ public partial class DailyTaskLogViewModel : ObservableObject
     [RelayCommand]
     private void ShowNaFlyout(TaskLogDetailDto task)
     {
+        var item = FindTaskItem(task.LogID);
+        if (item != null && !item.IsEditable)
+        {
+            MessageBox.Show("This task is locked and cannot be marked as N/A.", "Locked Task", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         SelectedTaskForNa = task;
         NaReason = string.Empty;
         IsNaFlyoutOpen = true;
@@ -210,7 +242,6 @@ public partial class DailyTaskLogViewModel : ObservableObject
         try
         {
             IsSavingNa = true;
-
             if (SelectedTaskForNa is null || string.IsNullOrWhiteSpace(NaReason))
             {
                 MessageBox.Show("A reason is required to mark as N/A.");
@@ -218,20 +249,12 @@ public partial class DailyTaskLogViewModel : ObservableObject
             }
 
             var token = _authService.GetToken();
-            if (string.IsNullOrEmpty(token))
-            {
-                MessageBox.Show("User session invalid.");
-                return;
-            }
+            if (string.IsNullOrEmpty(token)) return;
 
-            // 1. Get User ID (Same logic as SaveChanges)
             var userId = _authService.CurrentUser?.UserID ?? 0;
             if (userId <= 0) userId = GetUserIdFromToken(token);
-
-            // Fallback to prevent 0 ID
             if (userId <= 0) userId = 1;
 
-            // 2. Create the Request Object (CRITICAL for Server to receive ID)
             var request = new UpdateTaskStatusRequest
             {
                 Status = "Not Available",
@@ -239,26 +262,20 @@ public partial class DailyTaskLogViewModel : ObservableObject
                 Comment = NaReason
             };
 
-            // 3. Send to API
             await _apiClient.UpdateTaskStatusAsync(token, SelectedTaskForNa.LogID, request);
 
-            // 4. Cleanup UI
             IsNaFlyoutOpen = false;
             NaReason = string.Empty;
-            await LoadTasks(); // Refresh list
+            await LoadTasks();
         }
         catch (Exception ex)
         {
-            // === DETAILED ERROR REPORTING ===
             string errorMessage = ex.Message;
-
-            // Check if it's a Refit API Error to get the real message from the Controller
             if (ex is Refit.ApiException apiEx)
             {
                 errorMessage = $"Server Error ({apiEx.StatusCode}):\n{apiEx.Content}";
             }
-
-            MessageBox.Show(errorMessage, "N/A Update Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"N/A Update Failed: {errorMessage}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
@@ -266,14 +283,13 @@ public partial class DailyTaskLogViewModel : ObservableObject
         }
     }
 
-    // 3. Add new Commands for Admin Extension
     [RelayCommand]
     private void ShowExtendFlyout(TaskLogDetailDto task)
     {
-        if (!IsAdmin) return; // Double check
+        if (!IsAdmin) return;
         _selectedTaskForExtension = task;
         ExtensionReason = string.Empty;
-        ExtensionHours = 2; // Reset to default
+        ExtensionHours = 2;
         IsExtendFlyoutOpen = true;
     }
 
@@ -299,33 +315,22 @@ public partial class DailyTaskLogViewModel : ObservableObject
         {
             IsSavingExtension = true;
             var token = _authService.GetToken();
-
-            // Calculate New Deadline: Current Time + Selected Hours
             var newDeadline = DateTime.Now.AddHours(ExtensionHours);
-
             var request = new ExtendTaskDeadlineRequest(newDeadline, ExtensionReason);
 
-            // IMPORTANT: Check which method name you have in your IPortalMirageApi interface
-            // If it's called ExtendTaskDeadlineAsync:
             await _apiClient.ExtendTaskDeadlineAsync(token, _selectedTaskForExtension.LogID, request);
-            // OR if it's called ExtendDeadlineAsync:
-            // await _apiClient.ExtendDeadlineAsync(token, _selectedTaskForExtension.LogID, request);
 
             IsExtendFlyoutOpen = false;
-            await LoadTasks(); // Refresh list to turn the Red task back to Blue
+            await LoadTasks();
             MessageBox.Show($"Deadline extended until {newDeadline:HH:mm}.", "Success");
         }
         catch (Exception ex)
         {
-            // === DETAILED ERROR REPORTING ===
             string errorMessage = ex.Message;
-
-            // Check if it's a Refit API Error to get the real message
             if (ex is Refit.ApiException apiEx)
             {
                 errorMessage = $"Server Error ({apiEx.StatusCode}):\n{apiEx.Content}";
             }
-
             MessageBox.Show($"Extension Failed: {errorMessage}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -334,54 +339,39 @@ public partial class DailyTaskLogViewModel : ObservableObject
         }
     }
 
-    // --- ROBUST TOKEN PARSER ---
+    private TaskLogItem? FindTaskItem(long logId)
+    {
+        return MorningTasks.Concat(EveningTasks).Concat(NightTasks)
+                           .FirstOrDefault(t => t.LogID == logId);
+    }
+
     private int GetUserIdFromToken(string token)
     {
         if (string.IsNullOrEmpty(token)) return 0;
         try
         {
-            // 1. Get Payload
             var parts = token.Split('.');
             if (parts.Length < 2) return 0;
 
             var payload = parts[1];
-
-            // 2. Fix Base64 Padding
             switch (payload.Length % 4)
             {
                 case 2: payload += "=="; break;
                 case 3: payload += "="; break;
             }
 
-            // 3. Decode
             var jsonBytes = Convert.FromBase64String(payload.Replace('-', '+').Replace('_', '/'));
+            using var doc = JsonDocument.Parse(jsonBytes);
+            var root = doc.RootElement;
+            JsonElement idElement;
 
-            // 4. Parse JSON using System.Text.Json
-            using (var doc = JsonDocument.Parse(jsonBytes))
+            if (root.TryGetProperty("nameid", out idElement) || root.TryGetProperty("sub", out idElement))
             {
-                var root = doc.RootElement;
-                JsonElement idElement;
-
-                // Check for common claim names (Long URL is standard for .NET)
-                if (root.TryGetProperty("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", out idElement) ||
-                    root.TryGetProperty("nameid", out idElement) ||
-                    root.TryGetProperty("sub", out idElement) ||
-                    root.TryGetProperty("id", out idElement))
-                {
-                    if (idElement.ValueKind == JsonValueKind.Number)
-                        return idElement.GetInt32();
-                    if (idElement.ValueKind == JsonValueKind.String && int.TryParse(idElement.GetString(), out int id))
-                        return id;
-                }
+                if (idElement.ValueKind == JsonValueKind.Number) return idElement.GetInt32();
+                if (idElement.ValueKind == JsonValueKind.String && int.TryParse(idElement.GetString(), out int id)) return id;
             }
-
-            // === DEBUGGING BLOCK ===
-            // If we get here, we couldn't find the ID. 
-            // For debugging, you can uncomment this to see what's in the token:
-            // var jsonString = System.Text.Encoding.UTF8.GetString(jsonBytes);
-            // MessageBox.Show($"DEBUG: Could not find ID in token.\n\nPayload:\n{jsonString}", "Token Debug");
         }
-        catch { /* Ignore errors */ }
+        catch { }
         return 0;
     }
 }
@@ -389,33 +379,62 @@ public partial class DailyTaskLogViewModel : ObservableObject
 public class TaskLogItem : ObservableObject
 {
     public TaskLogDetailDto Dto { get; }
+    private readonly DateTime _logDate;
+    private readonly bool _isAdmin;
     private bool _isChecked;
 
-    public TaskLogItem(TaskLogDetailDto dto)
+    public TaskLogItem(TaskLogDetailDto dto, DateTime logDate, bool isAdmin)
     {
         Dto = dto;
-        // FIX: Backend uses "Complete", not "Completed"
+        _logDate = logDate;
+        _isAdmin = isAdmin;
         _isChecked = dto.Status == "Complete";
     }
 
     public long LogID => Dto.LogID;
     public string TaskName => Dto.TaskName;
     public bool IsDirty { get; private set; }
+    public bool IsAdminUser => _isAdmin;
 
     public bool IsChecked
     {
         get => _isChecked;
-        set
+        set { if (SetProperty(ref _isChecked, value)) IsDirty = true; }
+    }
+
+    public string StatusToSave => IsChecked ? "Complete" : "Pending";
+
+    public bool IsLocked
+    {
+        get
         {
-            if (SetProperty(ref _isChecked, value))
-            {
-                IsDirty = true;
-            }
+            bool isPastDate = _logDate.Date < DateTime.Today;
+            bool hasOverride = Dto.LockOverrideUntil.HasValue && Dto.LockOverrideUntil.Value > DateTime.Now;
+
+            if (isPastDate && !hasOverride) return true;
+            if (Dto.Status == "Incomplete" || Dto.Status == "Not Available") return true;
+
+            return false;
         }
     }
 
-    // FIX: Send "Complete" (No 'd') to match the Backend Validation
-    public string StatusToSave => IsChecked ? "Complete" : "Pending";
+    public bool IsEditable => !IsLocked;
+
+    public string AuditTooltip
+    {
+        get
+        {
+            if (Dto.Status == "Complete")
+            {
+                var who = Dto.CompletedByUsername ?? "Unknown";
+                var when = Dto.CompletedDateTime.HasValue ? Dto.CompletedDateTime.Value.ToString("HH:mm") : "?";
+                return $"✓ Completed by {who} at {when}";
+            }
+            if (Dto.Status == "Incomplete") return "❌ Expired / Incomplete";
+            if (Dto.Status == "Not Available") return $"⚠️ N/A: {Dto.Comments}";
+            return "Pending Completion";
+        }
+    }
 
     public void MarkAsSaved() => IsDirty = false;
 }

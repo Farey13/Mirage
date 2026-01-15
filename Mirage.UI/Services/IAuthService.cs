@@ -7,7 +7,10 @@ namespace Mirage.UI.Services
         string? GetToken();
         void SetToken(string? token);
 
-        // Add this property
         User? CurrentUser { get; }
+
+        // --- NEWLY ADDED METHODS ---
+        void SetCurrentUser(User user);
+        void ClearCurrentUser();
     }
 }

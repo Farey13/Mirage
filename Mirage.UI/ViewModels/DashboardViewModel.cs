@@ -46,6 +46,10 @@ public partial class DashboardViewModel : ObservableObject
         _apiClient = apiClient;
         _authService = authService;
         InitializeDashboardItems();
+
+        // FIX 6: Proactive Loading (Fire and Forget)
+        // This ensures the numbers appear immediately when login completes
+        _ = LoadSummaryAsync();
     }
 
     private void InitializeDashboardItems()
@@ -56,8 +60,7 @@ public partial class DashboardViewModel : ObservableObject
         DashboardItems.Add(new DashboardItem("Pending Samples", "\uE728", new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34C759")), typeof(SampleStorageView)));
     }
 
-    // Using the full namespace as you correctly pointed out
-    public async System.Threading.Tasks.Task LoadSummaryAsync()
+    public async Task LoadSummaryAsync()
     {
         var authToken = _authService.GetToken();
         if (string.IsNullOrEmpty(authToken)) return;
