@@ -13,6 +13,9 @@
     <UserControl.Resources>
         <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+
+        <converters:ActionToColorConverter x:Key="AuditColor"/>
+
         <Style x:Key="WrapTextDataGridStyle" TargetType="TextBlock">
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -75,7 +78,19 @@
                     <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp, StringFormat='dd/MMM/yy HH:mm'}" Width="1.2*" SortDirection="Descending"/>
                     <DataGridTextColumn Header="User" Binding="{Binding UserFullName, FallbackValue='System'}" Width="1*" />
                     <DataGridTextColumn Header="Module" Binding="{Binding ModuleName}" Width="1*" />
-                    <DataGridTextColumn Header="Action" Binding="{Binding ActionType}" Width="1*" />
+
+                    <DataGridTemplateColumn Header="Action" Width="1*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding ActionType}" 
+                                           FontWeight="Bold"
+                                           Foreground="{Binding ActionType, Converter={StaticResource AuditColor}}"
+                                           VerticalAlignment="Center" 
+                                           Padding="5"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
                     <DataGridTextColumn Header="Record ID" Binding="{Binding RecordID}" Width="0.8*" />
                     <DataGridTextColumn Header="Details" Binding="{Binding NewValue}" Width="3*" ElementStyle="{StaticResource WrapTextDataGridStyle}" />
                 </DataGrid.Columns>
