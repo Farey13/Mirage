@@ -1,8 +1,10 @@
+using Dapper; // Add this using line
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using Microsoft.OpenApi.Models;
-using Dapper; // Add this using line
+using System.Text;
+using PortalMirage.Business.Abstractions;
+using PortalMirage.Business;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -89,7 +91,7 @@ builder.Services.AddScoped<PortalMirage.Data.Abstractions.IAdminListRepository, 
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IAuditLogRepository, PortalMirage.Data.AuditLogRepository>(); // ADDED IN CORRECT PLACE
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.ISampleStorageRepository, PortalMirage.Data.SampleStorageRepository>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IReportService, PortalMirage.Business.ReportService>(); // ADD THIS LINE
-
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
 
 // ... (all your other repositories)

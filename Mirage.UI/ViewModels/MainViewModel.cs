@@ -48,7 +48,8 @@ public partial class MainViewModel : ObservableObject
         HandoverViewModel handoverViewModel,
         MachineBreakdownViewModel machineBreakdownViewModel,
         MediaSterilityViewModel mediaSterilityViewModel,
-        DailyTaskLogViewModel dailyTaskLogViewModel)
+        DailyTaskLogViewModel dailyTaskLogViewModel,
+        MainAnalyticsViewModel analyticsViewModel) // 1. INJECTED HERE
     {
         // --- ADD THESE LINES AT THE TOP OF THE CONSTRUCTOR ---
         _authService = authService;
@@ -71,10 +72,17 @@ public partial class MainViewModel : ObservableObject
         _viewModelInstances.Add(typeof(MediaSterilityViewModel), mediaSterilityViewModel);
         _viewModelInstances.Add(typeof(DailyTaskLogViewModel), dailyTaskLogViewModel);
 
+        // 2. REGISTER INSTANCE FOR NAVIGATION
+        _viewModelInstances.Add(typeof(MainAnalyticsViewModel), analyticsViewModel);
+
         // --- Menu Items ---
         // These emojis should be universally available
         MenuItems.Add(new NavigationItem("🖼️", "Dashboard", typeof(DashboardViewModel)));
         MenuItems.Add(new NavigationItem("📚", "Logbooks", typeof(LogbooksViewModel)));
+
+        // 3. ADD TO SIDEBAR MENU
+        MenuItems.Add(new NavigationItem("📈", "Analytics", typeof(MainAnalyticsViewModel)));
+
         MenuItems.Add(new NavigationItem("📊", "Reports", typeof(ReportsViewModel)));
         MenuItems.Add(new NavigationItem("⚙️", "Admin", typeof(AdminViewModel)));
 
