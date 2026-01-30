@@ -39,6 +39,21 @@ GO
 
 
 ========================================
+FILE: C:\Users\admin\source\repos\Mirage\Database Scripts\auto logout q.sql
+========================================
+USE MirageDB;
+GO
+
+-- Insert the setting only if it doesn't already exist
+IF NOT EXISTS (SELECT 1 FROM AdminListItems WHERE ListType = 'SystemSetting' AND ItemValue = 'InactivityTimeoutMinutes')
+BEGIN
+    INSERT INTO AdminListItems (ListType, ItemValue, Description, IsActive)
+    VALUES ('SystemSetting', 'InactivityTimeoutMinutes', '15', 1); -- The '15' in Description is the timeout in minutes
+END
+GO
+
+
+========================================
 FILE: C:\Users\admin\source\repos\Mirage\Database Scripts\deactication option query for all tables.sql
 ========================================
 USE MirageDB;
@@ -277,6 +292,86 @@ GO
 
 
 ========================================
+FILE: C:\Users\admin\source\repos\Mirage\Database Scripts\shift query 2.sql
+========================================
+USE MirageDB;
+GO
+
+-- 1. Force all existing shifts to be Active (Visible)
+UPDATE Shifts
+SET IsActive = 1
+WHERE IsActive IS NULL OR IsActive = 0;
+
+-- 2. Ensure GracePeriodHours has a valid value (required by C# code)
+UPDATE Shifts
+SET GracePeriodHours = 2
+WHERE GracePeriodHours IS NULL;
+
+-- 3. Verify the data is now correct
+SELECT * FROM Shifts;
+GO
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\Database Scripts\shift query1.sql
+========================================
+USE MirageDB;
+GO
+
+-- 1. Check if the conflicting column 'TaskCategory' exists
+IF EXISTS (SELECT * FROM sys.columns WHERE Name = N'TaskCategory' AND Object_ID = Object_ID(N'Tasks'))
+BEGIN
+    -- Option A: Make it nullable (Safe option, keeps old data)
+    ALTER TABLE Tasks ALTER COLUMN TaskCategory NVARCHAR(50) NULL;
+    
+    -- Option B: Drop it completely (Cleaner, if you don't need old category data)
+    -- ALTER TABLE Tasks DROP COLUMN TaskCategory;
+END
+GO
+
+-- 2. Verification: Check table structure
+SELECT * FROM Tasks;
+GO
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\Database Scripts\shifts query schema.sql
+========================================
+USE MirageDB;
+GO
+
+-- 1. Check if Shifts table exists; if NOT, create it entirely
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Shifts')
+BEGIN
+    CREATE TABLE Shifts (
+        ShiftID INT IDENTITY(1,1) PRIMARY KEY,
+        ShiftName NVARCHAR(100) NOT NULL UNIQUE,
+        StartTime TIME NOT NULL,
+        EndTime TIME NOT NULL,
+        GracePeriodHours INT NOT NULL DEFAULT 2,
+        IsActive BIT NOT NULL DEFAULT 1
+    );
+END
+ELSE
+BEGIN
+    -- 2. If table EXISTS, check for missing columns and add them
+    
+    -- Check for GracePeriodHours
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = N'GracePeriodHours' AND Object_ID = Object_ID(N'Shifts'))
+    BEGIN
+        ALTER TABLE Shifts ADD GracePeriodHours INT NOT NULL DEFAULT 2;
+    END
+
+    -- Check for IsActive
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = N'IsActive' AND Object_ID = Object_ID(N'Shifts'))
+    BEGIN
+        ALTER TABLE Shifts ADD IsActive BIT NOT NULL DEFAULT 1;
+    END
+END
+GO
+
+
+========================================
 FILE: C:\Users\admin\source\repos\Mirage\Database Scripts\SQLQuery1Core System Tables.sql
 ========================================
 -- =================================================================
@@ -480,6 +575,43 @@ GO
 
 
 ========================================
+FILE: C:\Users\admin\source\repos\Mirage\Database Scripts\SQLQuery3.sql
+========================================
+USE MirageDB;
+GO
+
+-- 1. Add 'GracePeriodHours' column if it is missing
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = N'GracePeriodHours' AND Object_ID = Object_ID(N'Shifts'))
+BEGIN
+    ALTER TABLE Shifts ADD GracePeriodHours INT NOT NULL DEFAULT 2;
+END
+GO
+
+-- 2. Add 'IsActive' column if it is missing
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = N'IsActive' AND Object_ID = Object_ID(N'Shifts'))
+BEGIN
+    ALTER TABLE Shifts ADD IsActive BIT NOT NULL DEFAULT 1;
+END
+GO
+
+-- 3. FIX THE DATA: Make sure old shifts are visible
+-- This updates any record where IsActive is NULL or 0 to be 1 (Active)
+UPDATE Shifts
+SET IsActive = 1
+WHERE IsActive IS NULL OR IsActive = 0;
+
+-- 4. FIX THE DATA: Ensure Grace Period has a valid value
+UPDATE Shifts
+SET GracePeriodHours = 2
+WHERE GracePeriodHours IS NULL;
+GO
+
+-- 5. Verification: Show the fixed data
+SELECT * FROM Shifts;
+GO
+
+
+========================================
 FILE: C:\Users\admin\source\repos\Mirage\Database Scripts\test daily log.sql
 ========================================
 USE MirageDB;
@@ -491,6 +623,84 @@ VALUES
 ('Perform Weekly Maintenance on Centrifuge', 'Morning', 'Weekly', 'Sunday', 1),
 ('Monthly Deep Clean of Glassware', 'Evening', 'Monthly', '21', 1);
 GO
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\Database Scripts\updated audit index lg.sql
+========================================
+USE MirageDB;
+GO
+
+-- Create an index on the Timestamp column to keep queries fast
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_AuditLog_Timestamp' AND object_id = OBJECT_ID('dbo.AuditLog'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_AuditLog_Timestamp
+    ON dbo.AuditLog (Timestamp DESC);
+END
+GO
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Converters\ActionToColorConverter.cs
+========================================
+using System;
+using System.Globalization;
+using System.Windows.Data;
+using System.Windows.Media;
+
+namespace Mirage.UI.Converters;
+
+public class ActionToColorConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        // Normalize the action string to handle case sensitivity
+        string action = value?.ToString()?.ToUpper() ?? "";
+
+        return action switch
+        {
+            "CREATE" => Brushes.Green,      // New data added
+            "UPDATE" => Brushes.Orange,     // Existing data changed
+            "DEACTIVATE" => Brushes.Red,    // Item was soft-deleted
+            _ => Brushes.Gray               // Default for any other actions
+        };
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Converters\BooleanAndConverter.cs
+========================================
+using System;
+using System.Globalization;
+using System.Linq;
+using System.Windows;
+using System.Windows.Data;
+
+namespace Mirage.UI.Converters
+{
+    public class BooleanAndConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            // Returns Visible ONLY if ALL inputs are true.
+            // If any input is false (or not a boolean), it returns Collapsed.
+            if (values.All(v => v is bool b && b))
+            {
+                return Visibility.Visible;
+            }
+            return Visibility.Collapsed;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+}
 
 
 ========================================
@@ -563,6 +773,35 @@ namespace Mirage.UI.Converters
             throw new NotImplementedException();
         }
     }
+}
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Converters\MinutesToDurationConverter.cs
+========================================
+using System;
+using System.Globalization;
+using System.Windows.Data;
+
+namespace Mirage.UI.Converters;
+
+public class MinutesToDurationConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is int minutes && minutes > 0)
+        {
+            TimeSpan ts = TimeSpan.FromMinutes(minutes);
+            // Format: "2d 5h" or "5h 30m"
+            if (ts.TotalDays >= 1)
+                return $"{ts.Days}d {ts.Hours}h";
+
+            return $"{ts.Hours}h {ts.Minutes}m";
+        }
+        return "-";
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
 }
 
 
@@ -670,42 +909,134 @@ namespace Mirage.UI.Properties {
 FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Services\AuthService.cs
 ========================================
 using PortalMirage.Core.Models;
+using System;
+using System.Linq;
+using System.Text.Json;
 
 namespace Mirage.UI.Services
 {
     public class AuthService : IAuthService
     {
         private string? _token;
-
-        // Add this property
         public User? CurrentUser { get; private set; }
 
-        public string? GetToken()
-        {
-            return _token;
-        }
+        public string? GetToken() => _token;
 
         public void SetToken(string? token)
         {
             _token = token;
 
-            // Optional: When token is set, you might want to clear CurrentUser
-            // if the token is being cleared (logged out)
             if (string.IsNullOrEmpty(token))
             {
                 CurrentUser = null;
             }
+            else
+            {
+                // FIX: If we have a token but no user (e.g. App Restart), Re-hydrate the User!
+                if (CurrentUser == null)
+                {
+                    HydrateUserFromToken(token);
+                }
+
+                // Always try to update the role from the token
+                PopulateRoleFromToken(token);
+            }
         }
 
-        // Optional: Add methods to set and clear CurrentUser
         public void SetCurrentUser(User user)
         {
             CurrentUser = user;
+            if (!string.IsNullOrEmpty(_token))
+            {
+                PopulateRoleFromToken(_token);
+            }
         }
 
         public void ClearCurrentUser()
         {
             CurrentUser = null;
+            _token = null;
+        }
+
+        private void HydrateUserFromToken(string token)
+        {
+            try
+            {
+                // Extract basics to keep the app running
+                var id = ExtractClaim(token, "nameid") ?? ExtractClaim(token, "sub");
+                var name = ExtractClaim(token, "unique_name") ?? ExtractClaim(token, "name") ?? "Unknown";
+
+                if (int.TryParse(id, out int userId))
+                {
+                    // Create a "Placeholder" user so the UI doesn't crash
+                    CurrentUser = new User
+                    {
+                        UserID = userId,
+                        Username = name,
+                        FullName = name,
+                        PasswordHash = "", // Dummy value (not needed on UI)
+                        IsActive = true
+                    };
+                }
+            }
+            catch { /* Ignore */ }
+        }
+
+        private void PopulateRoleFromToken(string token)
+        {
+            // Now CurrentUser should not be null because we called HydrateUserFromToken above
+            if (CurrentUser == null) return;
+
+            try
+            {
+                var role = ExtractClaim(token, "role")
+                           ?? ExtractClaim(token, "http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
+                           ?? ExtractClaim(token, "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role");
+
+                if (!string.IsNullOrEmpty(role))
+                {
+                    if (string.Equals(role, "admin", StringComparison.OrdinalIgnoreCase))
+                        CurrentUser.Role = "Admin";
+                    else
+                        CurrentUser.Role = role;
+                }
+            }
+            catch { }
+        }
+
+        private string? ExtractClaim(string token, string claimType)
+        {
+            try
+            {
+                var parts = token.Split('.');
+                if (parts.Length < 2) return null;
+
+                var payload = parts[1];
+                switch (payload.Length % 4)
+                {
+                    case 2: payload += "=="; break;
+                    case 3: payload += "="; break;
+                }
+
+                var jsonBytes = Convert.FromBase64String(payload.Replace('-', '+').Replace('_', '/'));
+                using var doc = JsonDocument.Parse(jsonBytes);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty(claimType, out var element))
+                {
+                    if (element.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in element.EnumerateArray())
+                        {
+                            if (string.Equals(item.GetString(), "Admin", StringComparison.OrdinalIgnoreCase)) return "Admin";
+                        }
+                        return element.EnumerateArray().FirstOrDefault().GetString();
+                    }
+                    return element.GetString();
+                }
+            }
+            catch { }
+            return null;
         }
     }
 }
@@ -723,8 +1054,11 @@ namespace Mirage.UI.Services
         string? GetToken();
         void SetToken(string? token);
 
-        // Add this property
         User? CurrentUser { get; }
+
+        // --- NEWLY ADDED METHODS ---
+        void SetCurrentUser(User user);
+        void ClearCurrentUser();
     }
 }
 
@@ -931,8 +1265,9 @@ public interface IPortalMirageApi
         [Body] UpdateTaskStatusRequest request
     );
 
+    // --- THIS IS THE MISSING METHOD CAUSING YOUR ERROR ---
     [Put("/api/dailytasklogs/{id}/extend")]
-    System.Threading.Tasks.Task<DailyTaskLog> ExtendTaskDeadlineAsync([Header("Authorization")] string token, long id, [Body] ExtendTaskDeadlineRequest request);
+    System.Threading.Tasks.Task<DailyTaskLog> ExtendTaskDeadlineAsync([Authorize("Bearer")] string token, long id, [Body] ExtendTaskDeadlineRequest request);
 
     [Get("/api/dailytasklog/{date}")]
     System.Threading.Tasks.Task<List<TaskLogDetailDto>> GetDailyTaskLogsAsync([Header("Authorization")] string token, DateTime date);
@@ -1082,6 +1417,20 @@ public interface IPortalMirageApi
         [Query] DateTime endDate,
         [Query] string? testName,
         [Query] string? status);
+
+    // === Analytics Methods ===
+    [Get("/api/analytics/daily-tasks/completion")]
+    Task<AnalyticsReportDto> GetDailyTaskCompletionAsync([Header("Authorization")] string token, DateTime start, DateTime end);
+
+    [Get("/api/analytics/breakdown/downtime")]
+    Task<AnalyticsReportDto> GetMachineDowntimeAsync([Header("Authorization")] string token, DateTime start, DateTime end);
+
+    // ADD THESE TWO LINES:
+    [Get("/api/analytics/shift-handover")]
+    Task<AnalyticsReportDto> GetShiftHandoverAnalyticsAsync([Header("Authorization")] string token, DateTime start, DateTime end);
+
+    [Get("/api/analytics/sample-storage")]
+    Task<AnalyticsReportDto> GetSampleStorageAnalyticsAsync([Header("Authorization")] string token, DateTime start, DateTime end);
 }
 
 
@@ -1190,7 +1539,6 @@ public class ReportDocument : IDocument
 
     void ComposeHeader(IContainer container)
     {
-        // Header logic remains the same...
         var titleStyle = TextStyle.Default.FontSize(20).SemiBold().FontColor(Colors.Blue.Medium);
         container.Row(row =>
         {
@@ -1207,7 +1555,7 @@ public class ReportDocument : IDocument
     {
         container.PaddingVertical(20).Table(table =>
         {
-            // Column width logic remains the same
+            // Column width logic
             table.ColumnsDefinition(columns =>
             {
                 switch (_title)
@@ -1235,17 +1583,23 @@ public class ReportDocument : IDocument
                 }
             });
 
-            // UPDATED: Header styling
+            // Header styling
             table.Header(header =>
             {
                 foreach (var text in _headers)
                 {
-                    // 1. Changed AlignCenter to AlignLeft and added FontSize(10)
-                    header.Cell().Background(Colors.Grey.Darken2).Padding(5).AlignLeft().Text(text).FontColor(Colors.White).SemiBold().FontSize(10);
+                    header.Cell()
+                        .Background(Colors.Grey.Darken2)
+                        .Padding(5)
+                        .AlignLeft()
+                        .Text(text)
+                        .FontColor(Colors.White)
+                        .SemiBold()
+                        .FontSize(10);
                 }
             });
 
-            // UPDATED: Data row styling
+            // Data row styling - FIXED VERSION
             if (_items.Any())
             {
                 var properties = _items.First().GetType().GetProperties();
@@ -1255,22 +1609,29 @@ public class ReportDocument : IDocument
                     {
                         var value = prop.GetValue(item);
                         var formattedValue = FormatValue(value);
-                        var cell = table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5);
 
-                        if (index % 2 != 0)
-                        {
-                            cell.Background(Colors.Grey.Lighten4);
-                        }
-
-                        // 2. Added AlignLeft to ensure all content is left-aligned
-                        cell.AlignLeft().AlignMiddle().Text(formattedValue);
+                        // ? FIX: Chain everything in one go using .Element() for the background
+                        table.Cell()
+                            .BorderBottom(1)
+                            .BorderColor(Colors.Grey.Lighten2)
+                            .Element(container =>
+                            {
+                                // Apply background conditionally without breaking the chain
+                                return index % 2 != 0
+                                    ? container.Background(Colors.Grey.Lighten4)
+                                    : container;
+                            })
+                            .Padding(5)
+                            .AlignLeft()
+                            .AlignMiddle()
+                            .Text(formattedValue)
+                            .FontSize(10);
                     }
                 }
             }
         });
     }
 
-    // FormatValue helper method remains the same...
     string FormatValue(object? value)
     {
         if (value is null) return "N/A";
@@ -1798,10 +2159,11 @@ using CommunityToolkit.Mvvm.Input;
 using Mirage.UI.Services;
 using PortalMirage.Core.Dtos;
 using PortalMirage.Core.Models;
+using Refit;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Text.Json; // <--- CRITICAL: Required for robust parsing
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -1814,18 +2176,36 @@ public partial class DailyTaskLogViewModel : ObservableObject
 
     [ObservableProperty]
     private DateTime _selectedDate = DateTime.Today;
+
+    [ObservableProperty]
+    private bool _showPendingOnly;
+    [ObservableProperty]
+    private int _pendingCount;
+    [ObservableProperty]
+    private string _shiftInfoText = "Loading...";
+
+    [ObservableProperty]
+    private bool _isAdmin;
+    [ObservableProperty]
+    private bool _isExtendFlyoutOpen;
+    [ObservableProperty]
+    private string _extensionReason = string.Empty;
+    [ObservableProperty]
+    private int _extensionHours = 2;
+    [ObservableProperty]
+    private bool _isSavingExtension;
+    private TaskLogDetailDto? _selectedTaskForExtension;
+
     [ObservableProperty]
     private bool _isNaFlyoutOpen;
     [ObservableProperty]
     private TaskLogDetailDto? _selectedTaskForNa;
     [ObservableProperty]
     private string _naReason = string.Empty;
-
-    [ObservableProperty]
-    private bool _isSaving;
-
     [ObservableProperty]
     private bool _isSavingNa;
+    [ObservableProperty]
+    private bool _isSaving;
 
     public ObservableCollection<TaskLogItem> MorningTasks { get; } = new();
     public ObservableCollection<TaskLogItem> EveningTasks { get; } = new();
@@ -1841,6 +2221,25 @@ public partial class DailyTaskLogViewModel : ObservableObject
     private async void LoadInitialTasks() => await LoadTasks();
 
     [RelayCommand]
+    private void PreviousDay()
+    {
+        SelectedDate = SelectedDate.AddDays(-1);
+        LoadTasksCommand.Execute(null);
+    }
+
+    [RelayCommand]
+    private void NextDay()
+    {
+        SelectedDate = SelectedDate.AddDays(1);
+        LoadTasksCommand.Execute(null);
+    }
+
+    partial void OnShowPendingOnlyChanged(bool value)
+    {
+        LoadTasksCommand.Execute(null);
+    }
+
+    [RelayCommand]
     private async Task LoadTasks()
     {
         if (IsSaving) return;
@@ -1848,28 +2247,32 @@ public partial class DailyTaskLogViewModel : ObservableObject
         try
         {
             IsSaving = true;
-
             var token = _authService.GetToken();
             if (string.IsNullOrEmpty(token)) return;
 
-            // === FIXES APPLIED HERE ===
-            // 1. Used '_apiClient' (the name defined at the top of your class)
-            // 2. Used 'SelectedDate' (Capital 'S', the public property)
-            // 3. Formatted date to "yyyy-MM-dd" to fix the 404 error
-            // 4. Assigned the result to 'var tasks' so the loop below works
+            var currentUser = _authService.CurrentUser;
+            IsAdmin = currentUser?.Role == "Admin";
+
+            UpdateShiftInfo();
+
             var tasks = await _apiClient.GetTasksForDateAsync(token, SelectedDate);
 
             MorningTasks.Clear();
             EveningTasks.Clear();
             NightTasks.Clear();
 
+            int pCount = 0;
+
             if (tasks != null)
             {
                 foreach (var t in tasks)
                 {
-                    var item = new TaskLogItem(t);
+                    if (ShowPendingOnly && t.Status == "Complete") continue;
 
-                    // Case-insensitive check to be safe
+                    var item = new TaskLogItem(t, SelectedDate, IsAdmin);
+
+                    if (item.StatusToSave == "Pending") pCount++;
+
                     if (string.Equals(t.TaskCategory, "Morning", StringComparison.OrdinalIgnoreCase))
                         MorningTasks.Add(item);
                     else if (string.Equals(t.TaskCategory, "Evening", StringComparison.OrdinalIgnoreCase))
@@ -1878,6 +2281,7 @@ public partial class DailyTaskLogViewModel : ObservableObject
                         NightTasks.Add(item);
                 }
             }
+            PendingCount = pCount;
         }
         catch (Exception ex)
         {
@@ -1889,6 +2293,16 @@ public partial class DailyTaskLogViewModel : ObservableObject
         }
     }
 
+    private void UpdateShiftInfo()
+    {
+        if (SelectedDate.Date == DateTime.Today)
+            ShiftInfoText = "?? Today's Log - Grace Periods Active";
+        else if (SelectedDate.Date < DateTime.Today)
+            ShiftInfoText = "?? Past Date - Log Locked (Admin Override Required)";
+        else
+            ShiftInfoText = "?? Future Date";
+    }
+
     [RelayCommand]
     private async Task SaveChanges()
     {
@@ -1897,7 +2311,6 @@ public partial class DailyTaskLogViewModel : ObservableObject
         try
         {
             IsSaving = true;
-
             var token = _authService.GetToken();
             if (string.IsNullOrEmpty(token))
             {
@@ -1905,11 +2318,8 @@ public partial class DailyTaskLogViewModel : ObservableObject
                 return;
             }
 
-            // 1. Get User ID
             var userId = _authService.CurrentUser?.UserID ?? 0;
             if (userId <= 0) userId = GetUserIdFromToken(token);
-
-            // Fallback to ID 1 if token parsing fails (prevents 500 error)
             if (userId <= 0) userId = 1;
 
             var allModified = MorningTasks.Concat(EveningTasks).Concat(NightTasks)
@@ -1923,7 +2333,12 @@ public partial class DailyTaskLogViewModel : ObservableObject
 
             foreach (var item in allModified)
             {
-                // FIX: Create the Request Object
+                if (!item.IsEditable)
+                {
+                    MessageBox.Show($"Task '{item.TaskName}' is locked and cannot be modified.", "Locked Task", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    continue;
+                }
+
                 var request = new UpdateTaskStatusRequest
                 {
                     Status = item.StatusToSave,
@@ -1931,26 +2346,20 @@ public partial class DailyTaskLogViewModel : ObservableObject
                     Comment = null
                 };
 
-                // FIX: Send 3 arguments (Token, LogID, RequestObject)
                 await _apiClient.UpdateTaskStatusAsync(token, item.LogID, request);
-
                 item.MarkAsSaved();
             }
+
             MessageBox.Show("Changes saved successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            await LoadTasks();
         }
         catch (Exception ex)
         {
-            // === DETAILED ERROR REPORTING ===
             string errorMessage = ex.Message;
-
-            // 1. Check if it's a Refit API Error to get the real message
             if (ex is Refit.ApiException apiEx)
             {
-                // Extracts the text I added to the Controller ("CRITICAL FAILURE...")
                 errorMessage = $"Server Error ({apiEx.StatusCode}):\n{apiEx.Content}";
             }
-
-            // 2. Show the detailed error
             MessageBox.Show(errorMessage, "Save Failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -1969,6 +2378,13 @@ public partial class DailyTaskLogViewModel : ObservableObject
     [RelayCommand]
     private void ShowNaFlyout(TaskLogDetailDto task)
     {
+        var item = FindTaskItem(task.LogID);
+        if (item != null && !item.IsEditable)
+        {
+            MessageBox.Show("This task is locked and cannot be marked as N/A.", "Locked Task", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         SelectedTaskForNa = task;
         NaReason = string.Empty;
         IsNaFlyoutOpen = true;
@@ -1982,7 +2398,6 @@ public partial class DailyTaskLogViewModel : ObservableObject
         try
         {
             IsSavingNa = true;
-
             if (SelectedTaskForNa is null || string.IsNullOrWhiteSpace(NaReason))
             {
                 MessageBox.Show("A reason is required to mark as N/A.");
@@ -1990,20 +2405,12 @@ public partial class DailyTaskLogViewModel : ObservableObject
             }
 
             var token = _authService.GetToken();
-            if (string.IsNullOrEmpty(token))
-            {
-                MessageBox.Show("User session invalid.");
-                return;
-            }
+            if (string.IsNullOrEmpty(token)) return;
 
-            // 1. Get User ID (Same logic as SaveChanges)
             var userId = _authService.CurrentUser?.UserID ?? 0;
             if (userId <= 0) userId = GetUserIdFromToken(token);
-
-            // Fallback to prevent 0 ID
             if (userId <= 0) userId = 1;
 
-            // 2. Create the Request Object (CRITICAL for Server to receive ID)
             var request = new UpdateTaskStatusRequest
             {
                 Status = "Not Available",
@@ -2011,26 +2418,20 @@ public partial class DailyTaskLogViewModel : ObservableObject
                 Comment = NaReason
             };
 
-            // 3. Send to API
             await _apiClient.UpdateTaskStatusAsync(token, SelectedTaskForNa.LogID, request);
 
-            // 4. Cleanup UI
             IsNaFlyoutOpen = false;
             NaReason = string.Empty;
-            await LoadTasks(); // Refresh list
+            await LoadTasks();
         }
         catch (Exception ex)
         {
-            // === DETAILED ERROR REPORTING ===
             string errorMessage = ex.Message;
-
-            // Check if it's a Refit API Error to get the real message from the Controller
             if (ex is Refit.ApiException apiEx)
             {
                 errorMessage = $"Server Error ({apiEx.StatusCode}):\n{apiEx.Content}";
             }
-
-            MessageBox.Show(errorMessage, "N/A Update Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"N/A Update Failed: {errorMessage}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
@@ -2038,54 +2439,95 @@ public partial class DailyTaskLogViewModel : ObservableObject
         }
     }
 
-    // --- ROBUST TOKEN PARSER ---
+    [RelayCommand]
+    private void ShowExtendFlyout(TaskLogDetailDto task)
+    {
+        if (!IsAdmin) return;
+        _selectedTaskForExtension = task;
+        ExtensionReason = string.Empty;
+        ExtensionHours = 2;
+        IsExtendFlyoutOpen = true;
+    }
+
+    [RelayCommand]
+    private void CloseExtendFlyout()
+    {
+        IsExtendFlyoutOpen = false;
+        _selectedTaskForExtension = null;
+    }
+
+    [RelayCommand]
+    private async Task ConfirmExtend()
+    {
+        if (IsSavingExtension) return;
+
+        if (_selectedTaskForExtension == null || string.IsNullOrWhiteSpace(ExtensionReason))
+        {
+            MessageBox.Show("A reason is required to extend the deadline.");
+            return;
+        }
+
+        try
+        {
+            IsSavingExtension = true;
+            var token = _authService.GetToken();
+            var newDeadline = DateTime.Now.AddHours(ExtensionHours);
+            var request = new ExtendTaskDeadlineRequest(newDeadline, ExtensionReason);
+
+            await _apiClient.ExtendTaskDeadlineAsync(token, _selectedTaskForExtension.LogID, request);
+
+            IsExtendFlyoutOpen = false;
+            await LoadTasks();
+            MessageBox.Show($"Deadline extended until {newDeadline:HH:mm}.", "Success");
+        }
+        catch (Exception ex)
+        {
+            string errorMessage = ex.Message;
+            if (ex is Refit.ApiException apiEx)
+            {
+                errorMessage = $"Server Error ({apiEx.StatusCode}):\n{apiEx.Content}";
+            }
+            MessageBox.Show($"Extension Failed: {errorMessage}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsSavingExtension = false;
+        }
+    }
+
+    private TaskLogItem? FindTaskItem(long logId)
+    {
+        return MorningTasks.Concat(EveningTasks).Concat(NightTasks)
+                           .FirstOrDefault(t => t.LogID == logId);
+    }
+
     private int GetUserIdFromToken(string token)
     {
         if (string.IsNullOrEmpty(token)) return 0;
         try
         {
-            // 1. Get Payload
             var parts = token.Split('.');
             if (parts.Length < 2) return 0;
 
             var payload = parts[1];
-
-            // 2. Fix Base64 Padding
             switch (payload.Length % 4)
             {
                 case 2: payload += "=="; break;
                 case 3: payload += "="; break;
             }
 
-            // 3. Decode
             var jsonBytes = Convert.FromBase64String(payload.Replace('-', '+').Replace('_', '/'));
+            using var doc = JsonDocument.Parse(jsonBytes);
+            var root = doc.RootElement;
+            JsonElement idElement;
 
-            // 4. Parse JSON using System.Text.Json
-            using (var doc = JsonDocument.Parse(jsonBytes))
+            if (root.TryGetProperty("nameid", out idElement) || root.TryGetProperty("sub", out idElement))
             {
-                var root = doc.RootElement;
-                JsonElement idElement;
-
-                // Check for common claim names (Long URL is standard for .NET)
-                if (root.TryGetProperty("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", out idElement) ||
-                    root.TryGetProperty("nameid", out idElement) ||
-                    root.TryGetProperty("sub", out idElement) ||
-                    root.TryGetProperty("id", out idElement))
-                {
-                    if (idElement.ValueKind == JsonValueKind.Number)
-                        return idElement.GetInt32();
-                    if (idElement.ValueKind == JsonValueKind.String && int.TryParse(idElement.GetString(), out int id))
-                        return id;
-                }
+                if (idElement.ValueKind == JsonValueKind.Number) return idElement.GetInt32();
+                if (idElement.ValueKind == JsonValueKind.String && int.TryParse(idElement.GetString(), out int id)) return id;
             }
-
-            // === DEBUGGING BLOCK ===
-            // If we get here, we couldn't find the ID. 
-            // For debugging, you can uncomment this to see what's in the token:
-            // var jsonString = System.Text.Encoding.UTF8.GetString(jsonBytes);
-            // MessageBox.Show($"DEBUG: Could not find ID in token.\n\nPayload:\n{jsonString}", "Token Debug");
         }
-        catch { /* Ignore errors */ }
+        catch { }
         return 0;
     }
 }
@@ -2093,33 +2535,62 @@ public partial class DailyTaskLogViewModel : ObservableObject
 public class TaskLogItem : ObservableObject
 {
     public TaskLogDetailDto Dto { get; }
+    private readonly DateTime _logDate;
+    private readonly bool _isAdmin;
     private bool _isChecked;
 
-    public TaskLogItem(TaskLogDetailDto dto)
+    public TaskLogItem(TaskLogDetailDto dto, DateTime logDate, bool isAdmin)
     {
         Dto = dto;
-        // FIX: Backend uses "Complete", not "Completed"
+        _logDate = logDate;
+        _isAdmin = isAdmin;
         _isChecked = dto.Status == "Complete";
     }
 
     public long LogID => Dto.LogID;
     public string TaskName => Dto.TaskName;
     public bool IsDirty { get; private set; }
+    public bool IsAdminUser => _isAdmin;
 
     public bool IsChecked
     {
         get => _isChecked;
-        set
+        set { if (SetProperty(ref _isChecked, value)) IsDirty = true; }
+    }
+
+    public string StatusToSave => IsChecked ? "Complete" : "Pending";
+
+    public bool IsLocked
+    {
+        get
         {
-            if (SetProperty(ref _isChecked, value))
-            {
-                IsDirty = true;
-            }
+            bool isPastDate = _logDate.Date < DateTime.Today;
+            bool hasOverride = Dto.LockOverrideUntil.HasValue && Dto.LockOverrideUntil.Value > DateTime.Now;
+
+            if (isPastDate && !hasOverride) return true;
+            if (Dto.Status == "Incomplete" || Dto.Status == "Not Available") return true;
+
+            return false;
         }
     }
 
-    // FIX: Send "Complete" (No 'd') to match the Backend Validation
-    public string StatusToSave => IsChecked ? "Complete" : "Pending";
+    public bool IsEditable => !IsLocked;
+
+    public string AuditTooltip
+    {
+        get
+        {
+            if (Dto.Status == "Complete")
+            {
+                var who = Dto.CompletedByUsername ?? "Unknown";
+                var when = Dto.CompletedDateTime.HasValue ? Dto.CompletedDateTime.Value.ToString("HH:mm") : "?";
+                return $"? Completed by {who} at {when}";
+            }
+            if (Dto.Status == "Incomplete") return "? Expired / Incomplete";
+            if (Dto.Status == "Not Available") return $"?? N/A: {Dto.Comments}";
+            return "Pending Completion";
+        }
+    }
 
     public void MarkAsSaved() => IsDirty = false;
 }
@@ -2176,6 +2647,10 @@ public partial class DashboardViewModel : ObservableObject
         _apiClient = apiClient;
         _authService = authService;
         InitializeDashboardItems();
+
+        // FIX 6: Proactive Loading (Fire and Forget)
+        // This ensures the numbers appear immediately when login completes
+        _ = LoadSummaryAsync();
     }
 
     private void InitializeDashboardItems()
@@ -2186,8 +2661,7 @@ public partial class DashboardViewModel : ObservableObject
         DashboardItems.Add(new DashboardItem("Pending Samples", "\uE728", new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34C759")), typeof(SampleStorageView)));
     }
 
-    // Using the full namespace as you correctly pointed out
-    public async System.Threading.Tasks.Task LoadSummaryAsync()
+    public async Task LoadSummaryAsync()
     {
         var authToken = _authService.GetToken();
         if (string.IsNullOrEmpty(authToken)) return;
@@ -2699,6 +3173,7 @@ using Mirage.UI.Services;
 using Mirage.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using PortalMirage.Core.Dtos;
+using PortalMirage.Core.Models;
 using Refit;
 using System;
 using System.Linq;
@@ -2710,8 +3185,8 @@ namespace Mirage.UI.ViewModels;
 public partial class LoginViewModel : ObservableObject
 {
     private readonly IPortalMirageApi _apiClient;
-    private readonly IAuthService _authService; // It now uses our service
-    private readonly MainViewModel _mainViewModel; // Added for setting current user
+    private readonly IAuthService _authService;
+    private readonly MainViewModel _mainViewModel;
     private readonly IInactivityService _inactivityService;
 
     [ObservableProperty]
@@ -2723,17 +3198,17 @@ public partial class LoginViewModel : ObservableObject
     [ObservableProperty]
     private bool _isLoginInProgress;
 
-    // The constructor now receives the services it needs
-    public LoginViewModel(IPortalMirageApi apiClient, IAuthService authService, MainViewModel mainViewModel, IInactivityService inactivityService)
+    public LoginViewModel(IPortalMirageApi apiClient, IAuthService authService,
+                         MainViewModel mainViewModel, IInactivityService inactivityService)
     {
         _apiClient = apiClient;
         _authService = authService;
-        _mainViewModel = mainViewModel; // Store the MainViewModel reference
+        _mainViewModel = mainViewModel;
         _inactivityService = inactivityService;
     }
 
     [RelayCommand]
-    private async System.Threading.Tasks.Task LoginAsync(object? parameter)
+    private async Task LoginAsync(object? parameter)
     {
         if (parameter is not System.Windows.Controls.PasswordBox passwordBox) return;
         var password = passwordBox.Password;
@@ -2751,62 +3226,45 @@ public partial class LoginViewModel : ObservableObject
             var loginRequest = new LoginRequest(Username, password);
             var loginResponse = await _apiClient.LoginAsync(loginRequest);
 
-            // 1. Set the token and user info first
+            // 1. Set the Token
             _authService.SetToken($"Bearer {loginResponse.Token}");
+
+            // 2. Map User Response to User Model
+            var userModel = new User
+            {
+                // Fix: Check if your DTO has UserId or UserID
+                UserID = loginResponse.User.UserId, // or .UserID depending on your DTO
+                Username = loginResponse.User.Username,
+                FullName = loginResponse.User.FullName,
+                IsActive = true,
+                // Fix: Satisfies 'required string PasswordHash' if applicable
+                PasswordHash = string.Empty
+            };
+
+            // 3. Set the User in AuthService (Role extraction happens here)
+            _authService.SetCurrentUser(userModel);
+
+            // 4. Update MainViewModel
             _mainViewModel.CurrentUser = loginResponse.User;
 
-            // 2. Get the MainWindow and show it so the UI appears instantly
+            // 5. Show Main Window
             var mainWindow = App.ServiceProvider?.GetRequiredService<MainWindow>();
             mainWindow?.Show();
 
-            // --- THIS IS THE CORRECTED BLOCK ---
-            try
-            {
-                // Get the auth token *before* trying to use it
-                var authToken = _authService.GetToken();
-                if (!string.IsNullOrEmpty(authToken))
-                {
-                    // Fetch the timeout setting from the API
-                    var setting = await _apiClient.GetSettingAsync(authToken, "InactivityTimeoutMinutes");
-                    if (int.TryParse(setting.Description, out int timeoutMinutes) && timeoutMinutes > 0)
-                    {
-                        // Start the timer with the value from the database
-                        _inactivityService.StartTimer(timeoutMinutes);
-                    }
-                    else
-                    {
-                        // Fallback to 15 minutes if the setting is invalid
-                        _inactivityService.StartTimer(15);
-                    }
-                }
-                else
-                {
-                    // Fallback if token is somehow missing (shouldn't happen here)
-                    _inactivityService.StartTimer(15);
-                }
-            }
-            catch
-            {
-                // If the API call fails for any reason, fallback to a default of 15 minutes
-                _inactivityService.StartTimer(15);
-            }
-            // ------------------------------------
+            InitializeInactivityTimer();
 
-            // 3. NOW, get the DashboardViewModel and tell it to load its data
             var dashboardViewModel = App.ServiceProvider?.GetRequiredService<DashboardViewModel>();
             if (dashboardViewModel != null)
             {
-                // We don't wait for this to finish; the UI is already visible and the dashboard will update when ready
                 _ = dashboardViewModel.LoadSummaryAsync();
             }
 
-            // 4. Close the login window
             var loginWindow = Application.Current.Windows.OfType<LoginView>().FirstOrDefault();
             loginWindow?.Close();
         }
         catch (ApiException ex)
         {
-            ErrorMessage = $"Login failed. Please check your credentials. (Error: {ex.StatusCode})";
+            ErrorMessage = $"Login failed. (Error: {ex.StatusCode})";
         }
         catch (Exception ex)
         {
@@ -2816,6 +3274,25 @@ public partial class LoginViewModel : ObservableObject
         {
             IsLoginInProgress = false;
         }
+    }
+
+    private async void InitializeInactivityTimer()
+    {
+        try
+        {
+            var authToken = _authService.GetToken();
+            if (!string.IsNullOrEmpty(authToken))
+            {
+                var setting = await _apiClient.GetSettingAsync(authToken, "InactivityTimeoutMinutes");
+                if (int.TryParse(setting.Description, out int timeoutMinutes) && timeoutMinutes > 0)
+                {
+                    _inactivityService.StartTimer(timeoutMinutes);
+                    return;
+                }
+            }
+        }
+        catch { }
+        _inactivityService.StartTimer(15);
     }
 }
 
@@ -3107,6 +3584,84 @@ public partial class MachineBreakdownViewModel : ObservableObject
 
 
 ========================================
+FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\ViewModels\MainAnalyticsViewModel.cs
+========================================
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Mirage.UI.Services;
+using PortalMirage.Core.Dtos;
+using System.Collections.ObjectModel;
+
+namespace Mirage.UI.ViewModels;
+
+public partial class MainAnalyticsViewModel : ObservableObject
+{
+    private readonly IPortalMirageApi _apiClient;
+    private readonly IAuthService _authService;
+
+    [ObservableProperty] private DateTime _startDate = DateTime.Today.AddDays(-30);
+    [ObservableProperty] private DateTime _endDate = DateTime.Today;
+    [ObservableProperty] private string _selectedLogbook = "Daily Task Log";
+    [ObservableProperty] private bool _isLoading;
+
+    public ObservableCollection<AnalyticsSummaryDto> Kpis { get; } = new();
+    public List<string> LogbookOptions { get; } = new()
+    {
+        "Daily Task Log",
+        "Machine Breakdown",
+        "Shift Handover",
+        "Sample Storage"
+    };
+
+    // This event tells the View (XAML) when new data is ready to be drawn
+    public event Action<AnalyticsReportDto>? RequestChartUpdate;
+
+    public MainAnalyticsViewModel(IPortalMirageApi apiClient, IAuthService authService)
+    {
+        _apiClient = apiClient;
+        _authService = authService;
+        _ = RefreshDataAsync();
+    }
+
+    [RelayCommand]
+    public async Task RefreshDataAsync()
+    {
+        IsLoading = true;
+        try
+        {
+            var token = _authService.GetToken();
+            if (string.IsNullOrEmpty(token)) return;
+
+            var data = SelectedLogbook switch
+            {
+                "Daily Task Log" => await _apiClient.GetDailyTaskCompletionAsync(token, StartDate, EndDate),
+                "Machine Breakdown" => await _apiClient.GetMachineDowntimeAsync(token, StartDate, EndDate),
+                "Shift Handover" => await _apiClient.GetShiftHandoverAnalyticsAsync(token, StartDate, EndDate),
+                "Sample Storage" => await _apiClient.GetSampleStorageAnalyticsAsync(token, StartDate, EndDate),
+                _ => null
+            };
+
+            if (data != null)
+            {
+                Kpis.Clear();
+                foreach (var kpi in data.Kpis) Kpis.Add(kpi);
+
+                // Signal to the View to render the chart
+                RequestChartUpdate?.Invoke(data);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Analytics Error: {ex.Message}");
+        }
+        finally { IsLoading = false; }
+    }
+
+    partial void OnSelectedLogbookChanged(string value) => _ = RefreshDataAsync();
+}
+
+
+========================================
 FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\ViewModels\MainViewModel.cs
 ========================================
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -3159,7 +3714,8 @@ public partial class MainViewModel : ObservableObject
         HandoverViewModel handoverViewModel,
         MachineBreakdownViewModel machineBreakdownViewModel,
         MediaSterilityViewModel mediaSterilityViewModel,
-        DailyTaskLogViewModel dailyTaskLogViewModel)
+        DailyTaskLogViewModel dailyTaskLogViewModel,
+        MainAnalyticsViewModel analyticsViewModel) // 1. INJECTED HERE
     {
         // --- ADD THESE LINES AT THE TOP OF THE CONSTRUCTOR ---
         _authService = authService;
@@ -3182,10 +3738,17 @@ public partial class MainViewModel : ObservableObject
         _viewModelInstances.Add(typeof(MediaSterilityViewModel), mediaSterilityViewModel);
         _viewModelInstances.Add(typeof(DailyTaskLogViewModel), dailyTaskLogViewModel);
 
+        // 2. REGISTER INSTANCE FOR NAVIGATION
+        _viewModelInstances.Add(typeof(MainAnalyticsViewModel), analyticsViewModel);
+
         // --- Menu Items ---
         // These emojis should be universally available
         MenuItems.Add(new NavigationItem("???", "Dashboard", typeof(DashboardViewModel)));
         MenuItems.Add(new NavigationItem("??", "Logbooks", typeof(LogbooksViewModel)));
+
+        // 3. ADD TO SIDEBAR MENU
+        MenuItems.Add(new NavigationItem("??", "Analytics", typeof(MainAnalyticsViewModel)));
+
         MenuItems.Add(new NavigationItem("??", "Reports", typeof(ReportsViewModel)));
         MenuItems.Add(new NavigationItem("??", "Admin", typeof(AdminViewModel)));
 
@@ -3998,12 +4561,13 @@ public partial class ReportsViewModel : ObservableObject
     // Daily Task Compliance
     [ObservableProperty] private ShiftFilterItem? _selectedTaskShift;
     [ObservableProperty] private string? _selectedTaskStatus = "All";
-    public ObservableCollection<DailyTaskComplianceReportItemDto> DailyTaskReportData { get; } = new();
+    public ObservableCollection<DailyTaskLogDto> DailyTaskReportData { get; } = new();
     public ObservableCollection<ShiftFilterItem> TaskShiftOptions { get; } = new();
     public ObservableCollection<string> TaskStatusOptions { get; } = new() { "All", "Pending", "Completed", "Incomplete", "Not Available" };
     [ObservableProperty] private int _totalTasks;
     [ObservableProperty] private int _completedTasks;
-    public double CompletionPercentage => TotalTasks > 0 ? (double)CompletedTasks / TotalTasks * 100 : 0;
+    // The UI 'P' format automatically multiplies by 100, so we just return the fraction (0.0 to 1.0)
+    public double CompletionPercentage => TotalTasks > 0 ? (double)CompletedTasks / TotalTasks : 0;
 
     // Media Sterility Report Properties
     [ObservableProperty] private string? _selectedMediaName;
@@ -4217,8 +4781,21 @@ public partial class ReportsViewModel : ObservableObject
                 break;
 
             case "Daily Task Compliance":
+                // 1. Define the headers exactly as you want them in the PDF
                 headers = new[] { "Date", "Task Name", "Shift", "Status", "Completed On", "Completed By", "Comments" };
-                items = DailyTaskReportData;
+
+                // 2. FIX: Create a "Projection" (Select new {...}) 
+                // This strips out LogID, TaskID, and formats the data cleanly.
+                items = DailyTaskReportData.Select(x => new
+                {
+                    Date = x.LogDate.ToString("yyyy-MM-dd"), // Format Date
+                    TaskName = x.TaskName,
+                    Shift = x.Shift, // Use the helper property Shift (which returns ShiftName)
+                    Status = x.Status,
+                    CompletedOn = x.CompletedDateTime?.ToString("yyyy-MM-dd HH:mm") ?? "-", // Format DateTime or show dash
+                    CompletedBy = x.CompletedByUserName,
+                    Comments = x.Comments
+                }).ToList();
                 break;
 
             case "Media Sterility Log":
@@ -5743,6 +6320,9 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\AuditLogView.xaml
     <UserControl.Resources>
         <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+
+        <converters:ActionToColorConverter x:Key="AuditColor"/>
+
         <Style x:Key="WrapTextDataGridStyle" TargetType="TextBlock">
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -5805,7 +6385,19 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\AuditLogView.xaml
                     <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp, StringFormat='dd/MMM/yy HH:mm'}" Width="1.2*" SortDirection="Descending"/>
                     <DataGridTextColumn Header="User" Binding="{Binding UserFullName, FallbackValue='System'}" Width="1*" />
                     <DataGridTextColumn Header="Module" Binding="{Binding ModuleName}" Width="1*" />
-                    <DataGridTextColumn Header="Action" Binding="{Binding ActionType}" Width="1*" />
+
+                    <DataGridTemplateColumn Header="Action" Width="1*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding ActionType}" 
+                                           FontWeight="Bold"
+                                           Foreground="{Binding ActionType, Converter={StaticResource AuditColor}}"
+                                           VerticalAlignment="Center" 
+                                           Padding="5"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
                     <DataGridTextColumn Header="Record ID" Binding="{Binding RecordID}" Width="0.8*" />
                     <DataGridTextColumn Header="Details" Binding="{Binding NewValue}" Width="3*" ElementStyle="{StaticResource WrapTextDataGridStyle}" />
                 </DataGrid.Columns>
@@ -6018,18 +6610,17 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\DailyTaskLogView.xaml
 <UserControl x:Class="Mirage.UI.Views.DailyTaskLogView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:Mirage.UI.Views"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
-             xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
              xmlns:converters="clr-namespace:Mirage.UI.Converters"
-             mc:Ignorable="d" 
+             mc:Ignorable="d"
              d:DesignHeight="700" d:DesignWidth="1000"
              Loaded="DailyTaskLogView_OnLoaded">
 
     <UserControl.Resources>
         <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:BooleanAndConverter x:Key="BooleanAndConverter"/>
 
         <DataTemplate x:Key="TaskItemTemplate">
             <Border BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="5">
@@ -6038,72 +6629,67 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\DailyTaskLogView.xaml
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <CheckBox Grid.Column="0" 
                               VerticalAlignment="Center"
-                              IsChecked="{Binding IsChecked, Mode=TwoWay}">
+                              IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                              IsEnabled="{Binding IsEditable}"
+                              ToolTip="{Binding AuditTooltip}">
                         <CheckBox.Style>
                             <Style TargetType="CheckBox" BasedOn="{StaticResource MahApps.Styles.CheckBox}">
-                                <Setter Property="ToolTip">
-                                    <Setter.Value>
-                                        <MultiBinding StringFormat="Status: {0}">
-                                            <Binding Path="Dto.Status"/>
-                                        </MultiBinding>
-                                    </Setter.Value>
-                                </Setter>
                                 <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Complete">
+                                        <Setter Property="Foreground" Value="Green"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Incomplete">
+                                        <Setter Property="Foreground" Value="DarkRed"/>
+                                        <Setter Property="IsEnabled" Value="False"/>
+                                        <Setter Property="IsChecked" Value="False"/>
+                                        <Setter Property="Opacity" Value="0.5"/>
+                                    </DataTrigger>
                                     <DataTrigger Binding="{Binding Dto.Status}" Value="Not Available">
                                         <Setter Property="IsEnabled" Value="False"/>
                                         <Setter Property="IsChecked" Value="False"/>
                                         <Setter Property="Opacity" Value="0.5"/>
                                         <Setter Property="Background" Value="LightGray"/>
                                     </DataTrigger>
-                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Incomplete">
-                                        <Setter Property="IsEnabled" Value="False"/>
-                                        <Setter Property="IsChecked" Value="False"/>
-                                        <Setter Property="Opacity" Value="0.5"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Completed">
-                                        <Setter Property="Foreground" Value="Green"/>
-                                        <Setter Property="FontWeight" Value="Bold"/>
-                                    </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </CheckBox.Style>
                     </CheckBox>
 
-                    <TextBlock Grid.Column="1" Text="{Binding TaskName}" VerticalAlignment="Center" Margin="10,0" TextWrapping="Wrap">
+                    <TextBlock Grid.Column="1" Text="{Binding TaskName}" 
+                               VerticalAlignment="Center" Margin="10,0" TextWrapping="Wrap"
+                               ToolTip="{Binding AuditTooltip}">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
-                                <Setter Property="ToolTip" Value="{Binding TaskName}"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Dto.Status}" Value="Not Available">
                                         <Setter Property="Foreground" Value="Gray"/>
                                         <Setter Property="FontStyle" Value="Italic"/>
-                                        <Setter Property="ToolTip" Value="Marked as Not Available"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Dto.Status}" Value="Incomplete">
                                         <Setter Property="Foreground" Value="DarkRed"/>
-                                        <Setter Property="ToolTip" Value="Task incomplete - deadline passed"/>
                                     </DataTrigger>
-                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Completed">
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Complete">
                                         <Setter Property="Foreground" Value="Green"/>
                                         <Setter Property="FontWeight" Value="Bold"/>
-                                        <Setter Property="ToolTip" Value="Task completed"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Dto.Status}" Value="Pending">
                                         <Setter Property="Foreground" Value="DarkBlue"/>
-                                        <Setter Property="ToolTip" Value="Task pending"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
 
-                    <Button Grid.Column="2" Content="N/A" FontSize="10" Padding="5,2"
+                    <Button Grid.Column="2" Content="N/A" FontSize="10" Padding="5,2" Margin="0,0,5,0"
                             Command="{Binding DataContext.ShowNaFlyoutCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                            CommandParameter="{Binding Dto}">
+                            CommandParameter="{Binding Dto}"
+                            Visibility="{Binding IsEditable, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource MahApps.Styles.Button}">
                                 <Style.Triggers>
@@ -6113,9 +6699,41 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\DailyTaskLogView.xaml
                                     <DataTrigger Binding="{Binding Dto.Status}" Value="Incomplete">
                                         <Setter Property="Visibility" Value="Collapsed"/>
                                     </DataTrigger>
-                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Completed">
+                                    <DataTrigger Binding="{Binding Dto.Status}" Value="Complete">
                                         <Setter Property="Visibility" Value="Collapsed"/>
                                     </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <!-- Extend Button (Admin Only) - UPDATED with simplified triggers using IsAdminUser -->
+                    <Button Grid.Column="3" Content="EXTEND" FontSize="10" Padding="5,2"
+                            Background="#CC0000" Foreground="White" FontWeight="Bold"
+                            Command="{Binding DataContext.ShowExtendFlyoutCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding Dto}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource MahApps.Styles.Button.Flat}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+
+                                <Style.Triggers>
+
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsAdminUser}" Value="True"/>
+                                            <Condition Binding="{Binding Dto.Status}" Value="Pending"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
+
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsAdminUser}" Value="True"/>
+                                            <Condition Binding="{Binding IsLocked}" Value="True"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
+
                                 </Style.Triggers>
                             </Style>
                         </Button.Style>
@@ -6130,19 +6748,57 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\DailyTaskLogView.xaml
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
+            <!-- Title -->
             <TextBlock Grid.Row="0" Text="Daily Task Log" FontSize="36" FontWeight="Light" Margin="0,0,0,10"/>
 
-            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,20">
+            <!-- NEW: Dashboard Grid -->
+            <Border Grid.Row="1" Background="#F5F5F5" Padding="15" Margin="0,0,0,20" CornerRadius="5">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel>
+                        <TextBlock Text="{Binding ShiftInfoText}" FontWeight="Bold" FontSize="14"/>
+                        <TextBlock Text="Ensure tasks are verified." FontSize="12" Foreground="Gray"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0">
+                        <TextBlock Text="{Binding PendingCount}" FontSize="24" FontWeight="Bold" Foreground="#CC0000"/>
+                        <TextBlock Text=" Pending" VerticalAlignment="Center" Margin="5,0,0,0" FontSize="14"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Show Pending" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <mah:ToggleSwitch IsOn="{Binding ShowPendingOnly}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- UPDATED: Control Panel with Navigation -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,20">
+                <!-- NEW: Previous Day Button -->
+                <Button Content="&lt;" Command="{Binding PreviousDayCommand}" 
+                        Width="40" Margin="0,0,5,0" 
+                        Style="{StaticResource MahApps.Styles.Button.Square.Accent}"/>
+
                 <DatePicker SelectedDate="{Binding SelectedDate}" 
                             Width="150" 
-                            Margin="0,0,10,0"/>
+                            Margin="0,0,5,0"/>
 
-                <Button Content="GET TASKS" 
-                        Command="{Binding LoadTasksCommand}" 
-                        Style="{StaticResource MahApps.Styles.Button.Square.Accent}"
+                <!-- NEW: Next Day Button -->
+                <Button Content="&gt;" Command="{Binding NextDayCommand}" 
+                        Width="40" Margin="0,0,15,0" 
+                        Style="{StaticResource MahApps.Styles.Button.Square.Accent}"/>
+
+                <Button Content="REFRESH" 
+                        Command="{Binding LoadTasksCommand}"
                         Margin="0,0,10,0"/>
 
                 <Button Content="SAVE CHANGES" 
@@ -6164,7 +6820,8 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\DailyTaskLogView.xaml
                 </Button>
             </StackPanel>
 
-            <Border Grid.Row="2" 
+            <!-- Saving Overlay -->
+            <Border Grid.Row="3" 
                     Background="#40000000" 
                     Visibility="{Binding IsSaving, Converter={StaticResource BooleanToVisibilityConverter}}"
                     Panel.ZIndex="100"
@@ -6180,20 +6837,21 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\DailyTaskLogView.xaml
                 </StackPanel>
             </Border>
 
-            <TabControl Grid.Row="2" mah:TabControlHelper.Underlined="TabItems">
-                <TabItem Header="Morning Tasks" FontSize="16">
+            <!-- Tasks Tab Control -->
+            <TabControl Grid.Row="3" mah:TabControlHelper.Underlined="TabItems">
+                <TabItem Header="Morning" FontSize="16">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{Binding MorningTasks}" ItemTemplate="{StaticResource TaskItemTemplate}"/>
                     </ScrollViewer>
                 </TabItem>
 
-                <TabItem Header="Evening Tasks" FontSize="16">
+                <TabItem Header="Evening" FontSize="16">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{Binding EveningTasks}" ItemTemplate="{StaticResource TaskItemTemplate}"/>
                     </ScrollViewer>
                 </TabItem>
 
-                <TabItem Header="Night Tasks" FontSize="16">
+                <TabItem Header="Night" FontSize="16">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{Binding NightTasks}" ItemTemplate="{StaticResource TaskItemTemplate}"/>
                     </ScrollViewer>
@@ -6201,7 +6859,9 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\DailyTaskLogView.xaml
             </TabControl>
         </Grid>
 
+        <!-- Flyouts -->
         <mah:FlyoutsControl>
+            <!-- N/A Flyout -->
             <mah:Flyout Header="Reason for N/A" IsOpen="{Binding IsNaFlyoutOpen}" Position="Right" Width="400">
                 <StackPanel Margin="20">
                     <TextBlock Text="{Binding SelectedTaskForNa.TaskName}" FontWeight="Bold" FontSize="18" Margin="0,0,0,10" TextWrapping="Wrap"/>
@@ -6234,6 +6894,45 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\DailyTaskLogView.xaml
                                         <ProgressBar Width="16" Height="16" Margin="5,0,0,0"
                                                      IsIndeterminate="True"
                                                      Visibility="{Binding DataContext.IsSavingNa, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </Button.ContentTemplate>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </mah:Flyout>
+
+            <!-- Extend Deadline Flyout (Admin Only) -->
+            <mah:Flyout Header="Extend Deadline (Admin)" IsOpen="{Binding IsExtendFlyoutOpen}" Position="Right" Width="400" Theme="Inverse">
+                <StackPanel Margin="20">
+                    <TextBlock Text="Extend Grace Period" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                    <Label Content="Extend by (Hours):" FontWeight="Bold"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <Slider Minimum="1" Maximum="8" Interval="1" IsSnapToTickEnabled="True" 
+                                Value="{Binding ExtensionHours}" Width="250" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding ExtensionHours, StringFormat='{} +{0} Hrs'}" 
+                                   FontSize="16" FontWeight="Bold" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                    </StackPanel>
+
+                    <Label Content="Reason for Override (Mandatory):" FontWeight="Bold"/>
+                    <TextBox Text="{Binding ExtensionReason, UpdateSourceTrigger=PropertyChanged}" 
+                             Height="100" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,20"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Cancel" Margin="0,0,10,0" 
+                                Command="{Binding CloseExtendFlyoutCommand}"/>
+
+                        <Button Content="Confirm Extension" 
+                                Command="{Binding ConfirmExtendCommand}" 
+                                Style="{StaticResource MahApps.Styles.Button.Square.Accent}">
+                            <Button.ContentTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                                        <ProgressBar Width="16" Height="16" Margin="5,0,0,0"
+                                                     IsIndeterminate="True"
+                                                     Visibility="{Binding DataContext.IsSavingExtension, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </Button.ContentTemplate>
@@ -7215,12 +7914,14 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\MachineBreakdownView.xa
              xmlns:local="clr-namespace:Mirage.UI.Views"
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              xmlns:viewModels="clr-namespace:Mirage.UI.ViewModels"
+             xmlns:converters="clr-namespace:Mirage.UI.Converters"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="1000"
              Loaded="MachineBreakdownView_OnLoaded">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:MinutesToDurationConverter x:Key="MinutesToDurationConverter"/>
     </UserControl.Resources>
 
     <Grid>
@@ -7325,7 +8026,9 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\MachineBreakdownView.xa
                             <DataGridTextColumn Header="Resolved On" Binding="{Binding ResolvedDateTime, StringFormat='g'}" Width="0.8*"/>
                             <DataGridTextColumn Header="Resolved By" Binding="{Binding ResolvedByUsername}" Width="*"/>
                             <DataGridTextColumn Header="Notes" Binding="{Binding ResolutionNotes}" Width="1.5*"/>
-                            <DataGridTextColumn Header="Downtime (Mins)" Binding="{Binding DowntimeMinutes}" Width="Auto"/>
+                            <DataGridTextColumn Header="Downtime" 
+                                                Binding="{Binding DowntimeMinutes, Converter={StaticResource MinutesToDurationConverter}}" 
+                                                Width="Auto"/>
                             <DataGridTemplateColumn Header="Actions" Width="Auto">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -7424,6 +8127,156 @@ namespace Mirage.UI.Views
                 viewModel.LoadMachineNamesCommand.Execute(null);
                 viewModel.SearchCommand.Execute(null);
             }
+        }
+    }
+}
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\MainAnalyticsView.xaml
+========================================
+<UserControl x:Class="Mirage.UI.Views.MainAnalyticsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:ScottPlot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.Wpf"
+             mc:Ignorable="d" d:DesignHeight="700" d:DesignWidth="1100">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+            <ComboBox ItemsSource="{Binding LogbookOptions}" 
+                      SelectedItem="{Binding SelectedLogbook}" 
+                      Width="200" Margin="0,0,10,0"/>
+            <DatePicker SelectedDate="{Binding StartDate}" Width="150" Margin="0,0,5,0"/>
+            <TextBlock Text="to" VerticalAlignment="Center" Margin="5,0"/>
+            <DatePicker SelectedDate="{Binding EndDate}" Width="150" Margin="5,0,10,0"/>
+            <Button Content="REFRESH" Command="{Binding RefreshDataCommand}" 
+                    Style="{StaticResource MahApps.Styles.Button.Square.Accent}"/>
+        </StackPanel>
+
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding Kpis}" Margin="0,0,0,20">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="3"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Background="White" BorderBrush="LightGray" BorderThickness="1" 
+                            CornerRadius="8" Margin="5" Padding="15">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding Title}" FontSize="14" Foreground="Gray" HorizontalAlignment="Center"/>
+                            <TextBlock Text="{Binding Value}" FontSize="28" FontWeight="Bold" 
+                                       Foreground="{Binding Color}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="10" 
+                BorderBrush="LightGray" BorderThickness="1">
+            <Grid>
+                <mah:ProgressRing IsActive="{Binding IsLoading}" VerticalAlignment="Center" HorizontalAlignment="Center" Panel.ZIndex="1"/>
+                <ScottPlot:WpfPlot x:Name="MainPlot" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\MainAnalyticsView.xaml.cs
+========================================
+using System.Windows;
+using System.Windows.Controls;
+using Mirage.UI.ViewModels;
+using PortalMirage.Core.Dtos;
+using ScottPlot;
+
+namespace Mirage.UI.Views;
+
+public partial class MainAnalyticsView : UserControl
+{
+    public MainAnalyticsView()
+    {
+        InitializeComponent();
+        // Hook into DataContext changes to listen to the ViewModel
+        this.DataContextChanged += (s, e) =>
+        {
+            if (e.NewValue is MainAnalyticsViewModel vm)
+            {
+                vm.RequestChartUpdate += UpdateChart;
+            }
+        };
+    }
+
+    private void UpdateChart(AnalyticsReportDto data)
+    {
+        MainPlot.Plot.Clear();
+        if (data.ChartData == null || !data.ChartData.Any())
+        {
+            MainPlot.Refresh();
+            return;
+        }
+
+        double[] values = data.ChartData.Select(x => (double)x.Value).ToArray();
+
+        // 1. Add Bars
+        var bars = MainPlot.Plot.Add.Bars(values);
+        bars.Color = ScottPlot.Color.FromHex("#2196F3"); // Professional blue
+
+        // 2. Fix Overlapping X-Axis Labels
+        ScottPlot.Tick[] ticks = data.ChartData
+            .Select((x, i) => new ScottPlot.Tick(i, x.Label)).ToArray();
+        MainPlot.Plot.Axes.Bottom.TickGenerator = new ScottPlot.TickGenerators.NumericManual(ticks);
+
+        // ROTATION: This is the specific fix for your overlapping labels
+        MainPlot.Plot.Axes.Bottom.TickLabelStyle.Rotation = 45;
+        MainPlot.Plot.Axes.Bottom.TickLabelStyle.Alignment = ScottPlot.Alignment.MiddleLeft;
+
+        // 3. Dynamic Axis Labels based on Selection
+        MainPlot.Plot.Axes.Left.Label.Text = SelectedLogbook == "Machine Breakdown"
+            ? "Downtime (Hours)"
+            : "Completion (%)";
+        MainPlot.Plot.Axes.Bottom.Label.Text = SelectedLogbook == "Machine Breakdown"
+            ? "Equipment / Machine Name"
+            : "Date";
+
+        // 4. Scale Fix: Force Y-Axis to start at 0 
+        double maxValue = values.Any() ? values.Max() * 1.2 : 10;
+        MainPlot.Plot.Axes.SetLimitsY(0, maxValue);
+
+        // 5. Final Polish (REPLACED MinimumTickSpacing)
+        MainPlot.Plot.Title(data.ChartTitle);
+
+        // This tells ScottPlot to always show at least one tick for every bar
+        MainPlot.Plot.Axes.Bottom.TickGenerator = new ScottPlot.TickGenerators.NumericManual(ticks);
+
+        // Add a line at Y=0 to act as a floor for the bars
+        MainPlot.Plot.Add.HorizontalLine(0, 1, ScottPlot.Colors.Black);
+
+        MainPlot.Refresh();
+    }
+
+    // Property to track selected logbook type (add this if not already present)
+    private string SelectedLogbook
+    {
+        get
+        {
+            if (DataContext is MainAnalyticsViewModel vm)
+            {
+                return vm.SelectedLogbook;
+            }
+            return string.Empty;
         }
     }
 }
@@ -8241,9 +9094,9 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\ReportsView.xaml
                         <DataGridTextColumn Header="Reported On" Binding="{Binding ReportedDateTime, StringFormat='g'}" Width="1.5*"/>
                         <DataGridTextColumn Header="Machine" Binding="{Binding MachineName}" Width="1.5*"/>
                         <DataGridTextColumn Header="Reason" Binding="{Binding BreakdownReason}" Width="2*"/>
-                        <DataGridTextColumn Header="Reported By" Binding="{Binding ReportedByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Reported By" Binding="{Binding ReportedByUserName}" Width="*"/>
                         <DataGridTextColumn Header="Resolved On" Binding="{Binding ResolvedDateTime, StringFormat='g'}" Width="1.5*"/>
-                        <DataGridTextColumn Header="Resolved By" Binding="{Binding ResolvedByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Resolved By" Binding="{Binding ResolvedByUserName}" Width="*"/>
                         <DataGridTextColumn Header="Resolution" Binding="{Binding ResolutionNotes}" Width="2*"/>
                         <DataGridTextColumn Header="Downtime" Binding="{Binding ElapsedDowntimeDisplay}" Width="*" FontWeight="SemiBold"/>
                     </DataGrid.Columns>
@@ -8262,12 +9115,12 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\ReportsView.xaml
                     </DataGrid.Style>
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Given On" Binding="{Binding GivenDateTime, StringFormat='g'}" Width="1.5*"/>
-                        <DataGridTextColumn Header="Given By" Binding="{Binding GivenByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Given By" Binding="{Binding GivenByUserName}" Width="*"/>
                         <DataGridTextColumn Header="Shift" Binding="{Binding Shift}" Width="*"/>
                         <DataGridTextColumn Header="Priority" Binding="{Binding Priority}" Width="*"/>
                         <DataGridTextColumn Header="Notes" Binding="{Binding HandoverNotes}" Width="3*"/>
                         <DataGridTextColumn Header="Received On" Binding="{Binding ReceivedDateTime, StringFormat='g'}" Width="1.5*"/>
-                        <DataGridTextColumn Header="Received By" Binding="{Binding ReceivedByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Received By" Binding="{Binding ReceivedByUserName}" Width="*"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -8289,7 +9142,7 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\ReportsView.xaml
                         <DataGridTextColumn Header="Expiry Date" Binding="{Binding KitExpiryDate, StringFormat='d'}" Width="*"/>
                         <DataGridTextColumn Header="Status" Binding="{Binding ValidationStatus}" Width="*"/>
                         <DataGridTextColumn Header="Comments" Binding="{Binding Comments}" Width="2*"/>
-                        <DataGridTextColumn Header="Validated By" Binding="{Binding ValidatedByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Validated By" Binding="{Binding ValidatedByUserName}" Width="*"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -8311,7 +9164,7 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\ReportsView.xaml
                         <DataGridTextColumn Header="Reason" Binding="{Binding ReasonText}" Width="2*"/>
                         <DataGridTextColumn Header="Department" Binding="{Binding Department}" Width="*"/>
                         <DataGridTextColumn Header="Informed" Binding="{Binding InformedPerson}" Width="*"/>
-                        <DataGridTextColumn Header="Logged By" Binding="{Binding LoggedByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Logged By" Binding="{Binding LoggedByUserName}" Width="*"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -8344,10 +9197,10 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\ReportsView.xaml
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Date" Binding="{Binding LogDate, StringFormat='d'}" Width="*"/>
                             <DataGridTextColumn Header="Task Name" Binding="{Binding TaskName}" Width="2*"/>
-                            <DataGridTextColumn Header="Shift" Binding="{Binding ShiftName}" Width="*"/>
+                            <DataGridTextColumn Header="Shift" Binding="{Binding Shift}" Width="*"/>
                             <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
                             <DataGridTextColumn Header="Completed On" Binding="{Binding CompletedDateTime, StringFormat='g'}" Width="1.5*"/>
-                            <DataGridTextColumn Header="Completed By" Binding="{Binding CompletedByUsername}" Width="*"/>
+                            <DataGridTextColumn Header="Completed By" Binding="{Binding CompletedByUserName}" Width="*"/>
                             <DataGridTextColumn Header="Comments" Binding="{Binding Comments}" Width="2*"/>
                         </DataGrid.Columns>
                     </DataGrid>
@@ -8371,7 +9224,7 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\ReportsView.xaml
                         <DataGridTextColumn Header="Result 37°C" Binding="{Binding Result37C}" Width="*"/>
                         <DataGridTextColumn Header="Result 25°C" Binding="{Binding Result25C}" Width="*"/>
                         <DataGridTextColumn Header="Overall Status" Binding="{Binding OverallStatus}" Width="*"/>
-                        <DataGridTextColumn Header="Performed By" Binding="{Binding PerformedByUsername}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Performed By" Binding="{Binding PerformedByUserName}" Width="1.5*"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -8390,9 +9243,9 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\ReportsView.xaml
                         <DataGridTextColumn Header="Stored On" Binding="{Binding StorageDateTime, StringFormat='g'}" Width="1.5*"/>
                         <DataGridTextColumn Header="Sample ID" Binding="{Binding PatientSampleID}" Width="*"/>
                         <DataGridTextColumn Header="Test Name" Binding="{Binding TestName}" Width="1.5*"/>
-                        <DataGridTextColumn Header="Stored By" Binding="{Binding StoredByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Stored By" Binding="{Binding StoredByUserName}" Width="*"/>
                         <DataGridTextColumn Header="Completed On" Binding="{Binding TestDoneDateTime, StringFormat='g'}" Width="1.5*"/>
-                        <DataGridTextColumn Header="Completed By" Binding="{Binding TestDoneByUsername}" Width="*"/>
+                        <DataGridTextColumn Header="Completed By" Binding="{Binding TestDoneByUserName}" Width="*"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -8412,7 +9265,7 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Views\ReportsView.xaml
                         <DataGridTextColumn Header="Test/Instrument" Binding="{Binding TestName}" Width="2*"/>
                         <DataGridTextColumn Header="QC Result" Binding="{Binding QcResult}" Width="*"/>
                         <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*"/>
-                        <DataGridTextColumn Header="Performed By" Binding="{Binding PerformedByUsername}" Width="1.5*"/>
+                        <DataGridTextColumn Header="Performed By" Binding="{Binding PerformedByUserName}" Width="1.5*"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -9429,6 +10282,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Markup;
 
+
 namespace Mirage.UI
 {
     public partial class App : Application
@@ -9436,6 +10290,8 @@ namespace Mirage.UI
         private static Mutex? _mutex = null; // <-- ADD THIS LINE
 
         public static IServiceProvider? ServiceProvider { get; private set; }
+
+        
 
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -9520,6 +10376,10 @@ namespace Mirage.UI
             services.AddSingleton<SystemSettingsViewModel>();
             services.AddSingleton<TaskManagementViewModel>();
             services.AddTransient<TaskManagementView>();
+
+            // Add MainAnalyticsViewModel and MainAnalyticsView
+            services.AddTransient<MainAnalyticsViewModel>();
+            services.AddTransient<MainAnalyticsView>();
 
             // --- Views (Registered as Transient so a new one is created each time) ---
             services.AddTransient<LoginView>();
@@ -9712,8 +10572,9 @@ FILE: C:\Users\admin\source\repos\Mirage\Mirage.UI\Mirage.UI.csproj
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.0.0" />
     <PackageReference Include="MahApps.Metro" Version="2.4.10" />
     <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135" />
-    <PackageReference Include="QuestPDF" Version="2025.7.2" />
+    <PackageReference Include="QuestPDF" Version="2025.12.1" />
     <PackageReference Include="Refit.HttpClientFactory" Version="8.0.0" />
+    <PackageReference Include="ScottPlot.WPF" Version="5.0.56" />
   </ItemGroup>
 
   <ItemGroup>
@@ -12066,6 +12927,37 @@ namespace PortalMirage.Api.Controllers
 
 
 ========================================
+FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Api\Controllers\AnalyticsController.cs
+========================================
+using Microsoft.AspNetCore.Mvc;
+using PortalMirage.Business.Abstractions;
+using System;
+using System.Threading.Tasks;
+
+namespace PortalMirage.Api.Controllers;
+
+[ApiController]
+[Route("api/analytics")]
+// Note: We removed the [Authorize] here so all authenticated users can see stats
+public class AnalyticsController(IAnalyticsService analyticsService) : ControllerBase
+{
+    [HttpGet("daily-tasks/completion")]
+    public async Task<IActionResult> GetTaskCompletion([FromQuery] DateTime start, [FromQuery] DateTime end)
+    {
+        var data = await analyticsService.GetDailyTaskCompletionAsync(start, end);
+        return Ok(data);
+    }
+
+    [HttpGet("breakdown/downtime")]
+    public async Task<IActionResult> GetMachineDowntime([FromQuery] DateTime start, [FromQuery] DateTime end)
+    {
+        var data = await analyticsService.GetMachineDowntimeAsync(start, end);
+        return Ok(data);
+    }
+}
+
+
+========================================
 FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Api\Controllers\AuditLogsController.cs
 ========================================
 using Microsoft.AspNetCore.Authorization;
@@ -13201,11 +14093,13 @@ FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Api\PortalMirage.Api.cspro
 ========================================
 FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Api\Program.cs
 ========================================
+using Dapper; // Add this using line
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using Microsoft.OpenApi.Models;
-using Dapper; // Add this using line
+using System.Text;
+using PortalMirage.Business.Abstractions;
+using PortalMirage.Business;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13292,7 +14186,7 @@ builder.Services.AddScoped<PortalMirage.Data.Abstractions.IAdminListRepository, 
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IAuditLogRepository, PortalMirage.Data.AuditLogRepository>(); // ADDED IN CORRECT PLACE
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.ISampleStorageRepository, PortalMirage.Data.SampleStorageRepository>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IReportService, PortalMirage.Business.ReportService>(); // ADD THIS LINE
-
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
 
 // ... (all your other repositories)
@@ -13390,6 +14284,22 @@ public interface IAdminListService
     Task<AdminListItem> UpdateAsync(AdminListItem item, int actorUserId);
 
     Task<AdminListItem?> GetItemAsync(string listType, string itemValue);
+}
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Business\Abstractions\IAnalyticsService.cs
+========================================
+using System;
+using System.Threading.Tasks;
+using PortalMirage.Core.Dtos;
+
+namespace PortalMirage.Business.Abstractions;
+
+public interface IAnalyticsService
+{
+    Task<AnalyticsReportDto> GetDailyTaskCompletionAsync(DateTime start, DateTime end);
+    Task<AnalyticsReportDto> GetMachineDowntimeAsync(DateTime start, DateTime end);
 }
 
 
@@ -13588,21 +14498,37 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace PortalMirage.Business.Abstractions;
-
-public interface IReportService
+namespace PortalMirage.Business.Abstractions
 {
-    Task<IEnumerable<MachineBreakdownReportDto>> GetMachineBreakdownReportAsync(DateTime startDate, DateTime endDate, string? machineName, string? status);
-    Task<IEnumerable<HandoverReportDto>> GetHandoverReportAsync(DateTime startDate, DateTime endDate, string? shift, string? priority, string? status);
-    Task<IEnumerable<KitValidationReportDto>> GetKitValidationReportAsync(DateTime startDate, DateTime endDate, string? kitName, string? status);
-    Task<IEnumerable<RepeatSampleReportDto>> GetRepeatSampleReportAsync(DateTime startDate, DateTime endDate, string? reason, string? department);
-    Task<DailyTaskComplianceReportDto> GetDailyTaskComplianceReportAsync(DateTime startDate, DateTime endDate, int? shiftId, string? status);
+    public interface IReportService
+    {
+        // ==========================================
+        // DATA RETRIEVAL METHODS (Complete)
+        // ==========================================
+        Task<IEnumerable<MachineBreakdownReportDto>> GetMachineBreakdownReportAsync(DateTime startDate, DateTime endDate, string? machineName, string? status);
+        Task<IEnumerable<HandoverReportDto>> GetHandoverReportAsync(DateTime startDate, DateTime endDate, string? shift, string? priority, string? status);
+        Task<IEnumerable<KitValidationReportDto>> GetKitValidationReportAsync(DateTime startDate, DateTime endDate, string? kitName, string? status);
+        Task<IEnumerable<RepeatSampleReportDto>> GetRepeatSampleReportAsync(DateTime startDate, DateTime endDate, string? reason, string? department);
+        Task<DailyTaskComplianceReportDto> GetDailyTaskComplianceReportAsync(DateTime startDate, DateTime endDate, int? shiftId, string? status);
+        Task<IEnumerable<MediaSterilityReportDto>> GetMediaSterilityReportAsync(DateTime startDate, DateTime endDate, string? mediaName, string? status);
+        Task<IEnumerable<SampleStorageReportDto>> GetSampleStorageReportAsync(DateTime startDate, DateTime endDate, string? testName, string? status);
+        Task<IEnumerable<CalibrationReportDto>> GetCalibrationReportAsync(DateTime startDate, DateTime endDate, string? testName, string? qcResult);
 
-    Task<IEnumerable<MediaSterilityReportDto>> GetMediaSterilityReportAsync(DateTime startDate, DateTime endDate, string? mediaName, string? status); // ADD THIS
+        // ==========================================
+        // PDF GENERATION METHODS (Fixed)
+        // ==========================================
+        // Existing
+        byte[] GenerateMachineBreakdownReport(List<MachineBreakdownReportDto> data);
+        byte[] GenerateHandoverReport(List<HandoverReportDto> data);
+        byte[] GenerateRepeatSampleReport(List<RepeatSampleReportDto> data);
+        byte[] GenerateDailyTaskReport(List<DailyTaskLogDto> logs, DateTime startDate, DateTime endDate);
 
-    Task<IEnumerable<SampleStorageReportDto>> GetSampleStorageReportAsync(DateTime startDate, DateTime endDate, string? testName, string? status);
-
-    Task<IEnumerable<CalibrationReportDto>> GetCalibrationReportAsync(DateTime startDate, DateTime endDate, string? testName, string? qcResult); // ADD THIS
+        // --- MISSING METHODS ADDED BELOW ---
+        byte[] GenerateKitValidationReport(List<KitValidationReportDto> data);
+        byte[] GenerateMediaSterilityReport(List<MediaSterilityReportDto> data);
+        byte[] GenerateSampleStorageReport(List<SampleStorageReportDto> data);
+        byte[] GenerateCalibrationReport(List<CalibrationReportDto> data);
+    }
 }
 
 
@@ -13767,6 +14693,136 @@ public class AdminListService(
         );
 
         return updatedItem;
+    }
+}
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Business\AnalyticsService.cs
+========================================
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using PortalMirage.Business.Abstractions;
+using PortalMirage.Core.Dtos;
+using PortalMirage.Data.Abstractions;
+
+namespace PortalMirage.Business;
+
+public class AnalyticsService(
+    IDailyTaskLogRepository taskRepo,
+    IMachineBreakdownRepository breakdownRepo,
+    IShiftHandoverRepository handoverRepo,      // Added
+    ISampleStorageRepository storageRepo) : IAnalyticsService  // Added
+{
+    public async Task<AnalyticsReportDto> GetDailyTaskCompletionAsync(DateTime start, DateTime end)
+    {
+        var logs = await taskRepo.GetComplianceReportDataAsync(start, end, null, "All");
+
+        int total = logs.Count();
+        int completed = logs.Count(l => l.Status == "Complete" || l.Status == "Completed");
+        double percent = total > 0 ? (double)completed / total * 100 : 0;
+
+        var kpis = new List<AnalyticsSummaryDto>
+        {
+            new("Total Tasks", total.ToString(), "Blue"),
+            new("Completion %", $"{percent:F1}%", percent > 90 ? "Green" : "Orange"),
+            new("Missed", (total - completed).ToString(), "Red")
+        };
+
+        // Updated to calculate completion percentage instead of raw count
+        var chartData = logs
+            .GroupBy(l => l.LogDate.ToString("dd MMM"))
+            .Select(g => new ChartDataPoint(
+                g.Key,
+                Math.Round(((double)g.Count(x => x.Status == "Complete" || x.Status == "Completed") / g.Count()) * 100, 0)
+            ))
+            .ToList();
+
+        return new AnalyticsReportDto(kpis, chartData, "Daily Task Completion %");
+    }
+
+    public async Task<AnalyticsReportDto> GetMachineDowntimeAsync(DateTime start, DateTime end)
+    {
+        var data = await breakdownRepo.GetReportDataAsync(start, end, null, "All");
+
+        // Handle nullable DowntimeMinutes in KPI calculations
+        var totalDowntimeMinutes = data.Sum(d => d.DowntimeMinutes ?? 0);
+        var totalDowntimeHours = Math.Round(totalDowntimeMinutes / 60.0, 1);
+
+        var avgDowntimeMinutes = data.Any(d => d.DowntimeMinutes.HasValue)
+            ? data.Where(d => d.DowntimeMinutes.HasValue).Average(d => d.DowntimeMinutes.Value)
+            : 0;
+        var avgDowntimeHours = Math.Round(avgDowntimeMinutes / 60.0, 1);
+
+        var kpis = new List<AnalyticsSummaryDto>
+        {
+            new("Total Breakdowns", data.Count().ToString(), "Orange"),
+            new("Total Downtime", $"{totalDowntimeHours} h", "Red"),
+            new("Avg. Repair Time", $"{avgDowntimeHours} h", "Blue")
+        };
+
+        // Refined Machine Breakdown mapping with null handling
+        var chartData = data
+            .GroupBy(d => d.MachineName)
+            .Select(g => new ChartDataPoint(
+                g.Key,
+                // Convert to double instead of decimal to match ChartDataPoint constructor
+                Math.Round((double)g.Sum(x => x.DowntimeMinutes ?? 0) / 60.0, 1)
+            ))
+            .OrderByDescending(x => x.Value)
+            .ToList();
+
+        return new AnalyticsReportDto(kpis, chartData, "Downtime Hours by Machine (Pareto)");
+    }
+
+    public async Task<AnalyticsReportDto> GetShiftHandoverAnalyticsAsync(DateTime start, DateTime end)
+    {
+        var data = await handoverRepo.GetReportDataAsync(start, end);
+
+        var kpis = new List<AnalyticsSummaryDto>
+        {
+            new("Total Handovers", data.Count().ToString(), "Blue"),
+            new("Critical Flags", data.Count(h => h.IsCritical).ToString(), "Red"),
+            new("Avg Duration", $"{data.Average(h => h.DurationMinutes ?? 0):F1} m", "Orange")
+        };
+
+        var chartData = data
+            .GroupBy(h => h.ShiftName) // e.g., "Shift A", "Shift B"
+            .Select(g => new ChartDataPoint(g.Key, (double)g.Count()))
+            .OrderByDescending(x => x.Value)
+            .ToList();
+
+        return new AnalyticsReportDto(kpis, chartData, "Handovers Completed by Shift");
+    }
+
+    public async Task<AnalyticsReportDto> GetSampleStorageAnalyticsAsync(DateTime start, DateTime end)
+    {
+        var data = await storageRepo.GetReportDataAsync(start, end);
+
+        var activeSamples = data.Count(s => !s.IsDisposed);
+        var overdueSamples = data.Count(s => s.ExpiryDate < DateTime.Now && !s.IsDisposed);
+
+        // Calculate actual utilization percentage
+        var totalCapacity = 100; // This should come from configuration or repository
+        var utilizationPercent = totalCapacity > 0 ? (activeSamples / (double)totalCapacity) * 100 : 0;
+
+        var kpis = new List<AnalyticsSummaryDto>
+        {
+            new("Total Samples", activeSamples.ToString(), "Blue"),
+            new("Overdue Disposal", overdueSamples.ToString(), "Red"),
+            new("Utilization", $"{utilizationPercent:F0}%", "Orange") // Dynamic calculation
+        };
+
+        var chartData = data
+            .Where(s => !s.IsDisposed)
+            .GroupBy(s => s.StorageLocation)
+            .Select(g => new ChartDataPoint(g.Key, (double)g.Count()))
+            .OrderByDescending(x => x.Value)
+            .ToList();
+
+        return new AnalyticsReportDto(kpis, chartData, "Current Inventory by Storage Location");
     }
 }
 
@@ -14378,12 +15434,18 @@ public class JwtTokenGenerator(IConfiguration configuration, IUserRepository use
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        // Fetch and add role claims to the token
+        // --- FETCH ROLES FROM DB ---
         var roles = await userRepository.GetUserRolesAsync(user.UserID);
+
         foreach (var role in roles)
         {
+            // 1. Add Standard Claim (Long URL format)
             claims.Add(new Claim(ClaimTypes.Role, role));
+
+            // 2. CRITICAL FIX: Add Simple "role" Claim for Frontend Compatibility
+            claims.Add(new Claim("role", role));
         }
+        // ---------------------------
 
         var token = new JwtSecurityToken(
             issuer: jwtSettings["Issuer"],
@@ -14612,6 +15674,7 @@ FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Business\PortalMirage.Busi
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
+    <PackageReference Include="QuestPDF" Version="2025.12.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -14621,6 +15684,38 @@ FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Business\PortalMirage.Busi
 
 </Project>
 
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Business\QuestPdfExtensions.cs
+========================================
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+
+namespace PortalMirage.Business
+{
+    public static class QuestPdfExtensions
+    {
+        // Defines the standard style for a data cell
+        public static IContainer CellStyle(this IContainer container)
+        {
+            return container
+                .BorderBottom(1)
+                .BorderColor(Colors.Grey.Lighten2)
+                .PaddingVertical(5);
+        }
+
+        // Defines the standard style for a header cell
+        public static IContainer HeaderStyle(this IContainer container)
+        {
+            return container
+                .BorderBottom(1)
+                .BorderColor(Colors.Black)
+                .PaddingVertical(5);
+        }
+    }
+}
 
 
 ========================================
@@ -14678,85 +15773,540 @@ FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Business\ReportService.cs
 using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Dtos;
 using PortalMirage.Data.Abstractions;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace PortalMirage.Business;
-
-public class ReportService : IReportService
+namespace PortalMirage.Business
 {
-    private readonly IMachineBreakdownRepository _machineBreakdownRepository;
-    private readonly IHandoverRepository _handoverRepository;
-    private readonly IKitValidationRepository _kitValidationRepository;
-    private readonly IRepeatSampleLogRepository _repeatSampleLogRepository;
-    private readonly IDailyTaskLogRepository _dailyTaskLogRepository;
-    private readonly IMediaSterilityCheckRepository _mediaSterilityCheckRepository;
-    private readonly ISampleStorageRepository _sampleStorageRepository;
-    private readonly ICalibrationLogRepository _calibrationLogRepository;
-
-    public ReportService(
-        IMachineBreakdownRepository machineBreakdownRepository,
-        IHandoverRepository handoverRepository,
-        IKitValidationRepository kitValidationRepository,
-        IRepeatSampleLogRepository repeatSampleLogRepository,
-        IDailyTaskLogRepository dailyTaskLogRepository,
-        IMediaSterilityCheckRepository mediaSterilityCheckRepository,
-        ISampleStorageRepository sampleStorageRepository,
-        ICalibrationLogRepository calibrationLogRepository) // 1. INJECT REPO
+    public class ReportService : IReportService
     {
-        _machineBreakdownRepository = machineBreakdownRepository;
-        _handoverRepository = handoverRepository;
-        _kitValidationRepository = kitValidationRepository;
-        _repeatSampleLogRepository = repeatSampleLogRepository;
-        _dailyTaskLogRepository = dailyTaskLogRepository;
-        _mediaSterilityCheckRepository = mediaSterilityCheckRepository;
-        _sampleStorageRepository = sampleStorageRepository;
-        _calibrationLogRepository = calibrationLogRepository;
-    }
+        private readonly IMachineBreakdownRepository _machineBreakdownRepository;
+        private readonly IHandoverRepository _handoverRepository;
+        private readonly IKitValidationRepository _kitValidationRepository;
+        private readonly IRepeatSampleLogRepository _repeatSampleLogRepository;
+        private readonly IDailyTaskLogRepository _dailyTaskLogRepository;
+        private readonly IMediaSterilityCheckRepository _mediaSterilityCheckRepository;
+        private readonly ISampleStorageRepository _sampleStorageRepository;
+        private readonly ICalibrationLogRepository _calibrationLogRepository;
 
-    public async Task<DailyTaskComplianceReportDto> GetDailyTaskComplianceReportAsync(DateTime startDate, DateTime endDate, int? shiftId, string? status)
-    {
-        var items = (await _dailyTaskLogRepository.GetComplianceReportDataAsync(startDate, endDate, shiftId, status)).ToList();
-        var completedCount = items.Count(i => i.Status == "Completed");
-        return new DailyTaskComplianceReportDto(items, items.Count, completedCount);
-    }
+        public ReportService(
+            IMachineBreakdownRepository machineBreakdownRepository,
+            IHandoverRepository handoverRepository,
+            IKitValidationRepository kitValidationRepository,
+            IRepeatSampleLogRepository repeatSampleLogRepository,
+            IDailyTaskLogRepository dailyTaskLogRepository,
+            IMediaSterilityCheckRepository mediaSterilityCheckRepository,
+            ISampleStorageRepository sampleStorageRepository,
+            ICalibrationLogRepository calibrationLogRepository)
+        {
+            _machineBreakdownRepository = machineBreakdownRepository;
+            _handoverRepository = handoverRepository;
+            _kitValidationRepository = kitValidationRepository;
+            _repeatSampleLogRepository = repeatSampleLogRepository;
+            _dailyTaskLogRepository = dailyTaskLogRepository;
+            _mediaSterilityCheckRepository = mediaSterilityCheckRepository;
+            _sampleStorageRepository = sampleStorageRepository;
+            _calibrationLogRepository = calibrationLogRepository;
 
-    public async Task<IEnumerable<HandoverReportDto>> GetHandoverReportAsync(DateTime startDate, DateTime endDate, string? shift, string? priority, string? status)
-    {
-        return await _handoverRepository.GetReportDataAsync(startDate, endDate, shift, priority, status);
-    }
+            QuestPDF.Settings.License = LicenseType.Community;
+        }
 
-    public async Task<IEnumerable<KitValidationReportDto>> GetKitValidationReportAsync(DateTime startDate, DateTime endDate, string? kitName, string? status)
-    {
-        return await _kitValidationRepository.GetReportDataAsync(startDate, endDate, kitName, status);
-    }
+        // ==========================================
+        // DATA RETRIEVAL METHODS
+        // ==========================================
 
-    public async Task<IEnumerable<MachineBreakdownReportDto>> GetMachineBreakdownReportAsync(DateTime startDate, DateTime endDate, string? machineName, string? status)
-    {
-        return await _machineBreakdownRepository.GetReportDataAsync(startDate, endDate, machineName, status);
-    }
+        public async Task<DailyTaskComplianceReportDto> GetDailyTaskComplianceReportAsync(DateTime startDate, DateTime endDate, int? shiftId, string? status)
+        {
+            var items = (await _dailyTaskLogRepository.GetComplianceReportDataAsync(startDate, endDate, shiftId, status)).ToList();
 
-    public async Task<IEnumerable<RepeatSampleReportDto>> GetRepeatSampleReportAsync(DateTime startDate, DateTime endDate, string? reason, string? department)
-    {
-        return await _repeatSampleLogRepository.GetReportDataAsync(startDate, endDate, reason, department);
-    }
+            // FIX: Check for both "Completed" and "Complete" (case-insensitive)
+            var completedCount = items.Count(i =>
+                !string.IsNullOrWhiteSpace(i.Status) &&
+                (i.Status.Trim().Equals("Completed", StringComparison.OrdinalIgnoreCase) ||
+                 i.Status.Trim().Equals("Complete", StringComparison.OrdinalIgnoreCase)));
 
-    public async Task<IEnumerable<MediaSterilityReportDto>> GetMediaSterilityReportAsync(DateTime startDate, DateTime endDate, string? mediaName, string? status)
-    {
-        return await _mediaSterilityCheckRepository.GetReportDataAsync(startDate, endDate, mediaName, status);
-    }
+            return new DailyTaskComplianceReportDto(items, items.Count, completedCount);
+        }
 
-    public async Task<IEnumerable<SampleStorageReportDto>> GetSampleStorageReportAsync(DateTime startDate, DateTime endDate, string? testName, string? status)
-    {
-        return await _sampleStorageRepository.GetReportDataAsync(startDate, endDate, testName, status);
-    }
+        public async Task<IEnumerable<HandoverReportDto>> GetHandoverReportAsync(DateTime startDate, DateTime endDate, string? shift, string? priority, string? status)
+        {
+            return await _handoverRepository.GetReportDataAsync(startDate, endDate, shift, priority, status);
+        }
 
-    // 2. ADD NEW METHOD
-    public async Task<IEnumerable<CalibrationReportDto>> GetCalibrationReportAsync(DateTime startDate, DateTime endDate, string? testName, string? qcResult)
-    {
-        return await _calibrationLogRepository.GetReportDataAsync(startDate, endDate, testName, qcResult);
+        public async Task<IEnumerable<KitValidationReportDto>> GetKitValidationReportAsync(DateTime startDate, DateTime endDate, string? kitName, string? status)
+        {
+            return await _kitValidationRepository.GetReportDataAsync(startDate, endDate, kitName, status);
+        }
+
+        public async Task<IEnumerable<MachineBreakdownReportDto>> GetMachineBreakdownReportAsync(DateTime startDate, DateTime endDate, string? machineName, string? status)
+        {
+            return await _machineBreakdownRepository.GetReportDataAsync(startDate, endDate, machineName, status);
+        }
+
+        public async Task<IEnumerable<RepeatSampleReportDto>> GetRepeatSampleReportAsync(DateTime startDate, DateTime endDate, string? reason, string? department)
+        {
+            return await _repeatSampleLogRepository.GetReportDataAsync(startDate, endDate, reason, department);
+        }
+
+        public async Task<IEnumerable<MediaSterilityReportDto>> GetMediaSterilityReportAsync(DateTime startDate, DateTime endDate, string? mediaName, string? status)
+        {
+            return await _mediaSterilityCheckRepository.GetReportDataAsync(startDate, endDate, mediaName, status);
+        }
+
+        public async Task<IEnumerable<SampleStorageReportDto>> GetSampleStorageReportAsync(DateTime startDate, DateTime endDate, string? testName, string? status)
+        {
+            return await _sampleStorageRepository.GetReportDataAsync(startDate, endDate, testName, status);
+        }
+
+        public async Task<IEnumerable<CalibrationReportDto>> GetCalibrationReportAsync(DateTime startDate, DateTime endDate, string? testName, string? qcResult)
+        {
+            return await _calibrationLogRepository.GetReportDataAsync(startDate, endDate, testName, qcResult);
+        }
+
+        // ==========================================
+        // PDF GENERATION METHODS
+        // ==========================================
+
+        public byte[] GenerateMachineBreakdownReport(List<MachineBreakdownReportDto> data)
+        {
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4.Landscape());
+                    page.Margin(2, Unit.Centimetre);
+                    page.Header().Text("Machine Breakdown Report").SemiBold().FontSize(20).FontColor(Colors.Blue.Medium);
+
+                    page.Content().PaddingTop(1, Unit.Centimetre).Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.RelativeColumn(2);
+                            columns.RelativeColumn(3);
+                            columns.RelativeColumn(2);
+                            columns.RelativeColumn(2);
+                            columns.RelativeColumn(3);
+                        });
+
+                        table.Header(header =>
+                        {
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Machine Name").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Breakdown Reason").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Reported By").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Downtime").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Resolution Notes").SemiBold();
+                        });
+
+                        foreach (var item in data)
+                        {
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.MachineName ?? "-");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.BreakdownReason ?? "-");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.ReportedByUserName ?? "Unknown");
+
+                            string duration = "Pending";
+                            if (item.DowntimeMinutes.HasValue)
+                            {
+                                TimeSpan ts = TimeSpan.FromMinutes(item.DowntimeMinutes.Value);
+                                duration = ts.TotalDays >= 1 ? $"{ts.Days}d {ts.Hours}h" : $"{ts.Hours}h {ts.Minutes}m";
+                            }
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(duration);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.ResolutionNotes ?? "-");
+                        }
+                    });
+                });
+            }).GeneratePdf();
+        }
+
+        public byte[] GenerateHandoverReport(List<HandoverReportDto> data)
+        {
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(2, Unit.Centimetre);
+                    page.Header().Text("Shift Handover Report").SemiBold().FontSize(20).FontColor(Colors.Blue.Medium);
+
+                    page.Content().PaddingTop(1, Unit.Centimetre).Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                            columns.RelativeColumn(3);
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                        });
+
+                        table.Header(header =>
+                        {
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Given By").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Shift").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Handover Notes").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Received By").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Received At").SemiBold();
+                        });
+
+                        foreach (var item in data)
+                        {
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.GivenByUserName ?? "-");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.Shift ?? "-");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.HandoverNotes ?? "-");
+
+                            if (!string.IsNullOrEmpty(item.ReceivedByUserName))
+                            {
+                                table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.ReceivedByUserName);
+                                table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.ReceivedDateTime?.ToString("g") ?? "-");
+                            }
+                            else
+                            {
+                                table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text("NOT RECEIVED").FontColor(Colors.Red.Medium);
+                                table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text("-");
+                            }
+                        }
+                    });
+                });
+            }).GeneratePdf();
+        }
+
+        public byte[] GenerateRepeatSampleReport(List<RepeatSampleReportDto> data)
+        {
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(2, Unit.Centimetre);
+                    page.Header().Text("Repeat Sample Log").SemiBold().FontSize(20).FontColor(Colors.Blue.Medium);
+
+                    page.Content().PaddingTop(1, Unit.Centimetre).Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                            columns.RelativeColumn(2);
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                        });
+
+                        table.Header(header =>
+                        {
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Patient Name").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Patient ID").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Reason").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Department").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Informed Person").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Logged By").SemiBold();
+                        });
+
+                        foreach (var item in data)
+                        {
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.PatientName ?? "-");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.PatientIdCardNumber ?? "-");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.ReasonText ?? "-");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.Department ?? "General");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.InformedPerson ?? "-");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.LoggedByUserName ?? "-");
+                        }
+                    });
+                });
+            }).GeneratePdf();
+        }
+
+        // ==========================================
+        // UPDATED METHOD: GenerateDailyTaskReport
+        // ==========================================
+        public byte[] GenerateDailyTaskReport(List<DailyTaskLogDto> logs, DateTime startDate, DateTime endDate)
+        {
+            // --- 1. Fix Compliance Calculation Logic ---
+            int total = logs.Count; // Total includes Pending, Incomplete, and Completed
+
+            // Count ONLY valid "Completed" tasks (Case insensitive)
+            int completed = logs.Count(x => !string.IsNullOrWhiteSpace(x.Status) &&
+                                           (x.Status.Trim().Equals("Completed", StringComparison.OrdinalIgnoreCase) ||
+                                            x.Status.Trim().Equals("Complete", StringComparison.OrdinalIgnoreCase)));
+
+            int pending = total - completed;
+
+            // Calculate percentage (0 to 100)
+            // We use (double) to ensure decimal division, then multiply by 100.
+            double percentage = total > 0 ? ((double)completed / total) * 100 : 0;
+
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4.Landscape());
+                    page.Margin(1, Unit.Centimetre);
+
+                    page.Header().Column(col =>
+                    {
+                        col.Item().Text("Daily Task Report").SemiBold().FontSize(20).FontColor(Colors.Blue.Medium).AlignCenter();
+                        col.Item().Text($"Period: {startDate:yyyy-MM-dd} to {endDate:yyyy-MM-dd}").FontSize(10).AlignCenter();
+                    });
+
+                    page.Content().PaddingTop(1, Unit.Centimetre).Column(col =>
+                    {
+                        // --- 2. Performance Summary Table ---
+                        col.Item().PaddingBottom(20).Width(300).Table(table =>
+                        {
+                            table.ColumnsDefinition(c => { c.RelativeColumn(); c.RelativeColumn(); });
+
+                            table.Header(h => h.Cell().ColumnSpan(2).Background(Colors.Grey.Lighten3).Padding(5).AlignCenter().Text("Performance Summary").SemiBold());
+
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).Text("Total Tasks:");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).Text(total.ToString());
+
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).Text("Completed:");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).Text(completed.ToString());
+
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).Text("Pending/Missed:");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).Text(pending.ToString());
+
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).Text("Completion Rate:").SemiBold();
+
+                            // Logic: If percentage is 22.2, format as "22.2%"
+                            var percentColor = percentage < 100 ? Colors.Red.Medium : Colors.Green.Medium;
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).Text($"{percentage:F1}%").SemiBold().FontColor(percentColor);
+                        });
+
+                        // --- 3. Main Detail Table (7 Columns) ---
+                        col.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(c =>
+                            {
+                                c.RelativeColumn(1.5f); // 1. Date
+                                c.RelativeColumn(3);    // 2. Task Name
+                                c.RelativeColumn(1);    // 3. Shift
+                                c.RelativeColumn(1.5f); // 4. Status
+                                c.RelativeColumn(1.5f); // 5. Completed On
+                                c.RelativeColumn(2);    // 6. Completed By
+                                c.RelativeColumn(3);    // 7. Comments
+                            });
+
+                            table.Header(h =>
+                            {
+                                void HeaderCell(string text) => h.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text(text).SemiBold();
+                                HeaderCell("Date");
+                                HeaderCell("Task Name");
+                                HeaderCell("Shift");
+                                HeaderCell("Status");
+                                HeaderCell("Completed On");
+                                HeaderCell("Completed By");
+                                HeaderCell("Comments");
+                            });
+
+                            foreach (var item in logs)
+                            {
+                                IContainer DataCell() => table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5);
+
+                                // 1. Date
+                                DataCell().Text(item.TaskDate.ToString("dd/MMM/yy HH:mm"));
+
+                                // 2. Task Name
+                                DataCell().Text(item.TaskName ?? "-");
+
+                                // 3. Shift 
+                                // WARNING: Your screenshot showed "Pending" here. If that happens, your DB is mapping Status to Shift.
+                                DataCell().Text(item.Shift ?? "-");
+
+                                // 4. Status
+                                DataCell().Text(item.Status ?? "Pending");
+
+                                // 5. Completed On
+                                var compDate = item.CompletedDateTime.HasValue ? item.CompletedDateTime.Value.ToString("dd/MMM/yy HH:mm") : "-";
+                                DataCell().Text(compDate);
+
+                                // 6. Completed By
+                                // WARNING: Your screenshot showed a Date here. If that happens, your DB is mapping Date to UserName.
+                                DataCell().Text(item.CompletedByUserName ?? "-");
+
+                                // 7. Comments
+                                DataCell().Text(item.Comments ?? "");
+                            }
+                        });
+                    });
+                });
+            }).GeneratePdf();
+        }
+
+        public byte[] GenerateKitValidationReport(List<KitValidationReportDto> data)
+        {
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(2, Unit.Centimetre);
+                    page.Header().Text("Kit Validation Report").SemiBold().FontSize(20).FontColor(Colors.Blue.Medium);
+
+                    page.Content().PaddingTop(1, Unit.Centimetre).Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.RelativeColumn(2);
+                            columns.RelativeColumn(2);
+                            columns.RelativeColumn(1);
+                            columns.RelativeColumn(1);
+                            columns.RelativeColumn(2);
+                        });
+
+                        table.Header(header =>
+                        {
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Kit Name").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Kit Lot Number").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Expiry Date").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Status").SemiBold();
+                            header.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Validated By").SemiBold();
+                        });
+
+                        foreach (var item in data)
+                        {
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.KitName ?? "-");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.KitLotNumber ?? "-");
+
+                            // SAFE DATE
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.KitExpiryDate.ToString("yyyy-MM-dd"));
+
+                            // FIX: Case-insensitive status check
+                            var isValid = item.ValidationStatus?.Trim().Equals("Valid", StringComparison.OrdinalIgnoreCase) == true;
+                            var statusColor = isValid ? Colors.Green.Medium : Colors.Red.Medium;
+
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.ValidationStatus ?? "-").FontColor(statusColor);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.ValidatedByUserName ?? "-");
+                        }
+                    });
+                });
+            }).GeneratePdf();
+        }
+
+        public byte[] GenerateMediaSterilityReport(List<MediaSterilityReportDto> data)
+        {
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(2, Unit.Centimetre);
+                    page.Header().Text("Media Sterility Report").SemiBold().FontSize(20).FontColor(Colors.Blue.Medium);
+
+                    page.Content().PaddingTop(1, Unit.Centimetre).Table(table =>
+                    {
+                        table.ColumnsDefinition(c => { c.RelativeColumn(2); c.RelativeColumn(2); c.RelativeColumn(2); c.RelativeColumn(1); c.RelativeColumn(2); });
+
+                        table.Header(h =>
+                        {
+                            h.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Media").SemiBold();
+                            h.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Lot").SemiBold();
+                            h.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Results").SemiBold();
+                            h.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Status").SemiBold();
+                            h.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("User").SemiBold();
+                        });
+
+                        foreach (var item in data)
+                        {
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.MediaName ?? "-");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.MediaLotNumber ?? "-");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text($"{item.Result37C ?? "-"}/{item.Result25C ?? "-"}");
+
+                            var isSterile = item.OverallStatus?.Trim().Equals("Sterile", StringComparison.OrdinalIgnoreCase) == true;
+                            var color = isSterile ? Colors.Green.Medium : Colors.Red.Medium;
+
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.OverallStatus ?? "-").FontColor(color);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.PerformedByUserName ?? "-");
+                        }
+                    });
+                });
+            }).GeneratePdf();
+        }
+
+        public byte[] GenerateSampleStorageReport(List<SampleStorageReportDto> data)
+        {
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(2, Unit.Centimetre);
+                    page.Header().Text("Sample Storage Report").SemiBold().FontSize(20).FontColor(Colors.Blue.Medium);
+
+                    page.Content().PaddingTop(1, Unit.Centimetre).Table(table =>
+                    {
+                        table.ColumnsDefinition(c => { c.RelativeColumn(2); c.RelativeColumn(2); c.RelativeColumn(2); c.RelativeColumn(2); c.RelativeColumn(2); });
+
+                        table.Header(h =>
+                        {
+                            h.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Sample ID").SemiBold();
+                            h.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Test").SemiBold();
+                            h.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Date").SemiBold();
+                            h.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Status").SemiBold();
+                            h.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("User").SemiBold();
+                        });
+
+                        foreach (var item in data)
+                        {
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.PatientSampleID ?? "-");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.TestName ?? "-");
+
+                            // Safe date check
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.StorageDateTime.ToString("yyyy-MM-dd"));
+
+                            var color = item.IsTestDone ? Colors.Green.Medium : Colors.Blue.Medium;
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.IsTestDone ? "Completed" : "Stored").FontColor(color);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.StoredByUserName ?? "-");
+                        }
+                    });
+                });
+            }).GeneratePdf();
+        }
+
+        public byte[] GenerateCalibrationReport(List<CalibrationReportDto> data)
+        {
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(2, Unit.Centimetre);
+                    page.Header().Text("Calibration Report").SemiBold().FontSize(20).FontColor(Colors.Blue.Medium);
+
+                    page.Content().PaddingTop(1, Unit.Centimetre).Table(table =>
+                    {
+                        table.ColumnsDefinition(c => { c.RelativeColumn(2); c.RelativeColumn(2); c.RelativeColumn(1); c.RelativeColumn(2); c.RelativeColumn(2); });
+
+                        table.Header(h =>
+                        {
+                            h.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Equipment").SemiBold();
+                            h.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Date").SemiBold();
+                            h.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("QC").SemiBold();
+                            h.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("Reason").SemiBold();
+                            h.Cell().BorderBottom(1).BorderColor(Colors.Black).PaddingVertical(5).Text("User").SemiBold();
+                        });
+
+                        foreach (var item in data)
+                        {
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.TestName ?? "-");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.CalibrationDateTime.ToString("yyyy-MM-dd"));
+
+                            var isPass = item.QcResult?.Trim().Equals("Pass", StringComparison.OrdinalIgnoreCase) == true
+                                        || item.QcResult?.Trim().Equals("In Range", StringComparison.OrdinalIgnoreCase) == true;
+
+                            var color = isPass ? Colors.Green.Medium : Colors.Red.Medium;
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.QcResult ?? "-").FontColor(color);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.Reason ?? "-");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(item.PerformedByUserName ?? "-");
+                        }
+                    });
+                });
+            }).GeneratePdf();
+        }
     }
 }
 
@@ -15251,6 +16801,7 @@ namespace PortalMirage.Core.Dtos
         public UpdateTaskStatusRequest() { }
 
         // 3. Keep the old constructor to prevent breaking other code (optional but safe)
+
         public UpdateTaskStatusRequest(string status, string? comment)
         {
             Status = status;
@@ -15399,6 +16950,7 @@ FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Core\Dtos\ReportDtos.cs
 ========================================
 using CommunityToolkit.Mvvm.ComponentModel;
 using System;
+using System.Collections.Generic;
 
 namespace PortalMirage.Core.Dtos;
 
@@ -15407,10 +16959,10 @@ public partial class MachineBreakdownReportDto : ObservableObject
     public DateTime ReportedDateTime { get; set; }
     public string MachineName { get; set; }
     public string BreakdownReason { get; set; }
-    public string ReportedByUsername { get; set; }
+    public string ReportedByUserName { get; set; } // Fixed casing
     public bool IsResolved { get; set; }
     public DateTime? ResolvedDateTime { get; set; }
-    public string? ResolvedByUsername { get; set; }
+    public string? ResolvedByUserName { get; set; } // Fixed casing
     public string? ResolutionNotes { get; set; }
     public int? DowntimeMinutes { get; set; }
 
@@ -15420,7 +16972,11 @@ public partial class MachineBreakdownReportDto : ObservableObject
         {
             if (IsResolved)
             {
-                return $"{DowntimeMinutes} mins";
+                if (!DowntimeMinutes.HasValue) return "-";
+
+                var ts = TimeSpan.FromMinutes(DowntimeMinutes.Value);
+                if (ts.TotalDays >= 1) return $"{ts.Days}d {ts.Hours}h";
+                return $"{ts.Hours}h {ts.Minutes}m";
             }
             else
             {
@@ -15432,87 +16988,113 @@ public partial class MachineBreakdownReportDto : ObservableObject
         }
     }
 
-    // This method is now correctly placed INSIDE the class
     public void UpdateCalculatedProperties()
     {
         OnPropertyChanged(nameof(ElapsedDowntimeDisplay));
     }
 }
 
-public record HandoverReportDto(
-    DateTime GivenDateTime,
-    string GivenByUsername,
-    string Shift,
-    string Priority,
-    string HandoverNotes,
-    bool IsReceived,
-    DateTime? ReceivedDateTime,
-    string? ReceivedByUsername
-);
-public record KitValidationReportDto(
-    DateTime ValidationDateTime,
-    string KitName,
-    string KitLotNumber,
-    DateTime KitExpiryDate,
-    string ValidationStatus,
-    string? Comments,
-    string ValidatedByUsername
-);
+public partial class HandoverReportDto : ObservableObject
+{
+    public DateTime GivenDateTime { get; set; }
+    public string GivenByUserName { get; set; } // Fixed casing
+    public string Shift { get; set; }
+    public string Priority { get; set; }
+    public string HandoverNotes { get; set; }
+    public bool IsReceived { get; set; }
+    public DateTime? ReceivedDateTime { get; set; }
+    public string? ReceivedByUserName { get; set; } // Fixed casing
+}
 
-public record DailyTaskComplianceReportItemDto(
-    DateTime LogDate,
-    string TaskName,
-    string ShiftName,
-    string Status,
-    DateTime? CompletedDateTime,
-    string? CompletedByUsername,
-    string? Comments
-);
+public partial class KitValidationReportDto : ObservableObject
+{
+    public DateTime ValidationDateTime { get; set; }
+    public string KitName { get; set; }
+    public string KitLotNumber { get; set; }
+    public DateTime KitExpiryDate { get; set; }
+    public string ValidationStatus { get; set; }
+    public string? Comments { get; set; }
+    public string ValidatedByUserName { get; set; } // Fixed casing
+}
 
+public partial class RepeatSampleReportDto : ObservableObject
+{
+    public DateTime LogDateTime { get; set; }
+    public string? PatientIdCardNumber { get; set; }
+    public string PatientName { get; set; }
+    public string? ReasonText { get; set; }
+    public string? Department { get; set; }
+    public string? InformedPerson { get; set; }
+    public string LoggedByUserName { get; set; } // Fixed casing
+}
+
+public partial class MediaSterilityReportDto : ObservableObject
+{
+    public DateTime CheckDateTime { get; set; }
+    public string MediaName { get; set; }
+    public string MediaLotNumber { get; set; }
+    public string? MediaQuantity { get; set; }
+    public string Result37C { get; set; }
+    public string Result25C { get; set; }
+    public string OverallStatus { get; set; }
+    public string? Comments { get; set; }
+    public string PerformedByUserName { get; set; } // Fixed casing
+}
+
+public partial class SampleStorageReportDto : ObservableObject
+{
+    public DateTime StorageDateTime { get; set; }
+    public string PatientSampleID { get; set; }
+    public string TestName { get; set; }
+    public string StoredByUserName { get; set; } // Fixed casing
+    public bool IsTestDone { get; set; }
+    public DateTime? TestDoneDateTime { get; set; }
+    public string? TestDoneByUserName { get; set; } // Fixed casing
+}
+
+public partial class CalibrationReportDto : ObservableObject
+{
+    public DateTime CalibrationDateTime { get; set; }
+    public string TestName { get; set; }
+    public string QcResult { get; set; }
+    public string? Reason { get; set; }
+    public string PerformedByUserName { get; set; } // Fixed casing
+}
+
+public partial class DailyTaskLogDto : ObservableObject
+{
+    // Matches SQL: dtl.LogDate
+    public DateTime LogDate { get; set; }
+
+    // Matches SQL: t.TaskName
+    public string TaskName { get; set; }
+
+    // Matches SQL: s.ShiftName
+    public string? ShiftName { get; set; }
+
+    // Matches SQL: dtl.Status
+    public string Status { get; set; }
+
+    // Matches SQL: dtl.Comments
+    public string? Comments { get; set; }
+
+    // Matches SQL: u.FullName AS CompletedByUserName
+    public string? CompletedByUserName { get; set; }
+
+    // Matches SQL: dtl.CompletedDateTime
+    public DateTime? CompletedDateTime { get; set; }
+
+    // --- Helpers for ReportService.cs ---
+    public DateTime TaskDate => LogDate;
+
+    // Compatibility property for reports/UI expecting "Shift"
+    public string? Shift => ShiftName;
+}
+// Wrapper for the Compliance Report
 public record DailyTaskComplianceReportDto(
-    List<DailyTaskComplianceReportItemDto> Items,
+    List<DailyTaskLogDto> Items,
     int TotalTasks,
     int CompletedTasks
-);
-
-public record RepeatSampleReportDto(
-    DateTime LogDateTime,
-    string? PatientIdCardNumber,
-    string PatientName,
-    string? ReasonText,
-    string? Department,
-    string? InformedPerson,
-    string LoggedByUsername
-);
-
-public record MediaSterilityReportDto(
-    DateTime CheckDateTime,
-    string MediaName,
-    string MediaLotNumber,
-    string? MediaQuantity,
-    string Result37C,
-    string Result25C,
-    string OverallStatus,
-    string? Comments,
-    string PerformedByUsername
-);
-
-public record SampleStorageReportDto(
-    DateTime StorageDateTime,
-    string PatientSampleID,
-    string TestName,
-    string StoredByUsername,
-    bool IsTestDone,
-    DateTime? TestDoneDateTime,
-    string? TestDoneByUsername
-);
-
-public record CalibrationReportDto(
-    DateTime CalibrationDateTime,
-    string TestName,
-    string QcResult,
-    string? Reason,
-    string PerformedByUsername
 );
 
 
@@ -15898,6 +17480,11 @@ public record User
     public required string FullName { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; init; }
+
+    // --- NEW ADDITION ---
+    // This property holds the role from the Token (JWT) for the UI to use.
+    // It is not stored in the 'Users' table, so it won't break your SQL INSERTs.
+    public string? Role { get; set; }
 }
 
 
@@ -15911,6 +17498,27 @@ public record UserRole
     public int UserID { get; set; }
     public int RoleID { get; set; }
 }
+
+
+========================================
+FILE: C:\Users\admin\source\repos\Mirage\PortalMirage.Core\AnalyticsDtos.cs
+========================================
+using System;
+using System.Collections.Generic;
+
+namespace PortalMirage.Core.Dtos;
+
+// Individual point for charts (X-axis Label, Y-axis Value)
+public record ChartDataPoint(string Label, double Value);
+
+// Top-row KPI cards
+public record AnalyticsSummaryDto(string Title, string Value, string Color);
+
+// The full package sent to the UI
+public record AnalyticsReportDto(
+    List<AnalyticsSummaryDto> Kpis,
+    List<ChartDataPoint> ChartData,
+    string ChartTitle);
 
 
 ========================================
@@ -16024,7 +17632,7 @@ public interface IDailyTaskLogRepository
     Task<DailyTaskLog?> UpdateStatusAsync(long logId, string status, int? userId, string? comment);
     Task<DailyTaskLog?> ExtendDeadlineAsync(long logId, DateTime newDeadline, string reason, int adminUserId);
     Task<DailyTaskLog?> OverrideLockAsync(long logId, DateTime overrideUntil, string reason, int adminUserId);
-    Task<IEnumerable<DailyTaskComplianceReportItemDto>> GetComplianceReportDataAsync(DateTime startDate, DateTime endDate, int? shiftId, string? status); // ADD THIS
+    Task<IEnumerable<DailyTaskLogDto>> GetComplianceReportDataAsync(DateTime startDate, DateTime endDate, int? shiftId, string? status);
     Task<int> GetPendingCountForDateAsync(DateTime date); // ADD THIS LINE
 }
 
@@ -16599,7 +18207,8 @@ public class DailyTaskLogRepository(IDbConnectionFactory connectionFactory) : ID
             INNER JOIN Tasks t ON dtl.TaskID = t.TaskID
             INNER JOIN Shifts s ON t.ShiftID = s.ShiftID
             WHERE dtl.LogDate = @Date 
-              AND dtl.Status = 'Pending'
+              AND (dtl.Status IS NULL OR 
+                   dtl.Status NOT IN ('Complete', 'Completed'))  -- Fixed: Check for both 'Complete' and 'Completed'
               AND (
                 dtl.LockOverrideUntil IS NULL OR dtl.LockOverrideUntil < GETDATE()
               )
@@ -16629,7 +18238,7 @@ public class DailyTaskLogRepository(IDbConnectionFactory connectionFactory) : ID
         });
     }
 
-    public async Task<IEnumerable<DailyTaskComplianceReportItemDto>> GetComplianceReportDataAsync(DateTime startDate, DateTime endDate, int? shiftId, string? status)
+    public async Task<IEnumerable<DailyTaskLogDto>> GetComplianceReportDataAsync(DateTime startDate, DateTime endDate, int? shiftId, string? status)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
         var inclusiveEndDate = endDate.Date.AddDays(1);
@@ -16640,35 +18249,38 @@ public class DailyTaskLogRepository(IDbConnectionFactory connectionFactory) : ID
                 t.TaskName,
                 s.ShiftName,
                 dtl.Status,
-                dtl.CompletedDateTime,
-                u.FullName AS CompletedByUsername,
-                dtl.Comments
+                dtl.Comments,
+                u.FullName AS CompletedByUserName,
+                dtl.CompletedDateTime
             FROM DailyTaskLogs dtl
             INNER JOIN Tasks t ON dtl.TaskID = t.TaskID
             LEFT JOIN Shifts s ON t.ShiftID = s.ShiftID
             LEFT JOIN Users u ON dtl.CompletedByUserID = u.UserID
-            WHERE dtl.LogDate >= @StartDate AND dtl.LogDate < @InclusiveEndDate
+            WHERE dtl.LogDate >= @startDate AND dtl.LogDate < @inclusiveEndDate
         ");
 
-        var parameters = new DynamicParameters();
-        parameters.Add("StartDate", startDate.Date);
-        parameters.Add("InclusiveEndDate", inclusiveEndDate);
+        // Create anonymous object with parameter names that match SQL placeholders
+        var parameters = new
+        {
+            startDate = startDate.Date,
+            inclusiveEndDate,
+            shiftId,
+            status
+        };
 
         if (shiftId.HasValue)
         {
-            sqlBuilder.Append(" AND t.ShiftID = @ShiftID");
-            parameters.Add("ShiftID", shiftId.Value);
+            sqlBuilder.Append(" AND t.ShiftID = @shiftId");
         }
 
         if (!string.IsNullOrEmpty(status) && status != "All")
         {
-            sqlBuilder.Append(" AND dtl.Status = @Status");
-            parameters.Add("Status", status);
+            sqlBuilder.Append(" AND dtl.Status = @status");
         }
 
         sqlBuilder.Append(" ORDER BY dtl.LogDate, s.StartTime;");
 
-        return await connection.QueryAsync<DailyTaskComplianceReportItemDto>(sqlBuilder.ToString(), parameters);
+        return await connection.QueryAsync<DailyTaskLogDto>(sqlBuilder.ToString(), parameters);
     }
 }
 
@@ -17839,149 +19451,9 @@ public class UserRoleRepository(IDbConnectionFactory connectionFactory) : IUserR
 
 
 ========================================
-FILE: C:\Users\admin\source\repos\Mirage\auto logout q.sql
+FILE: C:\Users\admin\source\repos\Mirage\analytics 1.sql
 ========================================
-USE MirageDB;
-GO
-
--- Insert the setting only if it doesn't already exist
-IF NOT EXISTS (SELECT 1 FROM AdminListItems WHERE ListType = 'SystemSetting' AND ItemValue = 'InactivityTimeoutMinutes')
-BEGIN
-    INSERT INTO AdminListItems (ListType, ItemValue, Description, IsActive)
-    VALUES ('SystemSetting', 'InactivityTimeoutMinutes', '15', 1); -- The '15' in Description is the timeout in minutes
-END
-GO
-
-
-========================================
-FILE: C:\Users\admin\source\repos\Mirage\shift query 2.sql
-========================================
-USE MirageDB;
-GO
-
--- 1. Force all existing shifts to be Active (Visible)
-UPDATE Shifts
-SET IsActive = 1
-WHERE IsActive IS NULL OR IsActive = 0;
-
--- 2. Ensure GracePeriodHours has a valid value (required by C# code)
-UPDATE Shifts
-SET GracePeriodHours = 2
-WHERE GracePeriodHours IS NULL;
-
--- 3. Verify the data is now correct
-SELECT * FROM Shifts;
-GO
-
-
-========================================
-FILE: C:\Users\admin\source\repos\Mirage\shift query1.sql
-========================================
-USE MirageDB;
-GO
-
--- 1. Check if the conflicting column 'TaskCategory' exists
-IF EXISTS (SELECT * FROM sys.columns WHERE Name = N'TaskCategory' AND Object_ID = Object_ID(N'Tasks'))
-BEGIN
-    -- Option A: Make it nullable (Safe option, keeps old data)
-    ALTER TABLE Tasks ALTER COLUMN TaskCategory NVARCHAR(50) NULL;
-    
-    -- Option B: Drop it completely (Cleaner, if you don't need old category data)
-    -- ALTER TABLE Tasks DROP COLUMN TaskCategory;
-END
-GO
-
--- 2. Verification: Check table structure
-SELECT * FROM Tasks;
-GO
-
-
-========================================
-FILE: C:\Users\admin\source\repos\Mirage\shifts query schema.sql
-========================================
-USE MirageDB;
-GO
-
--- 1. Check if Shifts table exists; if NOT, create it entirely
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Shifts')
-BEGIN
-    CREATE TABLE Shifts (
-        ShiftID INT IDENTITY(1,1) PRIMARY KEY,
-        ShiftName NVARCHAR(100) NOT NULL UNIQUE,
-        StartTime TIME NOT NULL,
-        EndTime TIME NOT NULL,
-        GracePeriodHours INT NOT NULL DEFAULT 2,
-        IsActive BIT NOT NULL DEFAULT 1
-    );
-END
-ELSE
-BEGIN
-    -- 2. If table EXISTS, check for missing columns and add them
-    
-    -- Check for GracePeriodHours
-    IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = N'GracePeriodHours' AND Object_ID = Object_ID(N'Shifts'))
-    BEGIN
-        ALTER TABLE Shifts ADD GracePeriodHours INT NOT NULL DEFAULT 2;
-    END
-
-    -- Check for IsActive
-    IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = N'IsActive' AND Object_ID = Object_ID(N'Shifts'))
-    BEGIN
-        ALTER TABLE Shifts ADD IsActive BIT NOT NULL DEFAULT 1;
-    END
-END
-GO
-
-
-========================================
-FILE: C:\Users\admin\source\repos\Mirage\SQLQuery3.sql
-========================================
-USE MirageDB;
-GO
-
--- 1. Add 'GracePeriodHours' column if it is missing
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = N'GracePeriodHours' AND Object_ID = Object_ID(N'Shifts'))
-BEGIN
-    ALTER TABLE Shifts ADD GracePeriodHours INT NOT NULL DEFAULT 2;
-END
-GO
-
--- 2. Add 'IsActive' column if it is missing
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE Name = N'IsActive' AND Object_ID = Object_ID(N'Shifts'))
-BEGIN
-    ALTER TABLE Shifts ADD IsActive BIT NOT NULL DEFAULT 1;
-END
-GO
-
--- 3. FIX THE DATA: Make sure old shifts are visible
--- This updates any record where IsActive is NULL or 0 to be 1 (Active)
-UPDATE Shifts
-SET IsActive = 1
-WHERE IsActive IS NULL OR IsActive = 0;
-
--- 4. FIX THE DATA: Ensure Grace Period has a valid value
-UPDATE Shifts
-SET GracePeriodHours = 2
-WHERE GracePeriodHours IS NULL;
-GO
-
--- 5. Verification: Show the fixed data
-SELECT * FROM Shifts;
-GO
-
-
-========================================
-FILE: C:\Users\admin\source\repos\Mirage\updated audit index lg.sql
-========================================
-USE MirageDB;
-GO
-
--- Create an index on the Timestamp column to keep queries fast
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_AuditLog_Timestamp' AND object_id = OBJECT_ID('dbo.AuditLog'))
-BEGIN
-    CREATE NONCLUSTERED INDEX IX_AuditLog_Timestamp
-    ON dbo.AuditLog (Timestamp DESC);
-END
-GO
+CREATE INDEX IX_DailyTaskLogs_LogDate ON DailyTaskLogs(LogDate);
+CREATE INDEX IX_MachineBreakdowns_ReportedDateTime ON MachineBreakdowns(ReportedDateTime);
 
 

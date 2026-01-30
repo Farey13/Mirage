@@ -266,4 +266,18 @@ public interface IPortalMirageApi
         [Query] DateTime endDate,
         [Query] string? testName,
         [Query] string? status);
+
+    // === Analytics Methods ===
+    [Get("/api/analytics/daily-tasks/completion")]
+    Task<AnalyticsReportDto> GetDailyTaskCompletionAsync([Header("Authorization")] string token, DateTime start, DateTime end);
+
+    [Get("/api/analytics/breakdown/downtime")]
+    Task<AnalyticsReportDto> GetMachineDowntimeAsync([Header("Authorization")] string token, DateTime start, DateTime end);
+
+    // ADD THESE TWO LINES:
+    [Get("/api/analytics/shift-handover")]
+    Task<AnalyticsReportDto> GetShiftHandoverAnalyticsAsync([Header("Authorization")] string token, DateTime start, DateTime end);
+
+    [Get("/api/analytics/sample-storage")]
+    Task<AnalyticsReportDto> GetSampleStorageAnalyticsAsync([Header("Authorization")] string token, DateTime start, DateTime end);
 }

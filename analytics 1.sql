@@ -1,0 +1,2 @@
+﻿CREATE INDEX IX_DailyTaskLogs_LogDate ON DailyTaskLogs(LogDate);
+CREATE INDEX IX_MachineBreakdowns_ReportedDateTime ON MachineBreakdowns(ReportedDateTime);

@@ -10,6 +10,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Markup;
 
+
 namespace Mirage.UI
 {
     public partial class App : Application
@@ -17,6 +18,8 @@ namespace Mirage.UI
         private static Mutex? _mutex = null; // <-- ADD THIS LINE
 
         public static IServiceProvider? ServiceProvider { get; private set; }
+
+        
 
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -101,6 +104,10 @@ namespace Mirage.UI
             services.AddSingleton<SystemSettingsViewModel>();
             services.AddSingleton<TaskManagementViewModel>();
             services.AddTransient<TaskManagementView>();
+
+            // Add MainAnalyticsViewModel and MainAnalyticsView
+            services.AddTransient<MainAnalyticsViewModel>();
+            services.AddTransient<MainAnalyticsView>();
 
             // --- Views (Registered as Transient so a new one is created each time) ---
             services.AddTransient<LoginView>();

@@ -1,0 +1,56 @@
+﻿<UserControl x:Class="Mirage.UI.Views.MainAnalyticsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:ScottPlot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.Wpf"
+             mc:Ignorable="d" d:DesignHeight="700" d:DesignWidth="1100">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+            <ComboBox ItemsSource="{Binding LogbookOptions}" 
+                      SelectedItem="{Binding SelectedLogbook}" 
+                      Width="200" Margin="0,0,10,0"/>
+            <DatePicker SelectedDate="{Binding StartDate}" Width="150" Margin="0,0,5,0"/>
+            <TextBlock Text="to" VerticalAlignment="Center" Margin="5,0"/>
+            <DatePicker SelectedDate="{Binding EndDate}" Width="150" Margin="5,0,10,0"/>
+            <Button Content="REFRESH" Command="{Binding RefreshDataCommand}" 
+                    Style="{StaticResource MahApps.Styles.Button.Square.Accent}"/>
+        </StackPanel>
+
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding Kpis}" Margin="0,0,0,20">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="3"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Background="White" BorderBrush="LightGray" BorderThickness="1" 
+                            CornerRadius="8" Margin="5" Padding="15">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding Title}" FontSize="14" Foreground="Gray" HorizontalAlignment="Center"/>
+                            <TextBlock Text="{Binding Value}" FontSize="28" FontWeight="Bold" 
+                                       Foreground="{Binding Color}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="10" 
+                BorderBrush="LightGray" BorderThickness="1">
+            <Grid>
+                <mah:ProgressRing IsActive="{Binding IsLoading}" VerticalAlignment="Center" HorizontalAlignment="Center" Panel.ZIndex="1"/>
+                <ScottPlot:WpfPlot x:Name="MainPlot" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>
