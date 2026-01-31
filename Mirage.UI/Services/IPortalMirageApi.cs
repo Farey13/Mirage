@@ -280,4 +280,17 @@ public interface IPortalMirageApi
 
     [Get("/api/analytics/sample-storage")]
     Task<AnalyticsReportDto> GetSampleStorageAnalyticsAsync([Header("Authorization")] string token, DateTime start, DateTime end);
+
+    // --- NEW ANALYTICS METHODS (Added from new snippet) ---
+    [Get("/api/analytics/calibration")]
+    Task<AnalyticsReportDto> GetCalibrationAnalyticsAsync([Header("Authorization")] string token, DateTime start, DateTime end);
+
+    [Get("/api/analytics/kit-validation")]
+    Task<AnalyticsReportDto> GetKitValidationAnalyticsAsync([Header("Authorization")] string token, DateTime start, DateTime end);
+
+    [Get("/api/analytics/media-sterility")]
+    Task<AnalyticsReportDto> GetMediaSterilityAnalyticsAsync([Header("Authorization")] string token, DateTime start, DateTime end);
+
+    [Get("/api/analytics/repeat-samples")]
+    Task<AnalyticsReportDto> GetRepeatSampleAnalyticsAsync([Header("Authorization")] string token, DateTime start, DateTime end);
 }
