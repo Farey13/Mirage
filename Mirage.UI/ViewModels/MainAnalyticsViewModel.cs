@@ -17,12 +17,18 @@ public partial class MainAnalyticsViewModel : ObservableObject
     [ObservableProperty] private bool _isLoading;
 
     public ObservableCollection<AnalyticsSummaryDto> Kpis { get; } = new();
+
+    // 1. UPDATE THE LIST - Added all 8 analytics options
     public List<string> LogbookOptions { get; } = new()
     {
         "Daily Task Log",
         "Machine Breakdown",
         "Shift Handover",
-        "Sample Storage"
+        "Sample Storage",
+        "Calibration Log",
+        "Kit Validation",
+        "Media Sterility",
+        "Repeat Samples"
     };
 
     // This event tells the View (XAML) when new data is ready to be drawn
@@ -35,6 +41,7 @@ public partial class MainAnalyticsViewModel : ObservableObject
         _ = RefreshDataAsync();
     }
 
+    // 2. UPDATE THE METHOD - Added all 8 analytics API calls
     [RelayCommand]
     public async Task RefreshDataAsync()
     {
@@ -44,12 +51,17 @@ public partial class MainAnalyticsViewModel : ObservableObject
             var token = _authService.GetToken();
             if (string.IsNullOrEmpty(token)) return;
 
+            // This switch matches the string in the dropdown to the API call
             var data = SelectedLogbook switch
             {
                 "Daily Task Log" => await _apiClient.GetDailyTaskCompletionAsync(token, StartDate, EndDate),
                 "Machine Breakdown" => await _apiClient.GetMachineDowntimeAsync(token, StartDate, EndDate),
                 "Shift Handover" => await _apiClient.GetShiftHandoverAnalyticsAsync(token, StartDate, EndDate),
                 "Sample Storage" => await _apiClient.GetSampleStorageAnalyticsAsync(token, StartDate, EndDate),
+                "Calibration Log" => await _apiClient.GetCalibrationAnalyticsAsync(token, StartDate, EndDate),
+                "Kit Validation" => await _apiClient.GetKitValidationAnalyticsAsync(token, StartDate, EndDate),
+                "Media Sterility" => await _apiClient.GetMediaSterilityAnalyticsAsync(token, StartDate, EndDate),
+                "Repeat Samples" => await _apiClient.GetRepeatSampleAnalyticsAsync(token, StartDate, EndDate),
                 _ => null
             };
 

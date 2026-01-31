@@ -11,9 +11,14 @@ namespace PortalMirage.Business;
 public class AnalyticsService(
     IDailyTaskLogRepository taskRepo,
     IMachineBreakdownRepository breakdownRepo,
-    IShiftHandoverRepository handoverRepo,      // Added
-    ISampleStorageRepository storageRepo) : IAnalyticsService  // Added
+    IHandoverRepository handoverRepo,          // FIXED: Using IHandoverRepository from new snippet
+    ISampleStorageRepository storageRepo,
+    ICalibrationLogRepository calibrationRepo,
+    IKitValidationRepository kitRepo,
+    IMediaSterilityCheckRepository mediaRepo,
+    IRepeatSampleLogRepository repeatRepo) : IAnalyticsService
 {
+    // 1. DAILY TASK LOG (Combined best of both)
     public async Task<AnalyticsReportDto> GetDailyTaskCompletionAsync(DateTime start, DateTime end)
     {
         var logs = await taskRepo.GetComplianceReportDataAsync(start, end, null, "All");
@@ -29,7 +34,6 @@ public class AnalyticsService(
             new("Missed", (total - completed).ToString(), "Red")
         };
 
-        // Updated to calculate completion percentage instead of raw count
         var chartData = logs
             .GroupBy(l => l.LogDate.ToString("dd MMM"))
             .Select(g => new ChartDataPoint(
@@ -41,6 +45,7 @@ public class AnalyticsService(
         return new AnalyticsReportDto(kpis, chartData, "Daily Task Completion %");
     }
 
+    // 2. MACHINE BREAKDOWN (Preserved improved calculations from current code)
     public async Task<AnalyticsReportDto> GetMachineDowntimeAsync(DateTime start, DateTime end)
     {
         var data = await breakdownRepo.GetReportDataAsync(start, end, null, "All");
@@ -54,72 +59,178 @@ public class AnalyticsService(
             : 0;
         var avgDowntimeHours = Math.Round(avgDowntimeMinutes / 60.0, 1);
 
+        // Using better KPIs from current code
         var kpis = new List<AnalyticsSummaryDto>
         {
             new("Total Breakdowns", data.Count().ToString(), "Orange"),
             new("Total Downtime", $"{totalDowntimeHours} h", "Red"),
-            new("Avg. Repair Time", $"{avgDowntimeHours} h", "Blue")
+            new("Avg. Repair Time", $"{avgDowntimeHours} h", "Blue") // Better than "Active Issues"
         };
 
-        // Refined Machine Breakdown mapping with null handling
         var chartData = data
             .GroupBy(d => d.MachineName)
             .Select(g => new ChartDataPoint(
                 g.Key,
-                // Convert to double instead of decimal to match ChartDataPoint constructor
                 Math.Round((double)g.Sum(x => x.DowntimeMinutes ?? 0) / 60.0, 1)
             ))
             .OrderByDescending(x => x.Value)
             .ToList();
 
-        return new AnalyticsReportDto(kpis, chartData, "Downtime Hours by Machine (Pareto)");
+        return new AnalyticsReportDto(kpis, chartData, "Downtime Hours by Machine");
     }
 
+    // 3. SHIFT HANDOVER (Using new snippet's method signature)
     public async Task<AnalyticsReportDto> GetShiftHandoverAnalyticsAsync(DateTime start, DateTime end)
     {
-        var data = await handoverRepo.GetReportDataAsync(start, end);
+        // Pass nulls for filters we don't use (from new snippet)
+        var data = await handoverRepo.GetReportDataAsync(start, end, null, null, null);
 
+        int total = data.Count();
+        int critical = data.Count(x => x.Priority == "Urgent");
+
+        // Using better KPIs from current code but adapted
         var kpis = new List<AnalyticsSummaryDto>
         {
-            new("Total Handovers", data.Count().ToString(), "Blue"),
-            new("Critical Flags", data.Count(h => h.IsCritical).ToString(), "Red"),
-            new("Avg Duration", $"{data.Average(h => h.DurationMinutes ?? 0):F1} m", "Orange")
+            new("Total Handovers", total.ToString(), "Blue"),
+            new("Urgent Flags", critical.ToString(), critical > 0 ? "Red" : "Green"),
+            new("Pending Receive", data.Count(x => !x.IsReceived).ToString(), "Orange")
         };
 
+        // Chart data based on available properties
         var chartData = data
-            .GroupBy(h => h.ShiftName) // e.g., "Shift A", "Shift B"
+            .GroupBy(x => x.Shift)
             .Select(g => new ChartDataPoint(g.Key, (double)g.Count()))
-            .OrderByDescending(x => x.Value)
             .ToList();
 
-        return new AnalyticsReportDto(kpis, chartData, "Handovers Completed by Shift");
+        return new AnalyticsReportDto(kpis, chartData, "Total Handovers by Shift");
     }
 
+    // 4. SAMPLE STORAGE (Corrected: Removed Expiry/Disposal logic)
     public async Task<AnalyticsReportDto> GetSampleStorageAnalyticsAsync(DateTime start, DateTime end)
     {
-        var data = await storageRepo.GetReportDataAsync(start, end);
+        // Fetch data with null filters for testName and status
+        var data = await storageRepo.GetReportDataAsync(start, end, null, null);
 
-        var activeSamples = data.Count(s => !s.IsDisposed);
-        var overdueSamples = data.Count(s => s.ExpiryDate < DateTime.Now && !s.IsDisposed);
+        int total = data.Count();
 
-        // Calculate actual utilization percentage
-        var totalCapacity = 100; // This should come from configuration or repository
-        var utilizationPercent = totalCapacity > 0 ? (activeSamples / (double)totalCapacity) * 100 : 0;
+        // Logic: "Pending" means the test is not done yet.
+        int pending = data.Count(x => !x.IsTestDone);
+        int completed = data.Count(x => x.IsTestDone);
+
+        // Calculate a completion percentage for the KPI card
+        double completionRate = total > 0 ? (double)completed / total * 100 : 0;
 
         var kpis = new List<AnalyticsSummaryDto>
         {
-            new("Total Samples", activeSamples.ToString(), "Blue"),
-            new("Overdue Disposal", overdueSamples.ToString(), "Red"),
-            new("Utilization", $"{utilizationPercent:F0}%", "Orange") // Dynamic calculation
+            new("Total Samples", total.ToString(), "Blue"),
+            new("Pending Tests", pending.ToString(), pending > 0 ? "Orange" : "Green"),
+            new("Completion %", $"{completionRate:F0}%", completionRate > 90 ? "Green" : "Blue")
         };
 
+        // Chart: Total samples grouped by Test Name (e.g., how many "Blood Count" vs "Lipid Profile")
         var chartData = data
-            .Where(s => !s.IsDisposed)
-            .GroupBy(s => s.StorageLocation)
+            .GroupBy(x => x.TestName ?? "Unknown")
             .Select(g => new ChartDataPoint(g.Key, (double)g.Count()))
             .OrderByDescending(x => x.Value)
             .ToList();
 
-        return new AnalyticsReportDto(kpis, chartData, "Current Inventory by Storage Location");
+        return new AnalyticsReportDto(kpis, chartData, "Sample Volume by Test Type");
+    }
+
+    // 5. CALIBRATION LOG (From new snippet)
+    public async Task<AnalyticsReportDto> GetCalibrationAnalyticsAsync(DateTime start, DateTime end)
+    {
+        var data = await calibrationRepo.GetReportDataAsync(start, end, null, null);
+
+        int total = data.Count();
+        int failed = data.Count(x => x.QcResult == "Failed");
+
+        var kpis = new List<AnalyticsSummaryDto>
+        {
+            new("Total QC Runs", total.ToString(), "Blue"),
+            new("Passed", (total - failed).ToString(), "Green"),
+            new("Failed", failed.ToString(), failed > 0 ? "Red" : "Green")
+        };
+
+        var chartData = data
+            .Where(x => x.QcResult == "Failed")
+            .GroupBy(x => x.TestName)
+            .Select(g => new ChartDataPoint(g.Key, (double)g.Count()))
+            .ToList();
+
+        return new AnalyticsReportDto(kpis, chartData, "QC Failures by Instrument");
+    }
+
+    // 6. KIT VALIDATION (From new snippet)
+    public async Task<AnalyticsReportDto> GetKitValidationAnalyticsAsync(DateTime start, DateTime end)
+    {
+        var data = await kitRepo.GetReportDataAsync(start, end, null, null);
+
+        int total = data.Count();
+        int rejected = data.Count(x => x.ValidationStatus == "Rejected");
+
+        var kpis = new List<AnalyticsSummaryDto>
+        {
+            new("Kits Validated", total.ToString(), "Blue"),
+            new("Accepted", (total - rejected).ToString(), "Green"),
+            new("Rejected", rejected.ToString(), "Red")
+        };
+
+        var chartData = data
+            .GroupBy(x => x.KitName)
+            .Select(g => new ChartDataPoint(g.Key, (double)g.Count()))
+            .ToList();
+
+        return new AnalyticsReportDto(kpis, chartData, "Validation Volume by Kit");
+    }
+
+    // 7. MEDIA STERILITY (From new snippet)
+    public async Task<AnalyticsReportDto> GetMediaSterilityAnalyticsAsync(DateTime start, DateTime end)
+    {
+        var data = await mediaRepo.GetReportDataAsync(start, end, null, null);
+
+        int total = data.Count();
+        int contaminated = data.Count(x => x.OverallStatus == "Failed");
+
+        var kpis = new List<AnalyticsSummaryDto>
+        {
+            new("Batches Checked", total.ToString(), "Blue"),
+            new("Sterile", (total - contaminated).ToString(), "Green"),
+            new("Contaminated", contaminated.ToString(), "Red")
+        };
+
+        var chartData = data
+            .Where(x => x.OverallStatus == "Failed")
+            .GroupBy(x => x.MediaName)
+            .Select(g => new ChartDataPoint(g.Key, (double)g.Count()))
+            .ToList();
+
+        return new AnalyticsReportDto(kpis, chartData, "Contamination Events by Media");
+    }
+
+    // 8. REPEAT SAMPLE (From new snippet)
+    public async Task<AnalyticsReportDto> GetRepeatSampleAnalyticsAsync(DateTime start, DateTime end)
+    {
+        var data = await repeatRepo.GetReportDataAsync(start, end, null, null);
+
+        int total = data.Count();
+        var topDept = data.GroupBy(x => x.Department)
+                          .OrderByDescending(g => g.Count())
+                          .FirstOrDefault()?.Key ?? "-";
+
+        var kpis = new List<AnalyticsSummaryDto>
+        {
+            new("Total Repeats", total.ToString(), "Red"),
+            new("Top Dept", topDept, "Orange"),
+            new("Avg/Day", $"{(total / Math.Max(1, (end - start).TotalDays)):F1}", "Blue")
+        };
+
+        var chartData = data
+            .GroupBy(x => x.ReasonText ?? "Unknown")
+            .Select(g => new ChartDataPoint(g.Key, (double)g.Count()))
+            .OrderByDescending(x => x.Value)
+            .ToList();
+
+        return new AnalyticsReportDto(kpis, chartData, "Repeat Reasons (Pareto)");
     }
 }
