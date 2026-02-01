@@ -6,6 +6,7 @@ using Refit;
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
@@ -44,9 +45,10 @@ public partial class MediaSterilityViewModel : ObservableObject
         _apiClient = apiClient;
         _authService = authService;
 
-        MediaNames.Add("Blood Agar");
-        MediaNames.Add("MacConkey Agar");
-        MediaNames.Add("Chocolate Agar");
+        // REMOVED: Hardcoded media names
+
+        // ADDED: Load master lists from API
+        _ = LoadMasterLists();
 
         // CHECK FOR DRAFT ON STARTUP
         if (File.Exists(DraftFileName))
@@ -77,6 +79,21 @@ public partial class MediaSterilityViewModel : ObservableObject
                 catch { }
             }
         }
+    }
+
+    // ADDED: Method to load master lists from API
+    public async Task LoadMasterLists()
+    {
+        var token = _authService.GetToken();
+        if (string.IsNullOrEmpty(token)) return;
+
+        try
+        {
+            var items = await _apiClient.GetListItemsByTypeAsync(token, "MediaName");
+            MediaNames.Clear();
+            foreach (var item in items.Where(i => i.IsActive)) MediaNames.Add(item.ItemValue);
+        }
+        catch (Exception) { }
     }
 
     [RelayCommand]
