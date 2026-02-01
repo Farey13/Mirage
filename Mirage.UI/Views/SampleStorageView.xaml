@@ -37,7 +37,12 @@
                     <Label Content="New Sample ID:" VerticalAlignment="Center"/>
                     <TextBox Text="{Binding NewPatientSampleId}" Width="150" Margin="5,0"/>
                     <Label Content="Test Name:" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                    <TextBox Text="{Binding NewTestName}" Width="150" Margin="5,0"/>
+                    <!-- REMOVED: TextBox for TestName -->
+                    <!-- ADDED: Editable ComboBox for TestName -->
+                    <ComboBox ItemsSource="{Binding TestNameOptions}" 
+                              Text="{Binding NewTestName}" 
+                              IsEditable="True"
+                              Width="150" Margin="5,0"/>
                     <Button Content="Add Sample" Command="{Binding AddCommand}" Margin="10,0,0,0"/>
                     <!-- Add Clear Draft Button -->
                     <Button Content="Clear Draft" Command="{Binding ClearDraftCommand}" Margin="10,0,0,0" 

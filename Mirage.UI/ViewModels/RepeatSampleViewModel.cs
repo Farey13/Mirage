@@ -8,6 +8,7 @@ using Refit;
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
@@ -37,7 +38,7 @@ public partial class RepeatSampleViewModel : ObservableObject
 
     public ObservableCollection<RepeatSampleResponse> Logs { get; } = new();
     public ObservableCollection<string> Reasons { get; } = new();
-    public ObservableCollection<string> Departments { get; } = new() { "OPD", "IPD" };
+    public ObservableCollection<string> Departments { get; } = new();
 
     public RepeatSampleViewModel(IPortalMirageApi mirageApiClient, IPatientInfoApi patientInfoApiClient, IAuthService authService)
     {
@@ -45,10 +46,10 @@ public partial class RepeatSampleViewModel : ObservableObject
         _patientInfoApiClient = patientInfoApiClient;
         _authService = authService;
 
-        Reasons.Add("Hemolysis");
-        Reasons.Add("Clotted");
-        Reasons.Add("Insufficient Quantity");
-        Reasons.Add("Instrument Error");
+        // REMOVED: Hardcoded reasons and departments
+
+        // ADDED: Load master lists from API
+        _ = LoadMasterLists();
 
         // CHECK FOR DRAFT ON STARTUP
         if (File.Exists(DraftFileName))
@@ -78,6 +79,25 @@ public partial class RepeatSampleViewModel : ObservableObject
                 catch { }
             }
         }
+    }
+
+    // ADDED: Method to load master lists from API
+    public async Task LoadMasterLists()
+    {
+        var token = _authService.GetToken();
+        if (string.IsNullOrEmpty(token)) return;
+
+        try
+        {
+            var reasonItems = await _mirageApiClient.GetListItemsByTypeAsync(token, "RepeatReason");
+            Reasons.Clear();
+            foreach (var item in reasonItems.Where(i => i.IsActive)) Reasons.Add(item.ItemValue);
+
+            var deptItems = await _mirageApiClient.GetListItemsByTypeAsync(token, "Department");
+            Departments.Clear();
+            foreach (var item in deptItems.Where(i => i.IsActive)) Departments.Add(item.ItemValue);
+        }
+        catch (Exception) { }
     }
 
     [RelayCommand]

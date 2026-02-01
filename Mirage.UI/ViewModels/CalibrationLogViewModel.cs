@@ -9,6 +9,7 @@ using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Linq;
 
 namespace Mirage.UI.ViewModels;
 
@@ -50,11 +51,10 @@ public partial class CalibrationLogViewModel : ObservableObject
         _apiClient = apiClient;
         _authService = authService;
 
-        TestNames.Add("Vitros 250");
-        TestNames.Add("Abbott Architect");
-        TestNames.Add("Glucose Meter QC");
         QcResults.Add("Passed");
         QcResults.Add("Failed");
+
+        _ = LoadMasterLists();
 
         // CHECK FOR DRAFT ON STARTUP
         if (File.Exists(DraftFileName))
@@ -83,6 +83,20 @@ public partial class CalibrationLogViewModel : ObservableObject
                 catch { }
             }
         }
+    }
+
+    public async Task LoadMasterLists()
+    {
+        var token = _authService.GetToken();
+        if (string.IsNullOrEmpty(token)) return;
+
+        try
+        {
+            var items = await _apiClient.GetListItemsByTypeAsync(token, "TestName");
+            TestNames.Clear();
+            foreach (var item in items.Where(i => i.IsActive)) TestNames.Add(item.ItemValue);
+        }
+        catch (Exception) { }
     }
 
     [RelayCommand]

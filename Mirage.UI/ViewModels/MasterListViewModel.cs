@@ -51,6 +51,10 @@ public partial class MasterListViewModel : ObservableObject
 
         try
         {
+            // 1. CAPTURE CURRENT SELECTION
+            // We store what the user had selected (e.g., "KitName") before we refresh the lists.
+            var previousSelection = SelectedListType;
+
             var itemsTask = _apiClient.GetAllListItemsAsync(authToken);
             var typesTask = _apiClient.GetListTypesAsync(authToken);
             await System.Threading.Tasks.Task.WhenAll(itemsTask, typesTask);
@@ -62,10 +66,20 @@ public partial class MasterListViewModel : ObservableObject
             foreach (var type in types.OrderBy(t => t))
                 ListTypes.Add(type);
 
-            if (SelectedListType is null)
-                SelectedListType = ListTypes.FirstOrDefault();
+            // 2. RESTORE SELECTION
+            // If we had a selection, and that type still exists in the new list, select it again.
+            if (!string.IsNullOrEmpty(previousSelection) && ListTypes.Contains(previousSelection))
+            {
+                SelectedListType = previousSelection;
+            }
             else
-                ApplyFilters();
+            {
+                // Only default to the first item if we didn't have a valid previous selection
+                SelectedListType = ListTypes.FirstOrDefault();
+            }
+
+            // 3. REFRESH GRID
+            ApplyFilters();
         }
         catch (Exception ex)
         {

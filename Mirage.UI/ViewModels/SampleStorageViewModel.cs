@@ -63,11 +63,14 @@ public partial class SampleStorageViewModel : ObservableObject
 
     public ObservableCollection<SampleStorageResponse> PendingSamples { get; } = new();
     public ObservableCollection<SampleStorageResponse> CompletedSamples { get; } = new();
+    public ObservableCollection<string> TestNameOptions { get; } = new();
 
     public SampleStorageViewModel(IPortalMirageApi apiClient, IAuthService authService)
     {
         _apiClient = apiClient;
         _authService = authService;
+
+        _ = LoadMasterLists();
 
         // CHECK FOR DRAFT ON STARTUP
         if (File.Exists(DraftFileName))
@@ -93,6 +96,20 @@ public partial class SampleStorageViewModel : ObservableObject
                 catch { }
             }
         }
+    }
+
+    public async Task LoadMasterLists()
+    {
+        var token = _authService.GetToken();
+        if (string.IsNullOrEmpty(token)) return;
+
+        try
+        {
+            var items = await _apiClient.GetListItemsByTypeAsync(token, "TestName");
+            TestNameOptions.Clear();
+            foreach (var item in items.Where(i => i.IsActive)) TestNameOptions.Add(item.ItemValue);
+        }
+        catch (Exception) { }
     }
 
     [RelayCommand]

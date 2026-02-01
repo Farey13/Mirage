@@ -6,6 +6,7 @@ using Refit;
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
@@ -35,12 +36,18 @@ public partial class KitValidationViewModel : ObservableObject
     public ObservableCollection<KitValidationResponse> Logs { get; } = new();
     public ObservableCollection<string> ValidationStatuses { get; } = new();
 
+    // ADDED: Kit name options property
+    public ObservableCollection<string> KitNameOptions { get; } = new();
+
     public KitValidationViewModel(IPortalMirageApi apiClient, IAuthService authService)
     {
         _apiClient = apiClient;
         _authService = authService;
         ValidationStatuses.Add("Accepted");
         ValidationStatuses.Add("Rejected");
+
+        // ADDED: Load master lists from API
+        _ = LoadMasterLists();
 
         // CHECK FOR DRAFT ON STARTUP
         if (File.Exists(DraftFileName))
@@ -71,6 +78,21 @@ public partial class KitValidationViewModel : ObservableObject
                 catch { }
             }
         }
+    }
+
+    // ADDED: Method to load master lists from API
+    public async Task LoadMasterLists()
+    {
+        var token = _authService.GetToken();
+        if (string.IsNullOrEmpty(token)) return;
+
+        try
+        {
+            var items = await _apiClient.GetListItemsByTypeAsync(token, "KitName");
+            KitNameOptions.Clear();
+            foreach (var item in items.Where(i => i.IsActive)) KitNameOptions.Add(item.ItemValue);
+        }
+        catch (Exception) { }
     }
 
     [RelayCommand]

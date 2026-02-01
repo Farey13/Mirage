@@ -44,7 +44,12 @@
                 <TextBlock Text="Kit Validation" FontSize="36" FontWeight="Light" Margin="0,0,0,20"/>
 
                 <Label Content="Kit Name"/>
-                <TextBox Margin="0,0,0,10" Text="{Binding KitName}"/>
+                <!-- REMOVED: TextBox for KitName -->
+                <!-- ADDED: Editable ComboBox for KitName -->
+                <ComboBox Margin="0,0,0,10" 
+                          ItemsSource="{Binding KitNameOptions}" 
+                          Text="{Binding KitName}"
+                          IsEditable="True"/>
 
                 <Label Content="Lot Number"/>
                 <TextBox Margin="0,0,0,10" Text="{Binding KitLotNumber}"/>
