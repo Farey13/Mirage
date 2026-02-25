@@ -22,6 +22,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PortalMirage.Api", "PortalM
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mirage.UI", "Mirage.UI\Mirage.UI.csproj", "{8AB4DCC5-061E-46F3-9AA5-F856F43216A9}"
 EndProject
+Project("{00D1A9C2-B5F0-4AF3-8072-F6C62B433612}") = "Mirage.Database", "Mirage.Database\Mirage.Database.sqlproj", "{9BFB48E6-3AA8-41B8-B275-2DCEA040180F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -56,6 +58,12 @@ Global
 		{8AB4DCC5-061E-46F3-9AA5-F856F43216A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8AB4DCC5-061E-46F3-9AA5-F856F43216A9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8AB4DCC5-061E-46F3-9AA5-F856F43216A9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9BFB48E6-3AA8-41B8-B275-2DCEA040180F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9BFB48E6-3AA8-41B8-B275-2DCEA040180F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9BFB48E6-3AA8-41B8-B275-2DCEA040180F}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{9BFB48E6-3AA8-41B8-B275-2DCEA040180F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9BFB48E6-3AA8-41B8-B275-2DCEA040180F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9BFB48E6-3AA8-41B8-B275-2DCEA040180F}.Release|Any CPU.Deploy.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
