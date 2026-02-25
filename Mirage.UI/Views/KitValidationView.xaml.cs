@@ -15,9 +15,14 @@ namespace Mirage.UI.Views
 
         private void KitValidationView_OnLoaded(object sender, RoutedEventArgs e)
         {
-            if (this.DataContext is KitValidationViewModel viewModel && viewModel.LoadLogsCommand.CanExecute(null))
+            if (this.DataContext is KitValidationViewModel viewModel)
             {
-                viewModel.LoadLogsCommand.Execute(null);
+                if (viewModel.LoadLogsCommand.CanExecute(null))
+                {
+                    viewModel.LoadLogsCommand.Execute(null);
+                }
+                // ADDED: Force refresh the dropdowns every time the page opens
+                _ = viewModel.LoadMasterLists();
             }
         }
     }

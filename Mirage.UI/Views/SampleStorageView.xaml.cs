@@ -15,9 +15,14 @@ namespace Mirage.UI.Views
 
         private void SampleStorageView_OnLoaded(object sender, RoutedEventArgs e)
         {
-            if (this.DataContext is SampleStorageViewModel viewModel && viewModel.SearchCommand.CanExecute(null))
+            if (this.DataContext is SampleStorageViewModel viewModel)
             {
-                viewModel.SearchCommand.Execute(null);
+                if (viewModel.SearchCommand.CanExecute(null))
+                {
+                    viewModel.SearchCommand.Execute(null);
+                }
+                // ADDED: Force refresh the dropdowns every time the page opens
+                _ = viewModel.LoadMasterLists();
             }
         }
     }
