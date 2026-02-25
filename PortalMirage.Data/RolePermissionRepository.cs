@@ -1,5 +1,7 @@
-﻿using Dapper;
+using Dapper;
 using PortalMirage.Data.Abstractions;
+using System.Data;
+using System.Threading.Tasks;
 
 namespace PortalMirage.Data;
 
@@ -8,14 +10,18 @@ public class RolePermissionRepository(IDbConnectionFactory connectionFactory) : 
     public async Task AssignPermissionToRoleAsync(int roleId, int permissionId)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = "INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@RoleId, @PermissionId);";
-        await connection.ExecuteAsync(sql, new { RoleId = roleId, PermissionId = permissionId });
+        await connection.ExecuteAsync(
+            "usp_RolePermissions_AssignPermissionToRole",
+            new { RoleId = roleId, PermissionId = permissionId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task RemovePermissionFromRoleAsync(int roleId, int permissionId)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = "DELETE FROM RolePermissions WHERE RoleID = @RoleId AND PermissionID = @PermissionId;";
-        await connection.ExecuteAsync(sql, new { RoleId = roleId, PermissionId = permissionId });
+        await connection.ExecuteAsync(
+            "usp_RolePermissions_RemovePermissionFromRole",
+            new { RoleId = roleId, PermissionId = permissionId },
+            commandType: CommandType.StoredProcedure);
     }
 }

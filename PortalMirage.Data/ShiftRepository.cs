@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using PortalMirage.Core.Models;
 using PortalMirage.Data.Abstractions;
 using System;
@@ -10,106 +10,68 @@ namespace PortalMirage.Data;
 
 public class ShiftRepository(IDbConnectionFactory connectionFactory) : IShiftRepository
 {
-    // === 1. READ ALL ===
     public async Task<IEnumerable<Shift>> GetAllAsync()
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = "SELECT * FROM Shifts WHERE IsActive = 1";
-
-        // Use dynamic to read raw values
-        var rows = await connection.QueryAsync<dynamic>(sql);
+        var rows = await connection.QueryAsync<dynamic>(
+            "usp_Shifts_GetAll",
+            commandType: CommandType.StoredProcedure);
+        
         var shifts = new List<Shift>();
-
         foreach (var row in rows)
         {
-            // Manual mapping - simple and explicit
             shifts.Add(MapRowToShift(row));
         }
-
         return shifts;
     }
 
-    // === 2. READ BY ID ===
     public async Task<Shift?> GetByIdAsync(int shiftId)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = "SELECT * FROM Shifts WHERE ShiftID = @ShiftId";
-
-        var row = await connection.QuerySingleOrDefaultAsync<dynamic>(sql, new { ShiftId = shiftId });
+        var row = await connection.QuerySingleOrDefaultAsync<dynamic>(
+            "usp_Shifts_GetById",
+            new { ShiftId = shiftId },
+            commandType: CommandType.StoredProcedure);
 
         if (row == null) return null;
-
         return MapRowToShift(row);
     }
 
-    // === 3. CREATE ===
     public async Task<Shift> CreateAsync(Shift shift)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = """
-            INSERT INTO Shifts (ShiftName, StartTime, EndTime, GracePeriodHours, IsActive)
-            OUTPUT INSERTED.ShiftID
-            VALUES (@ShiftName, @StartTime, @EndTime, @GracePeriodHours, @IsActive);
-            """;
-
-        // Explicitly convert TimeOnly -> TimeSpan for SQL
-        var parameters = new
-        {
-            shift.ShiftName,
-            StartTime = shift.StartTime.ToTimeSpan(),
-            EndTime = shift.EndTime.ToTimeSpan(),
-            shift.GracePeriodHours,
-            shift.IsActive
-        };
-
-        var newId = await connection.ExecuteScalarAsync<int>(sql, parameters);
+        var newId = await connection.ExecuteScalarAsync<int>(
+            "usp_Shifts_Create",
+            new { ShiftName = shift.ShiftName, StartTime = shift.StartTime.ToTimeSpan(), EndTime = shift.EndTime.ToTimeSpan(), GracePeriodHours = shift.GracePeriodHours, IsActive = shift.IsActive },
+            commandType: CommandType.StoredProcedure);
         return shift with { ShiftID = newId };
     }
 
-    // === 4. UPDATE ===
     public async Task<Shift> UpdateAsync(Shift shift)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = """
-            UPDATE Shifts
-            SET ShiftName = @ShiftName,
-                StartTime = @StartTime,
-                EndTime = @EndTime,
-                GracePeriodHours = @GracePeriodHours,
-                IsActive = @IsActive
-            WHERE ShiftID = @ShiftID;
-            """;
-
-        var parameters = new
-        {
-            shift.ShiftID,
-            shift.ShiftName,
-            StartTime = shift.StartTime.ToTimeSpan(),
-            EndTime = shift.EndTime.ToTimeSpan(),
-            shift.GracePeriodHours,
-            shift.IsActive
-        };
-
-        await connection.ExecuteAsync(sql, parameters);
+        await connection.ExecuteAsync(
+            "usp_Shifts_Update",
+            new { ShiftID = shift.ShiftID, ShiftName = shift.ShiftName, StartTime = shift.StartTime.ToTimeSpan(), EndTime = shift.EndTime.ToTimeSpan(), GracePeriodHours = shift.GracePeriodHours, IsActive = shift.IsActive },
+            commandType: CommandType.StoredProcedure);
         return shift;
     }
 
-    // === 5. DEACTIVATE ===
     public async System.Threading.Tasks.Task DeactivateAsync(int shiftId)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = "UPDATE Shifts SET IsActive = 0 WHERE ShiftID = @ShiftId";
-        await connection.ExecuteAsync(sql, new { ShiftId = shiftId });
+        await connection.ExecuteAsync(
+            "usp_Shifts_Deactivate",
+            new { ShiftId = shiftId },
+            commandType: CommandType.StoredProcedure);
     }
 
-    // === HELPER: Centralized Mapping Logic ===
     private Shift MapRowToShift(dynamic row)
     {
         return new Shift
         {
             ShiftID = (int)row.ShiftID,
             ShiftName = (string)row.ShiftName,
-            // Safe conversion logic
             StartTime = ParseTime(row.StartTime),
             EndTime = ParseTime(row.EndTime),
             GracePeriodHours = row.GracePeriodHours != null ? (int)row.GracePeriodHours : 2,
@@ -117,23 +79,12 @@ public class ShiftRepository(IDbConnectionFactory connectionFactory) : IShiftRep
         };
     }
 
-    // === HELPER: Safe Time Conversion ===
     private TimeOnly ParseTime(object value)
     {
         if (value == null) return TimeOnly.MinValue;
-
-        // Standard SQL Time maps to TimeSpan
-        if (value is TimeSpan ts)
-            return TimeOnly.FromTimeSpan(ts);
-
-        // Legacy SQL DateTime maps to DateTime
-        if (value is DateTime dt)
-            return TimeOnly.FromDateTime(dt);
-
-        // Fallback for strings
-        if (TimeSpan.TryParse(value.ToString(), out var parsedTs))
-            return TimeOnly.FromTimeSpan(parsedTs);
-
+        if (value is TimeSpan ts) return TimeOnly.FromTimeSpan(ts);
+        if (value is DateTime dt) return TimeOnly.FromDateTime(dt);
+        if (TimeSpan.TryParse(value.ToString(), out var parsedTs)) return TimeOnly.FromTimeSpan(parsedTs);
         return TimeOnly.MinValue;
     }
 }
