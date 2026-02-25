@@ -155,6 +155,7 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
     private void Logout()
     {
         // Make sure we run this on the UI thread
