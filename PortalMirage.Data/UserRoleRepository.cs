@@ -1,7 +1,8 @@
-﻿using Dapper;
+using Dapper;
 using PortalMirage.Core.Models;
 using PortalMirage.Data.Abstractions;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 
 namespace PortalMirage.Data;
@@ -11,27 +12,27 @@ public class UserRoleRepository(IDbConnectionFactory connectionFactory) : IUserR
     public async System.Threading.Tasks.Task AssignRoleToUserAsync(int userId, int roleId)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = "INSERT INTO UserRoles (UserID, RoleID) VALUES (@UserId, @RoleId);";
-        await connection.ExecuteAsync(sql, new { UserId = userId, RoleId = roleId });
+        await connection.ExecuteAsync(
+            "usp_UserRoles_AssignRoleToUser",
+            new { UserId = userId, RoleId = roleId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async System.Threading.Tasks.Task RemoveRoleFromUserAsync(int userId, int roleId)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = "DELETE FROM UserRoles WHERE UserID = @UserId AND RoleID = @RoleId;";
-        await connection.ExecuteAsync(sql, new { UserId = userId, RoleId = roleId });
+        await connection.ExecuteAsync(
+            "usp_UserRoles_RemoveRoleFromUser",
+            new { UserId = userId, RoleId = roleId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async System.Threading.Tasks.Task<IEnumerable<Role>> GetRolesForUserAsync(string username)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = """
-                           SELECT r.*
-                           FROM Roles r
-                           INNER JOIN UserRoles ur ON r.RoleID = ur.RoleID
-                           INNER JOIN Users u ON ur.UserID = u.UserID
-                           WHERE u.Username = @Username
-                           """;
-        return await connection.QueryAsync<Role>(sql, new { Username = username });
+        return await connection.QueryAsync<Role>(
+            "usp_UserRoles_GetRolesForUser",
+            new { Username = username },
+            commandType: CommandType.StoredProcedure);
     }
 }
