@@ -1,6 +1,9 @@
-﻿using Dapper;
+using Dapper;
 using PortalMirage.Core.Models;
 using PortalMirage.Data.Abstractions;
+using System.Collections.Generic;
+using System.Data;
+using System.Threading.Tasks;
 
 namespace PortalMirage.Data;
 
@@ -9,19 +12,18 @@ public class RoleRepository(IDbConnectionFactory connectionFactory) : IRoleRepos
     public async Task<IEnumerable<Role>> GetAllAsync()
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = "SELECT RoleID, RoleName FROM Roles";
-        return await connection.QueryAsync<Role>(sql);
+        return await connection.QueryAsync<Role>(
+            "usp_Roles_GetAll",
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<Role> CreateAsync(Role role)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = """
-                           INSERT INTO Roles (RoleName)
-                           OUTPUT INSERTED.RoleID, INSERTED.RoleName
-                           VALUES (@RoleName);
-                           """;
-        var newRole = await connection.QuerySingleAsync<Role>(sql, role);
+        var newRole = await connection.QuerySingleAsync<Role>(
+            "usp_Roles_Create",
+            new { RoleName = role.RoleName },
+            commandType: CommandType.StoredProcedure);
         return newRole;
     }
 }

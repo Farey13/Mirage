@@ -1,137 +1,86 @@
-﻿using Dapper;
+using Dapper;
 using PortalMirage.Core.Models;
 using PortalMirage.Core.Dtos;
 using PortalMirage.Data.Abstractions;
-using System.Text;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Threading.Tasks;
 
 namespace PortalMirage.Data;
 
 public class SampleStorageRepository(IDbConnectionFactory connectionFactory) : ISampleStorageRepository
 {
-    // Replace the CreateAsync method with this new version
     public async Task<SampleStorage> CreateAsync(SampleStorage sampleStorage)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = """
-                       INSERT INTO SampleStorage (PatientSampleID, TestName, StoredByUserID)
-                       OUTPUT INSERTED.*
-                       VALUES (@PatientSampleID, @TestName, @StoredByUserID);
-                       """;
-        return await connection.QuerySingleAsync<SampleStorage>(sql, sampleStorage);
+        return await connection.QuerySingleAsync<SampleStorage>(
+            "usp_SampleStorage_Create",
+            new { PatientSampleID = sampleStorage.PatientSampleID, TestName = sampleStorage.TestName, StoredByUserID = sampleStorage.StoredByUserID },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<int> GetPendingCountAsync()
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        // CORRECTED QUERY: Removed the date filter
-        const string sql = @"
-        SELECT COUNT(*) FROM SampleStorage 
-        WHERE IsTestDone = 0 
-          AND IsActive = 1";
-        return await connection.ExecuteScalarAsync<int>(sql);
+        return await connection.ExecuteScalarAsync<int>(
+            "usp_SampleStorage_GetPendingCount",
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<IEnumerable<SampleStorage>> GetPendingByDateRangeAsync(DateTime startDate, DateTime endDate)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        var inclusiveEndDate = endDate.Date.AddDays(1);
-        const string sql = """
-                           SELECT * FROM SampleStorage 
-                           WHERE IsTestDone = 0 AND IsActive = 1 
-                           AND StorageDateTime >= @StartDate AND StorageDateTime < @InclusiveEndDate 
-                           ORDER BY StorageDateTime DESC
-                           """;
-        return await connection.QueryAsync<SampleStorage>(sql, new { StartDate = startDate.Date, InclusiveEndDate = inclusiveEndDate });
+        return await connection.QueryAsync<SampleStorage>(
+            "usp_SampleStorage_GetPendingByDateRange",
+            new { StartDate = startDate.Date, EndDate = endDate.Date },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<IEnumerable<SampleStorage>> GetCompletedByDateRangeAsync(DateTime startDate, DateTime endDate)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        var inclusiveEndDate = endDate.Date.AddDays(1);
-        const string sql = """
-                       SELECT * FROM SampleStorage 
-                       WHERE IsTestDone = 1 AND IsActive = 1
-                       AND StorageDateTime >= @StartDate AND StorageDateTime < @InclusiveEndDate 
-                       ORDER BY StorageDateTime DESC
-                       """;
-        return await connection.QueryAsync<SampleStorage>(sql, new { StartDate = startDate.Date, InclusiveEndDate = inclusiveEndDate });
+        return await connection.QueryAsync<SampleStorage>(
+            "usp_SampleStorage_GetCompletedByDateRange",
+            new { StartDate = startDate.Date, EndDate = endDate.Date },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<SampleStorage?> GetByIdAsync(int storageId)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = "SELECT * FROM SampleStorage WHERE StorageID = @StorageId";
-        return await connection.QuerySingleOrDefaultAsync<SampleStorage>(sql, new { StorageId = storageId });
+        return await connection.QuerySingleOrDefaultAsync<SampleStorage>(
+            "usp_SampleStorage_GetById",
+            new { StorageId = storageId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<bool> MarkAsDoneAsync(int storageId, int userId)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = """
-                           UPDATE SampleStorage 
-                           SET IsTestDone = 1, TestDoneByUserID = @UserId, TestDoneDateTime = GETDATE() 
-                           WHERE StorageID = @StorageId AND IsTestDone = 0;
-                           """;
-        var rowsAffected = await connection.ExecuteAsync(sql, new { StorageId = storageId, UserId = userId });
+        var rowsAffected = await connection.ExecuteAsync(
+            "usp_SampleStorage_MarkAsDone",
+            new { StorageId = storageId, UserId = userId },
+            commandType: CommandType.StoredProcedure);
         return rowsAffected > 0;
     }
 
-    // Replace the DeactivateAsync method
     public async Task<bool> DeactivateAsync(int storageId, int userId, string reason)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        const string sql = """
-                       UPDATE SampleStorage 
-                       SET IsActive = 0, 
-                           DeactivationReason = @Reason,
-                           DeactivatedByUserID = @UserId,
-                           DeactivationDateTime = GETDATE()
-                       WHERE StorageID = @StorageId AND IsActive = 1;
-                       """;
-        var rowsAffected = await connection.ExecuteAsync(sql, new { StorageId = storageId, UserId = userId, Reason = reason });
+        var rowsAffected = await connection.ExecuteAsync(
+            "usp_SampleStorage_Deactivate",
+            new { StorageId = storageId, UserId = userId, Reason = reason },
+            commandType: CommandType.StoredProcedure);
         return rowsAffected > 0;
     }
 
     public async Task<IEnumerable<SampleStorageReportDto>> GetReportDataAsync(DateTime startDate, DateTime endDate, string? testName, string? status)
     {
         using var connection = await connectionFactory.CreateConnectionAsync();
-        var inclusiveEndDate = endDate.Date.AddDays(1);
-
-        var sqlBuilder = new StringBuilder(@"
-            SELECT 
-                ss.StorageDateTime,
-                ss.PatientSampleID,
-                ss.TestName,
-                u_stored.FullName AS StoredByUsername,
-                ss.IsTestDone,
-                ss.TestDoneDateTime,
-                u_done.FullName AS TestDoneByUsername
-            FROM SampleStorage ss
-            LEFT JOIN Users u_stored ON ss.StoredByUserID = u_stored.UserID
-            LEFT JOIN Users u_done ON ss.TestDoneByUserID = u_done.UserID
-            WHERE ss.IsActive = 1 
-              AND ss.StorageDateTime >= @StartDate 
-              AND ss.StorageDateTime < @InclusiveEndDate
-        ");
-
-        var parameters = new DynamicParameters();
-        parameters.Add("StartDate", startDate.Date);
-        parameters.Add("InclusiveEndDate", inclusiveEndDate);
-
-        if (!string.IsNullOrEmpty(testName) && testName != "All")
-        {
-            sqlBuilder.Append(" AND ss.TestName = @TestName");
-            parameters.Add("TestName", testName);
-        }
-
-        if (!string.IsNullOrEmpty(status))
-        {
-            if (status == "Pending") sqlBuilder.Append(" AND ss.IsTestDone = 0");
-            else if (status == "Test Done") sqlBuilder.Append(" AND ss.IsTestDone = 1");
-        }
-
-        sqlBuilder.Append(" ORDER BY ss.StorageDateTime DESC;");
-
-        return await connection.QueryAsync<SampleStorageReportDto>(sqlBuilder.ToString(), parameters);
+        return await connection.QueryAsync<SampleStorageReportDto>(
+            "usp_SampleStorage_GetReportData",
+            new { StartDate = startDate.Date, EndDate = endDate.Date, TestName = testName, Status = status },
+            commandType: CommandType.StoredProcedure);
     }
 }
