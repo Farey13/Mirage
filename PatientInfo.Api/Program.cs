@@ -1,4 +1,6 @@
 using PatientInfo.Api.Services;
+using Microsoft.Data.SqlClient;
+using System.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +11,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddTransient<IPatientInfoService, PatientInfoService>();
+builder.Services.AddScoped<IDbConnection>(sp => 
+    new SqlConnection(builder.Configuration.GetConnectionString("HisConnection")));
 
 var app = builder.Build();
 
