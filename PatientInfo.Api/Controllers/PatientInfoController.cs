@@ -18,27 +18,49 @@ public class PatientInfoController : ControllerBase
     }
 
     [HttpPost("getbyhospitalnumber")]
-    public ActionResult<PatientInfoDto> GetByHospitalNumber([FromBody] HospitalNumber hospitalNumber)
+    public async Task<ActionResult<PatientInfoDto>> GetByHospitalNumber([FromBody] HospitalNumber hospitalNumber)
     {
         _logger.LogInformation("GetByHospitalNumber called with {HospitalNumber}", hospitalNumber.Value);
-        var patientInfo = _patientInfoService.GetByHospitalNumber(hospitalNumber);
-        if (patientInfo == null)
+        try
         {
-            return NotFound();
+            var patientInfo = await _patientInfoService.GetByHospitalNumber(hospitalNumber);
+            if (patientInfo == null)
+            {
+                return NotFound();
+            }
+            return Ok(patientInfo);
         }
-        return Ok(patientInfo);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting patient by hospital number {HospitalNumber}", hospitalNumber.Value);
+            return Problem(
+                detail: ex.Message,
+                title: "Error retrieving patient information",
+                statusCode: 500);
+        }
     }
 
     [HttpPost("getbynationalId")]
-    public ActionResult<PatientInfoDto> GetByNationalID([FromBody] NationalId hospitalNumber)
+    public async Task<ActionResult<PatientInfoDto>> GetByNationalID([FromBody] NationalId nationalId)
     {
-        _logger.LogInformation("GetByNationalID called with {NationalId}", hospitalNumber.Value);
-        var patientInfo = _patientInfoService.GetByNationalID(hospitalNumber);
-        if (patientInfo == null)
+        _logger.LogInformation("GetByNationalID called with {NationalId}", nationalId.Value);
+        try
         {
-            return NotFound();
+            var patientInfo = await _patientInfoService.GetByNationalID(nationalId);
+            if (patientInfo == null)
+            {
+                return NotFound();
+            }
+            return Ok(patientInfo);
         }
-        return Ok(patientInfo);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting patient by national ID {NationalID}", nationalId.Value);
+            return Problem(
+                detail: ex.Message,
+                title: "Error retrieving patient information",
+                statusCode: 500);
+        }
     }
 
 }

@@ -1,26 +1,61 @@
-using PatientInfo.Api.Controllers;
+using Dapper;
 using PatientInfo.Api.Dtos;
+using System.Data;
 
 namespace PatientInfo.Api.Services;
 
 public class PatientInfoService : IPatientInfoService
 {
-    private List<PatientInfoDto> _demoData;
+    private readonly IDbConnection _dbConnection;
+    private readonly ILogger<PatientInfoService> _logger;
 
-    public PatientInfoService()
+    public PatientInfoService(IDbConnection dbConnection, ILogger<PatientInfoService> logger)
     {
-        _demoData = [
-            new PatientInfoDto { NationalID = "A111111", HospitalNumber = "1111", PatientName = "John Doe" },
-            new PatientInfoDto { NationalID = "A222222", HospitalNumber = "2222", PatientName = "Jane Smith" }
-        ];
-    }
-    public PatientInfoDto? GetByHospitalNumber(HospitalNumber hospitalNumber)
-    {
-        return _demoData.FirstOrDefault(p => p.HospitalNumber == hospitalNumber.Value.ToString());
+        _dbConnection = dbConnection;
+        _logger = logger;
     }
 
-    public PatientInfoDto? GetByNationalID(NationalId nationalId)
+    public async Task<PatientInfoDto?> GetByHospitalNumber(HospitalNumber hospitalNumber)
     {
-        return _demoData.FirstOrDefault(p => p.NationalID == nationalId.Value);
+        try
+        {
+            const string sql = @"
+                SELECT 
+                    LTRIM(RTRIM([IDCard])) AS [NationalID],
+                    [ptidxNo] AS [HospitalNumber],
+                    LTRIM(RTRIM([ptName])) AS [PatientName]
+                FROM dbo.ptInfo p
+                WHERE p.ptidxNo = @PatientID";
+
+            return await _dbConnection.QueryFirstOrDefaultAsync<PatientInfoDto>(
+                sql, new { PatientID = hospitalNumber.Value });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error querying patient by hospital number {HospitalNumber}", hospitalNumber.Value);
+            throw;
+        }
+    }
+
+    public async Task<PatientInfoDto?> GetByNationalID(NationalId nationalId)
+    {
+        try
+        {
+            const string sql = @"
+                SELECT 
+                    LTRIM(RTRIM([IDCard])) AS [NationalID],
+                    [ptidxNo] AS [HospitalNumber],
+                    LTRIM(RTRIM([ptName])) AS [PatientName]
+                FROM dbo.ptInfo p
+                WHERE p.IDCard = @NationalID";
+
+            return await _dbConnection.QueryFirstOrDefaultAsync<PatientInfoDto>(
+                sql, new { NationalID = nationalId.Value });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error querying patient by national ID {NationalID}", nationalId.Value);
+            throw;
+        }
     }
 }
