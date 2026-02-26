@@ -5,6 +5,6 @@ namespace PatientInfo.Api.Services;
 
 public interface IPatientInfoService
 {
-    PatientInfoDto? GetByHospitalNumber(HospitalNumber hospitalNumber);
-    PatientInfoDto? GetByNationalID(NationalId nationalId);
+    Task<PatientInfoDto?> GetByHospitalNumber(HospitalNumber hospitalNumber);
+    Task<PatientInfoDto?> GetByNationalID(NationalId nationalId);
 }

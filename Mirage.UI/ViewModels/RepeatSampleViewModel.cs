@@ -108,12 +108,23 @@ public partial class RepeatSampleViewModel : ObservableObject
         try
         {
             var nationalId = new NationalId(PatientIdCardNumber);
-            var patient = await _patientInfoApiClient.GetByNationalIdAsync(nationalId);
-            PatientName = patient?.PatientName ?? "Patient Not Found";
+            var response = await _patientInfoApiClient.GetByNationalIdAsync(nationalId);
+            if (response.IsSuccessStatusCode && response.Content != null)
+            {
+                PatientName = response.Content.PatientName ?? "Patient Not Found";
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                PatientName = "Patient Not Found";
+            }
+            else
+            {
+                MessageBox.Show("Failed to retrieve patient information.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            PatientName = "Error finding patient";
+            MessageBox.Show($"Failed to connect to patient service: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

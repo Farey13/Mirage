@@ -14,7 +14,7 @@ public interface IPatientInfoApi
     /// <param name="hospitalNumber">The hospital number payload.</param>
     /// <returns>A PatientInfoDto object.</returns>
     [Post("/api/PatientInfo/getbyhospitalnumber")]
-    Task<PatientInfoDto> GetByHospitalNumberAsync([Body] HospitalNumber hospitalNumber);
+    Task<ApiResponse<PatientInfoDto>> GetByHospitalNumberAsync([Body] HospitalNumber hospitalNumber);
 
     /// <summary>
     /// Retrieves patient information using their national ID.
@@ -22,7 +22,7 @@ public interface IPatientInfoApi
     /// <param name="nationalId">The national ID payload.</param>
     /// <returns>A PatientInfoDto object.</returns>
     [Post("/api/PatientInfo/getbynationalId")]
-    Task<PatientInfoDto> GetByNationalIdAsync([Body] NationalId nationalId);
+    Task<ApiResponse<PatientInfoDto>> GetByNationalIdAsync([Body] NationalId nationalId);
 }
 
 
