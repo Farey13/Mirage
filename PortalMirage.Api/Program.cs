@@ -1,13 +1,22 @@
-using Dapper; // Add this using line
+using Dapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Hosting.WindowsServices;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using PortalMirage.Business.Abstractions;
 using PortalMirage.Business;
+using Serilog;
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, config) => 
+    config.ReadFrom.Configuration(context.Configuration));
+
+builder.Host.UseWindowsService();
+
+Log.Information("PortalMirage.Api starting up...");
 
 // Add services to the container.
 
@@ -38,7 +47,7 @@ builder.Services.AddSwaggerGen(options =>
                     Id = "Bearer"
                 }
             },
-            new string[]{}
+            new List<string>()
         }
     });
 });
@@ -88,9 +97,9 @@ builder.Services.AddScoped<PortalMirage.Data.Abstractions.IDailyTaskLogRepositor
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IRepeatSampleLogRepository, PortalMirage.Data.RepeatSampleLogRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IShiftRepository, PortalMirage.Data.ShiftRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.IAdminListRepository, PortalMirage.Data.AdminListRepository>();
-builder.Services.AddScoped<PortalMirage.Data.Abstractions.IAuditLogRepository, PortalMirage.Data.AuditLogRepository>(); // ADDED IN CORRECT PLACE
+builder.Services.AddScoped<PortalMirage.Data.Abstractions.IAuditLogRepository, PortalMirage.Data.AuditLogRepository>();
 builder.Services.AddScoped<PortalMirage.Data.Abstractions.ISampleStorageRepository, PortalMirage.Data.SampleStorageRepository>();
-builder.Services.AddScoped<PortalMirage.Business.Abstractions.IReportService, PortalMirage.Business.ReportService>(); // ADD THIS LINE
+builder.Services.AddScoped<PortalMirage.Business.Abstractions.IReportService, PortalMirage.Business.ReportService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
 
@@ -116,7 +125,7 @@ builder.Services.AddScoped<PortalMirage.Business.Abstractions.IDailyTaskLogServi
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IRepeatSampleLogService, PortalMirage.Business.RepeatSampleLogService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IShiftService, PortalMirage.Business.ShiftService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IAdminListService, PortalMirage.Business.AdminListService>();
-builder.Services.AddScoped<PortalMirage.Business.Abstractions.IDashboardService, PortalMirage.Business.DashboardService>(); // ADD THIS LINE
+builder.Services.AddScoped<PortalMirage.Business.Abstractions.IDashboardService, PortalMirage.Business.DashboardService>();
 
 
 // ... (all your other services)
@@ -124,7 +133,7 @@ builder.Services.AddScoped<PortalMirage.Business.Abstractions.IRoleService, Port
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IUserRoleService, PortalMirage.Business.UserRoleService>();
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IRolePermissionService, PortalMirage.Business.RolePermissionService>();
 
-// AUDIT LOG SERVICE - ADD THIS LINE
+// AUDIT LOG SERVICE
 builder.Services.AddScoped<PortalMirage.Business.Abstractions.IAuditLogService, PortalMirage.Business.AuditLogService>();
 
 builder.Services.AddSingleton<PortalMirage.Business.ITimeProvider, PortalMirage.Business.SystemTimeProvider>();
@@ -143,11 +152,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseAuthentication(); // This line has been added
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-app.UseWindowsService();
+Log.Information("PortalMirage.Api started successfully");
 
 app.Run();
+
+Log.Information("PortalMirage.Api shutting down...");

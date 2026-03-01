@@ -1,8 +1,17 @@
 using PatientInfo.Api.Services;
 using Microsoft.Data.SqlClient;
 using System.Data;
+using Serilog;
+using Microsoft.AspNetCore.Hosting.WindowsServices;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, config) => 
+    config.ReadFrom.Configuration(context.Configuration));
+
+builder.Host.UseWindowsService();
+
+Log.Information("PatientInfo.Api starting up...");
 
 // Add services to the container.
 
@@ -29,6 +38,8 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.UseWindowsService();
+Log.Information("PatientInfo.Api started successfully");
 
 app.Run();
+
+Log.Information("PatientInfo.Api shutting down...");
