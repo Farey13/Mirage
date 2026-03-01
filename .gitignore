@@ -366,3 +366,4 @@ FodyWeavers.xsd
 **/appsettings.json
 **/appsettings.*.json
 !**/appsettings.Development.json
+/PatientInfo.Api/appsettings.Development.json
