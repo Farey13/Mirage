@@ -148,4 +148,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+app.UseWindowsService();
+
 app.Run();
