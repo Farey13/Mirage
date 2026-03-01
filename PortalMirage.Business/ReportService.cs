@@ -1,6 +1,7 @@
-﻿using PortalMirage.Business.Abstractions;
+using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Dtos;
 using PortalMirage.Data.Abstractions;
+using Microsoft.Extensions.Logging;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -21,6 +22,7 @@ namespace PortalMirage.Business
         private readonly IMediaSterilityCheckRepository _mediaSterilityCheckRepository;
         private readonly ISampleStorageRepository _sampleStorageRepository;
         private readonly ICalibrationLogRepository _calibrationLogRepository;
+        private readonly ILogger<ReportService> _logger;
 
         public ReportService(
             IMachineBreakdownRepository machineBreakdownRepository,
@@ -30,7 +32,8 @@ namespace PortalMirage.Business
             IDailyTaskLogRepository dailyTaskLogRepository,
             IMediaSterilityCheckRepository mediaSterilityCheckRepository,
             ISampleStorageRepository sampleStorageRepository,
-            ICalibrationLogRepository calibrationLogRepository)
+            ICalibrationLogRepository calibrationLogRepository,
+            ILogger<ReportService> logger)
         {
             _machineBreakdownRepository = machineBreakdownRepository;
             _handoverRepository = handoverRepository;
@@ -40,6 +43,7 @@ namespace PortalMirage.Business
             _mediaSterilityCheckRepository = mediaSterilityCheckRepository;
             _sampleStorageRepository = sampleStorageRepository;
             _calibrationLogRepository = calibrationLogRepository;
+            _logger = logger;
 
             QuestPDF.Settings.License = LicenseType.Community;
         }

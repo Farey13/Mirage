@@ -1,21 +1,25 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Dtos;
 using PortalMirage.Core.Models;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace PortalMirage.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(Roles = "Admin")]
-    public class ShiftsController(IShiftService shiftService) : ControllerBase
+    public class ShiftsController(
+        IShiftService shiftService,
+        ILogger<ShiftsController> logger) : ControllerBase
     {
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
+            logger.LogInformation("Fetching all shifts");
             var shifts = await shiftService.GetAllAsync();
             return Ok(shifts);
         }
@@ -24,6 +28,8 @@ namespace PortalMirage.Api.Controllers
         public async Task<IActionResult> Create([FromBody] CreateShiftRequest request)
         {
             var actorUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            logger.LogInformation("Creating shift: {ShiftName} by user {UserId}", request.ShiftName, actorUserId);
+            
             var newShift = new Shift
             {
                 ShiftName = request.ShiftName,
@@ -33,6 +39,8 @@ namespace PortalMirage.Api.Controllers
                 IsActive = true
             };
             var createdShift = await shiftService.CreateAsync(newShift, actorUserId);
+            
+            logger.LogInformation("Shift created with ID: {ShiftId}", createdShift.ShiftID);
             return Ok(createdShift);
         }
 
@@ -42,6 +50,8 @@ namespace PortalMirage.Api.Controllers
             if (id != request.ShiftID) return BadRequest("ID mismatch");
 
             var actorUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            logger.LogInformation("Updating shift {ShiftId} by user {UserId}", id, actorUserId);
+            
             var shiftToUpdate = await shiftService.GetByIdAsync(id);
             if (shiftToUpdate is null) return NotFound();
 
@@ -59,6 +69,8 @@ namespace PortalMirage.Api.Controllers
         public async Task<IActionResult> Deactivate(int id)
         {
             var actorUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            logger.LogInformation("Deactivating shift {ShiftId} by user {UserId}", id, actorUserId);
+            
             await shiftService.DeactivateAsync(id, actorUserId);
             return NoContent();
         }
