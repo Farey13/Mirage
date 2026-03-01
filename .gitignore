@@ -367,3 +367,4 @@ FodyWeavers.xsd
 **/appsettings.*.json
 !**/appsettings.Development.json
 /PatientInfo.Api/appsettings.Development.json
+/PortalMirage.Api/appsettings.Development.json
