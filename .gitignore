@@ -364,7 +364,6 @@ FodyWeavers.xsd
 
 # App settings (contain sensitive data)
 **/appsettings.json
-**/appsettings.*.json
 !**/appsettings.Development.json
 /PatientInfo.Api/appsettings.Development.json
 /PortalMirage.Api/appsettings.Development.json
