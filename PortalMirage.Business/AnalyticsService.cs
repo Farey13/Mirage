@@ -1,27 +1,51 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Dtos;
 using PortalMirage.Data.Abstractions;
+using Microsoft.Extensions.Logging;
 
 namespace PortalMirage.Business;
 
-public class AnalyticsService(
-    IDailyTaskLogRepository taskRepo,
-    IMachineBreakdownRepository breakdownRepo,
-    IHandoverRepository handoverRepo,          // FIXED: Using IHandoverRepository from new snippet
-    ISampleStorageRepository storageRepo,
-    ICalibrationLogRepository calibrationRepo,
-    IKitValidationRepository kitRepo,
-    IMediaSterilityCheckRepository mediaRepo,
-    IRepeatSampleLogRepository repeatRepo) : IAnalyticsService
+public class AnalyticsService : IAnalyticsService
 {
+    private readonly IDailyTaskLogRepository _taskRepo;
+    private readonly IMachineBreakdownRepository _breakdownRepo;
+    private readonly IHandoverRepository _handoverRepo;
+    private readonly ISampleStorageRepository _storageRepo;
+    private readonly ICalibrationLogRepository _calibrationRepo;
+    private readonly IKitValidationRepository _kitRepo;
+    private readonly IMediaSterilityCheckRepository _mediaRepo;
+    private readonly IRepeatSampleLogRepository _repeatRepo;
+    private readonly ILogger<AnalyticsService> _logger;
+
+    public AnalyticsService(
+        IDailyTaskLogRepository taskRepo,
+        IMachineBreakdownRepository breakdownRepo,
+        IHandoverRepository handoverRepo,
+        ISampleStorageRepository storageRepo,
+        ICalibrationLogRepository calibrationRepo,
+        IKitValidationRepository kitRepo,
+        IMediaSterilityCheckRepository mediaRepo,
+        IRepeatSampleLogRepository repeatRepo,
+        ILogger<AnalyticsService> logger)
+    {
+        _taskRepo = taskRepo;
+        _breakdownRepo = breakdownRepo;
+        _handoverRepo = handoverRepo;
+        _storageRepo = storageRepo;
+        _calibrationRepo = calibrationRepo;
+        _kitRepo = kitRepo;
+        _mediaRepo = mediaRepo;
+        _repeatRepo = repeatRepo;
+        _logger = logger;
+    }
     // 1. DAILY TASK LOG (Combined best of both)
     public async Task<AnalyticsReportDto> GetDailyTaskCompletionAsync(DateTime start, DateTime end)
     {
-        var logs = await taskRepo.GetComplianceReportDataAsync(start, end, null, "All");
+        var logs = await _taskRepo.GetComplianceReportDataAsync(start, end, null, "All");
 
         int total = logs.Count();
         int completed = logs.Count(l => l.Status == "Complete" || l.Status == "Completed");
@@ -48,7 +72,7 @@ public class AnalyticsService(
     // 2. MACHINE BREAKDOWN (Preserved improved calculations from current code)
     public async Task<AnalyticsReportDto> GetMachineDowntimeAsync(DateTime start, DateTime end)
     {
-        var data = await breakdownRepo.GetReportDataAsync(start, end, null, "All");
+        var data = await _breakdownRepo.GetReportDataAsync(start, end, null, "All");
 
         // Handle nullable DowntimeMinutes in KPI calculations
         var totalDowntimeMinutes = data.Sum(d => d.DowntimeMinutes ?? 0);
@@ -83,7 +107,7 @@ public class AnalyticsService(
     public async Task<AnalyticsReportDto> GetShiftHandoverAnalyticsAsync(DateTime start, DateTime end)
     {
         // Pass nulls for filters we don't use (from new snippet)
-        var data = await handoverRepo.GetReportDataAsync(start, end, null, null, null);
+        var data = await _handoverRepo.GetReportDataAsync(start, end, null, null, null);
 
         int total = data.Count();
         int critical = data.Count(x => x.Priority == "Urgent");
@@ -109,7 +133,7 @@ public class AnalyticsService(
     public async Task<AnalyticsReportDto> GetSampleStorageAnalyticsAsync(DateTime start, DateTime end)
     {
         // Fetch data with null filters for testName and status
-        var data = await storageRepo.GetReportDataAsync(start, end, null, null);
+        var data = await _storageRepo.GetReportDataAsync(start, end, null, null);
 
         int total = data.Count();
 
@@ -140,7 +164,7 @@ public class AnalyticsService(
     // 5. CALIBRATION LOG (From new snippet)
     public async Task<AnalyticsReportDto> GetCalibrationAnalyticsAsync(DateTime start, DateTime end)
     {
-        var data = await calibrationRepo.GetReportDataAsync(start, end, null, null);
+        var data = await _calibrationRepo.GetReportDataAsync(start, end, null, null);
 
         int total = data.Count();
         int failed = data.Count(x => x.QcResult == "Failed");
@@ -164,7 +188,7 @@ public class AnalyticsService(
     // 6. KIT VALIDATION (From new snippet)
     public async Task<AnalyticsReportDto> GetKitValidationAnalyticsAsync(DateTime start, DateTime end)
     {
-        var data = await kitRepo.GetReportDataAsync(start, end, null, null);
+        var data = await _kitRepo.GetReportDataAsync(start, end, null, null);
 
         int total = data.Count();
         int rejected = data.Count(x => x.ValidationStatus == "Rejected");
@@ -187,7 +211,7 @@ public class AnalyticsService(
     // 7. MEDIA STERILITY (From new snippet)
     public async Task<AnalyticsReportDto> GetMediaSterilityAnalyticsAsync(DateTime start, DateTime end)
     {
-        var data = await mediaRepo.GetReportDataAsync(start, end, null, null);
+        var data = await _mediaRepo.GetReportDataAsync(start, end, null, null);
 
         int total = data.Count();
         int contaminated = data.Count(x => x.OverallStatus == "Failed");
@@ -211,7 +235,7 @@ public class AnalyticsService(
     // 8. REPEAT SAMPLE (From new snippet)
     public async Task<AnalyticsReportDto> GetRepeatSampleAnalyticsAsync(DateTime start, DateTime end)
     {
-        var data = await repeatRepo.GetReportDataAsync(start, end, null, null);
+        var data = await _repeatRepo.GetReportDataAsync(start, end, null, null);
 
         int total = data.Count();
         var topDept = data.GroupBy(x => x.Department)

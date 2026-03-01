@@ -1,32 +1,41 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortalMirage.Core.Dtos;
 using PortalMirage.Business.Abstractions;
+using Microsoft.Extensions.Logging;
 
 namespace PortalMirage.Api.Controllers
 {
     [ApiController]
     [Route("api/dailytasklogs")]
     [Authorize]
-    public class DailyTaskLogsController(IDailyTaskLogService dailyTaskLogService) : ControllerBase
+    public class DailyTaskLogsController(
+        IDailyTaskLogService dailyTaskLogService,
+        ILogger<DailyTaskLogsController> logger) : ControllerBase
     {
         [HttpGet]
         public async Task<IActionResult> GetForDate([FromQuery] DateTime date)
         {
+            logger.LogInformation("Fetching daily task logs for date: {Date}", date);
             var tasks = await dailyTaskLogService.GetTasksForDateAsync(date);
+            logger.LogInformation("Retrieved {Count} task logs for date: {Date}", tasks.Count(), date);
             return Ok(tasks);
         }
 
         [HttpPut("{id}/extend")]
-        [Authorize(Roles = "Admin")] // Only Admins can extend deadlines
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ExtendDeadline(long id, [FromBody] ExtendTaskDeadlineRequest request)
         {
             var adminUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            logger.LogInformation("Extending deadline for task log {TaskLogId} to {NewDeadline} by user {UserId}", 
+                id, request.NewDeadline, adminUserId);
+            
             var updatedLog = await dailyTaskLogService.ExtendTaskDeadlineAsync(id, request.NewDeadline, request.Reason, adminUserId);
 
             if (updatedLog is null)
             {
+                logger.LogWarning("Failed to extend deadline for task log {TaskLogId}", id);
                 return NotFound("Task log not found or could not be extended.");
             }
 
@@ -36,16 +45,12 @@ namespace PortalMirage.Api.Controllers
         [HttpPut("{id}/status")]
         public async Task<IActionResult> UpdateStatus(long id, [FromBody] UpdateTaskStatusRequest request)
         {
-            // --- CRASH PROOF WRAPPER ---
             try
             {
-                // 1. TRUST THE CLIENT: Use the ID sent from the App
                 int userId = request.UserId;
 
-                // 2. FALLBACK: Only look at token if Client sent 0
                 if (userId <= 0)
                 {
-                    // Safe lookup that won't crash
                     var claimId = User.FindFirstValue(ClaimTypes.NameIdentifier)
                                   ?? User.FindFirstValue("sub")
                                   ?? User.FindFirstValue("id");
@@ -56,18 +61,19 @@ namespace PortalMirage.Api.Controllers
                     }
                 }
 
-                // 3. FINAL VALIDATION
                 if (userId <= 0)
                 {
-                    // This message will appear in your App if ID is missing
                     return BadRequest("Server Error: User ID could not be identified from Request or Token.");
                 }
 
-                // 4. EXECUTE SERVICE
+                logger.LogInformation("Updating status for task log {TaskLogId} to {Status} by user {UserId}", 
+                    id, request.Status, userId);
+                
                 var updatedTaskLog = await dailyTaskLogService.UpdateTaskStatusAsync(id, request.Status, userId, request.Comment);
 
                 if (updatedTaskLog is null)
                 {
+                    logger.LogWarning("Task log not found: {TaskLogId}", id);
                     return NotFound($"Task log with ID {id} not found.");
                 }
 
@@ -75,7 +81,7 @@ namespace PortalMirage.Api.Controllers
             }
             catch (Exception ex)
             {
-                // 5. CATCH THE ERROR: Return the specific error message instead of '500'
+                logger.LogError(ex, "Error updating task log status for {TaskLogId}", id);
                 return StatusCode(500, $"CRITICAL FAILURE: {ex.Message} \n\n Stack Trace: {ex.StackTrace}");
             }
         }

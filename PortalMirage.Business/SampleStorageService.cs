@@ -1,22 +1,35 @@
-﻿using PortalMirage.Business.Abstractions;
+using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Models;
 using PortalMirage.Data.Abstractions;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace PortalMirage.Business;
 
-public class SampleStorageService(
-    ISampleStorageRepository sampleStorageRepository,
-    IAuditLogService auditLogService) : ISampleStorageService
+public class SampleStorageService : ISampleStorageService
 {
+    private readonly ISampleStorageRepository _sampleStorageRepository;
+    private readonly IAuditLogService _auditLogService;
+    private readonly ILogger<SampleStorageService> _logger;
+
+    public SampleStorageService(
+        ISampleStorageRepository sampleStorageRepository,
+        IAuditLogService auditLogService,
+        ILogger<SampleStorageService> logger)
+    {
+        _sampleStorageRepository = sampleStorageRepository;
+        _auditLogService = auditLogService;
+        _logger = logger;
+    }
+
     public async Task<SampleStorage> CreateAsync(SampleStorage sampleStorage)
     {
-        var newSample = await sampleStorageRepository.CreateAsync(sampleStorage);
+        _logger.LogInformation("Creating sample storage for PatientSampleID: {PatientSampleID}", sampleStorage.PatientSampleID);
+        var newSample = await _sampleStorageRepository.CreateAsync(sampleStorage);
 
-        // ADDED: Log the creation event
-        await auditLogService.LogAsync(
+        await _auditLogService.LogAsync(
             userId: newSample.StoredByUserID,
             actionType: "Create",
             moduleName: "SampleStorage",
@@ -24,56 +37,62 @@ public class SampleStorageService(
             newValue: $"Sample ID: {newSample.PatientSampleID}, Test: {newSample.TestName}"
         );
 
+        _logger.LogInformation("Sample storage created with ID: {StorageId}", newSample.StorageID);
         return newSample;
     }
 
     public async Task<IEnumerable<SampleStorage>> GetPendingByDateRangeAsync(DateTime startDate, DateTime endDate)
     {
-        return await sampleStorageRepository.GetPendingByDateRangeAsync(startDate, endDate);
+        _logger.LogDebug("Fetching pending sample storage from {StartDate} to {EndDate}", startDate, endDate);
+        return await _sampleStorageRepository.GetPendingByDateRangeAsync(startDate, endDate);
     }
 
     public async Task<IEnumerable<SampleStorage>> GetCompletedByDateRangeAsync(DateTime startDate, DateTime endDate)
     {
-        return await sampleStorageRepository.GetCompletedByDateRangeAsync(startDate, endDate);
+        _logger.LogDebug("Fetching completed sample storage from {StartDate} to {EndDate}", startDate, endDate);
+        return await _sampleStorageRepository.GetCompletedByDateRangeAsync(startDate, endDate);
     }
 
     public async Task<bool> MarkAsDoneAsync(int storageId, int userId)
     {
-        // 1. Business Rule: First, check if the sample exists.
-        var sample = await sampleStorageRepository.GetByIdAsync(storageId);
+        _logger.LogInformation("Marking sample storage as done: {StorageId} by user {UserId}", storageId, userId);
+        
+        var sample = await _sampleStorageRepository.GetByIdAsync(storageId);
         if (sample is null)
         {
-            return false; // Can't update something that doesn't exist.
+            _logger.LogWarning("Sample storage not found: {StorageId}", storageId);
+            return false;
         }
 
-        // 2. Business Rule: Check if it's already marked as done.
         if (sample.IsTestDone)
         {
-            return true; // Already done, so the operation is technically successful.
+            _logger.LogInformation("Sample storage already marked as done: {StorageId}", storageId);
+            return true;
         }
 
-        // 3. If it exists and is not done, then update it.
-        var success = await sampleStorageRepository.MarkAsDoneAsync(storageId, userId);
+        var success = await _sampleStorageRepository.MarkAsDoneAsync(storageId, userId);
         if (success)
         {
-            // ADDED: Log the "test done" event
-            await auditLogService.LogAsync(
+            await _auditLogService.LogAsync(
                 userId: userId,
                 actionType: "Update",
                 moduleName: "SampleStorage",
                 recordId: storageId.ToString(),
                 newValue: "Marked as Test Done"
             );
+            _logger.LogInformation("Sample storage {StorageId} marked as done", storageId);
         }
         return success;
     }
 
     public async Task<bool> DeactivateAsync(int storageId, int userId, string reason)
     {
-        var success = await sampleStorageRepository.DeactivateAsync(storageId, userId, reason);
+        _logger.LogInformation("Deactivating sample storage {StorageId} by user {UserId}", storageId, userId);
+        var success = await _sampleStorageRepository.DeactivateAsync(storageId, userId, reason);
         if (success)
         {
-            await auditLogService.LogAsync(userId, "Deactivate", "SampleStorage", storageId.ToString(), newValue: reason);
+            await _auditLogService.LogAsync(userId, "Deactivate", "SampleStorage", storageId.ToString(), newValue: reason);
+            _logger.LogInformation("Sample storage {StorageId} deactivated successfully", storageId);
         }
         return success;
     }

@@ -1,18 +1,36 @@
-﻿using PortalMirage.Business.Abstractions;
+using PortalMirage.Business.Abstractions;
 using PortalMirage.Core.Models;
 using PortalMirage.Data.Abstractions;
+using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using Task = System.Threading.Tasks.Task;
 
 namespace PortalMirage.Business;
 
-public class UserService(IUserRepository userRepository, IAuditLogService auditLogService) : IUserService
+public class UserService : IUserService
 {
+    private readonly IUserRepository _userRepository;
+    private readonly IAuditLogService _auditLogService;
+    private readonly ILogger<UserService> _logger;
+
+    public UserService(
+        IUserRepository userRepository, 
+        IAuditLogService auditLogService,
+        ILogger<UserService> logger)
+    {
+        _userRepository = userRepository;
+        _auditLogService = auditLogService;
+        _logger = logger;
+    }
+
     public async Task<User?> RegisterUserAsync(string username, string password, string fullName, int? actorUserId)
     {
-        var existingUser = await userRepository.GetByUsernameAsync(username);
+        _logger.LogInformation("Registering new user: {Username}", username);
+        
+        var existingUser = await _userRepository.GetByUsernameAsync(username);
         if (existingUser is not null)
         {
+            _logger.LogWarning("Registration failed - username already exists: {Username}", username);
             return null;
         }
 
@@ -26,64 +44,73 @@ public class UserService(IUserRepository userRepository, IAuditLogService auditL
             IsActive = true
         };
 
-        var createdUser = await userRepository.CreateAsync(userToCreate);
+        var createdUser = await _userRepository.CreateAsync(userToCreate);
 
-        // Only log if an actor ID is provided (i.e., an admin is creating the user)
         if (actorUserId.HasValue)
         {
-            await auditLogService.LogAsync(actorUserId.Value, "Create", "UserManagement", createdUser.UserID.ToString(), newValue: $"Created new user '{createdUser.Username}'");
+            await _auditLogService.LogAsync(actorUserId.Value, "Create", "UserManagement", createdUser.UserID.ToString(), newValue: $"Created new user '{createdUser.Username}'");
         }
 
+        _logger.LogInformation("User registered successfully: {Username}, UserId: {UserId}", username, createdUser.UserID);
         return createdUser;
     }
 
     public async Task<User?> ValidateCredentialsAsync(string username, string password)
     {
-        var user = await userRepository.GetByUsernameAsync(username);
+        _logger.LogDebug("Validating credentials for user: {Username}", username);
+        
+        var user = await _userRepository.GetByUsernameAsync(username);
         if (user is null)
         {
+            _logger.LogWarning("Login failed - user not found: {Username}", username);
             return null;
         }
 
         if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
         {
+            _logger.LogWarning("Login failed - invalid password for user: {Username}", username);
             return null;
         }
 
+        _logger.LogInformation("User validated successfully: {Username}, UserId: {UserId}", username, user.UserID);
         return user;
     }
 
     public async Task<User?> GetUserByIdAsync(int userId)
     {
-        return await userRepository.GetByIdAsync(userId);
+        return await _userRepository.GetByIdAsync(userId);
     }
 
     public async Task<IEnumerable<User>> GetAllUsersAsync()
     {
-        return await userRepository.GetAllAsync();
+        _logger.LogDebug("Fetching all users");
+        return await _userRepository.GetAllAsync();
     }
 
     public async Task<bool> ResetPasswordAsync(string username, string newPassword, int actorUserId)
     {
-        var user = await userRepository.GetByUsernameAsync(username);
+        _logger.LogInformation("Resetting password for user: {Username} by admin: {AdminUserId}", username, actorUserId);
+        
+        var user = await _userRepository.GetByUsernameAsync(username);
         if (user is null)
         {
+            _logger.LogWarning("Password reset failed - user not found: {Username}", username);
             return false;
         }
 
         var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
-        var success = await userRepository.UpdatePasswordHashAsync(user.UserID, newPasswordHash);
+        var success = await _userRepository.UpdatePasswordHashAsync(user.UserID, newPasswordHash);
 
         if (success)
         {
-            // Correctly logs the ID of the admin who performed the action
-            await auditLogService.LogAsync(
+            await _auditLogService.LogAsync(
                 userId: actorUserId,
                 actionType: "ResetPassword",
                 moduleName: "UserManagement",
                 recordId: user.UserID.ToString(),
                 newValue: $"Password reset for user '{username}'."
             );
+            _logger.LogInformation("Password reset successfully for user: {Username}", username);
         }
         return success;
     }
