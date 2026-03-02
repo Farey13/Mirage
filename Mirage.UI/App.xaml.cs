@@ -1,4 +1,5 @@
-﻿using QuestPDF.Infrastructure;
+﻿using Microsoft.Extensions.Configuration;
+using QuestPDF.Infrastructure;
 using Mirage.UI.Services;
 using Mirage.UI.ViewModels;
 using Mirage.UI.Views;
@@ -15,11 +16,21 @@ namespace Mirage.UI
 {
     public partial class App : Application
     {
-        private static Mutex? _mutex = null; // <-- ADD THIS LINE
+        private static Mutex? _mutex = null;
+        private static IConfiguration? _configuration = null;
 
         public static IServiceProvider? ServiceProvider { get; private set; }
 
-        
+        private static IConfiguration BuildConfiguration()
+        {
+            var environment = Environment.GetEnvironmentVariable("MIRAGE_ENVIRONMENT") ?? "Production";
+            
+            return new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: true)
+                .Build();
+        }
 
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -37,6 +48,8 @@ namespace Mirage.UI
             // ---------------------------
 
             base.OnStartup(e);
+
+            _configuration = BuildConfiguration();
 
             // --- ADD QUESTPDF LICENSE ---
             QuestPDF.Settings.License = LicenseType.Community;
@@ -69,14 +82,14 @@ namespace Mirage.UI
             services.AddSingleton<IAuthService, AuthService>();
 
             // --- API Clients ---
-            // Main PortalMirage API
-            //5288 for local dev for now - to be replaced with proper config management later (7210 was in use before https)
-            services.AddRefitClient<IPortalMirageApi>()
-                    .ConfigureHttpClient(c => c.BaseAddress = new Uri("http://localhost:5288"));
+            var portalMirageUrl = _configuration?["ApiSettings:PortalMirageBaseUrl"] ?? "http://localhost:5288";
+            var patientInfoUrl = _configuration?["ApiSettings:PatientInfoBaseUrl"] ?? "http://localhost:5104";
 
-            // External Patient Info API
+            services.AddRefitClient<IPortalMirageApi>()
+                    .ConfigureHttpClient(c => c.BaseAddress = new Uri(portalMirageUrl));
+
             services.AddRefitClient<PatientInfo.Api.Sdk.IPatientInfoApi>()
-                    .ConfigureHttpClient(c => c.BaseAddress = new Uri("http://localhost:5104"));
+                    .ConfigureHttpClient(c => c.BaseAddress = new Uri(patientInfoUrl));
             // Add this line to register your new PDF service
             services.AddSingleton<IPdfExportService, PdfExportService>();
 
