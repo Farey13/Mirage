@@ -150,7 +150,7 @@ public async Task<PatientInfoDto?> GetPatientByNationalIdentifier(string nationa
 
 ### Response Model
 
-  * `PatientInfoDto(string? NationalID, string? HospitalNumber, string? PatientName)`
+  * `PatientInfoDto(string? NationalID, string? HospitalNumber, string? PatientName, string Gender = "U", DateTime? DateOfBirth = null)`
 
 -----
 
