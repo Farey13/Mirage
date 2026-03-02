@@ -23,12 +23,22 @@ public class PatientInfoService : IPatientInfoService
                 SELECT 
                     LTRIM(RTRIM([IDCard])) AS [NationalID],
                     [ptidxNo] AS [HospitalNumber],
-                    LTRIM(RTRIM([ptName])) AS [PatientName]
+                    LTRIM(RTRIM([ptName])) AS [PatientName],
+                    [sex] AS [Gender],
+                    [DOB] AS [DateOfBirth]
                 FROM dbo.ptInfo p
                 WHERE p.ptidxNo = @PatientID";
 
-            return await _dbConnection.QueryFirstOrDefaultAsync<PatientInfoDto>(
+            var patient = await _dbConnection.QueryFirstOrDefaultAsync<PatientInfoDto>(
                 sql, new { PatientID = hospitalNumber.Value });
+
+            if (patient is null) { return null; }
+
+            if (string.IsNullOrWhiteSpace(patient.Gender)) { patient.Gender = "U"; }
+            patient.PatientName = patient.PatientName?.Trim();
+            patient.Gender = patient.Gender.ToUpper();
+
+            return patient;
         }
         catch (Exception ex)
         {
@@ -45,12 +55,22 @@ public class PatientInfoService : IPatientInfoService
                 SELECT 
                     LTRIM(RTRIM([IDCard])) AS [NationalID],
                     [ptidxNo] AS [HospitalNumber],
-                    LTRIM(RTRIM([ptName])) AS [PatientName]
+                    LTRIM(RTRIM([ptName])) AS [PatientName],
+                    [sex] AS [Gender],
+                    [DOB] AS [DateOfBirth]
                 FROM dbo.ptInfo p
                 WHERE p.IDCard = @NationalID";
 
-            return await _dbConnection.QueryFirstOrDefaultAsync<PatientInfoDto>(
+            var patient = await _dbConnection.QueryFirstOrDefaultAsync<PatientInfoDto>(
                 sql, new { NationalID = nationalId.Value });
+
+            if (patient is null) { return null; }
+
+            if (string.IsNullOrWhiteSpace(patient.Gender)) { patient.Gender = "U"; }
+            patient.PatientName =  patient.PatientName?.Trim();
+            patient.Gender = patient.Gender.ToUpper();
+
+            return patient;
         }
         catch (Exception ex)
         {
