@@ -7,7 +7,9 @@ public record PatientInfoDto
 (
     string? NationalID,
     string? HospitalNumber,
-    string? PatientName
+    string? PatientName,
+    string Gender = "U",
+    DateTime? DateOfBirth = null
 );
 
 
