@@ -12,4 +12,6 @@ public interface IDailyTaskLogService
     Task<DailyTaskLog?> ExtendTaskDeadlineAsync(long logId, DateTime newDeadline, string reason, int adminUserId);
     Task<DailyTaskLog?> MarkAsNotApplicableAsync(long logId, int userId, string reason);
     Task<DailyTaskLog?> OverrideLockAsync(long logId, DateTime overrideUntil, string reason, int adminUserId);
+    Task<bool> SoftDeleteTaskAsync(long logId, int userId);
+    Task<bool> RestoreTaskAsync(long logId, int userId);
 }

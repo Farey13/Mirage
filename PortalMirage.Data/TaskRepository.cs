@@ -15,6 +15,7 @@ public class TaskRepository(IDbConnectionFactory connectionFactory) : ITaskRepos
         using var connection = await connectionFactory.CreateConnectionAsync();
         return await connection.QueryAsync<TaskModel>(
             "usp_Tasks_GetAll",
+            new { IsDeleted = false },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -54,5 +55,38 @@ public class TaskRepository(IDbConnectionFactory connectionFactory) : ITaskRepos
             "usp_Tasks_GetByIds",
             new { TaskIds = taskIdsCsv },
             commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<bool> SoftDeleteAsync(int taskId)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        var affected = await connection.ExecuteAsync(
+            "UPDATE Tasks SET IsDeleted = 1 WHERE TaskID = @TaskID",
+            new { TaskID = taskId });
+        return affected > 0;
+    }
+
+    public async Task<bool> RestoreAsync(int taskId)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        var affected = await connection.ExecuteAsync(
+            "UPDATE Tasks SET IsDeleted = 0 WHERE TaskID = @TaskID",
+            new { TaskID = taskId });
+        return affected > 0;
+    }
+
+    public async Task<bool> UpdateAsync(TaskModel task)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        var affected = await connection.ExecuteAsync(
+            @"UPDATE Tasks 
+              SET TaskName = @TaskName, 
+                  ShiftID = @ShiftID, 
+                  ScheduleType = @ScheduleType, 
+                  ScheduleValue = @ScheduleValue, 
+                  IsActive = @IsActive 
+              WHERE TaskID = @TaskID",
+            task);
+        return affected > 0;
     }
 }

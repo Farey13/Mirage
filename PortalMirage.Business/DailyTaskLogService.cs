@@ -54,6 +54,8 @@ public class DailyTaskLogService : IDailyTaskLogService
         public const string MarkAsNA = "MarkAsNA";
         public const string OverrideLock = "OverrideLock";
         public const string AutoLock = "AutoLock";
+        public const string SoftDelete = "SoftDelete";
+        public const string Restore = "Restore";
     }
 
     public static class ScheduleTypes
@@ -73,12 +75,41 @@ public class DailyTaskLogService : IDailyTaskLogService
 
         await LockExpiredTasks(date);
 
+        // Get existing logs for today
         var existingLogs = (await _dailyTaskLogRepository.GetForDateAsync(date)).ToList();
 
-        if (!existingLogs.Any())
+        // Get all active master tasks
+        var allMasterTasks = await _taskRepository.GetAllAsync();
+
+        // Filter to tasks scheduled for today (active and not deleted)
+        var tasksScheduledForToday = allMasterTasks
+            .Where(t => t.IsActive && !t.IsDeleted)
+            .Where(t => IsTaskScheduledForToday(t, date))
+            .ToList();
+
+        // Find missing tasks
+        var existingTaskIds = existingLogs.Select(l => l.TaskID).ToHashSet();
+        var missingTasks = tasksScheduledForToday
+            .Where(t => !existingTaskIds.Contains(t.TaskID))
+            .ToList();
+
+        // Create logs for missing tasks
+        if (missingTasks.Any())
         {
-            _logger.LogInformation("No task logs found for {Date}, creating daily logs", date);
-            existingLogs = await CreateDailyLogsForDate(date);
+            _logger.LogInformation("Found {Count} new tasks. Generating missing logs.", missingTasks.Count);
+            
+            foreach (var task in missingTasks)
+            {
+                var newLog = new DailyTaskLog
+                {
+                    TaskID = task.TaskID,
+                    LogDate = date.Date,
+                    Status = TaskStatuses.Pending
+                };
+                
+                var createdLog = await _dailyTaskLogRepository.CreateAsync(newLog);
+                existingLogs.Add(createdLog);
+            }
         }
 
         return await MapToTaskLogDetailDtos(existingLogs);
@@ -188,29 +219,6 @@ public class DailyTaskLogService : IDailyTaskLogService
     }
 
     #region Private Methods
-    private async Task<List<DailyTaskLog>> CreateDailyLogsForDate(DateTime date)
-    {
-        var logs = new List<DailyTaskLog>();
-        var allScheduledTasks = await _taskRepository.GetAllAsync();
-        var tasksForToday = allScheduledTasks.Where(task => IsTaskScheduledForToday(task, date)).ToList();
-
-        _logger.LogInformation("Creating daily logs for {Count} tasks scheduled for {Date}", tasksForToday.Count, date);
-
-        foreach (var task in tasksForToday)
-        {
-            var newLog = new DailyTaskLog
-            {
-                TaskID = task.TaskID,
-                LogDate = date.Date,
-                Status = TaskStatuses.Pending
-            };
-            var createdLog = await _dailyTaskLogRepository.CreateAsync(newLog);
-            logs.Add(createdLog);
-        }
-
-        return logs;
-    }
-
     private async System.Threading.Tasks.Task LockExpiredTasks(DateTime forDate)
     {
         if (forDate.Date > _timeProvider.Today) return;
@@ -352,6 +360,44 @@ public class DailyTaskLogService : IDailyTaskLogService
     {
         var validStatuses = new[] { TaskStatuses.Pending, TaskStatuses.Complete, TaskStatuses.Incomplete, TaskStatuses.NotApplicable };
         return validStatuses.Contains(status);
+    }
+
+    public async Task<bool> SoftDeleteTaskAsync(long logId, int userId)
+    {
+        _logger.LogInformation("Soft deleting task log {LogId} by user {UserId}", logId, userId);
+
+        var success = await _dailyTaskLogRepository.SoftDeleteAsync(logId);
+        if (success)
+        {
+            await _auditLogService.LogAsync(
+                userId: userId,
+                actionType: AuditActions.SoftDelete,
+                moduleName: nameof(DailyTaskLog),
+                recordId: logId.ToString(),
+                newValue: "Task log soft deleted");
+            
+            _logger.LogInformation("Task log {LogId} soft deleted successfully", logId);
+        }
+        return success;
+    }
+
+    public async Task<bool> RestoreTaskAsync(long logId, int userId)
+    {
+        _logger.LogInformation("Restoring task log {LogId} by user {UserId}", logId, userId);
+
+        var success = await _dailyTaskLogRepository.RestoreAsync(logId);
+        if (success)
+        {
+            await _auditLogService.LogAsync(
+                userId: userId,
+                actionType: AuditActions.Restore,
+                moduleName: nameof(DailyTaskLog),
+                recordId: logId.ToString(),
+                newValue: "Task log restored from soft delete");
+            
+            _logger.LogInformation("Task log {LogId} restored successfully", logId);
+        }
+        return success;
     }
     #endregion
 }

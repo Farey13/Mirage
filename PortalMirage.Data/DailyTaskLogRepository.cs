@@ -25,7 +25,7 @@ public class DailyTaskLogRepository(IDbConnectionFactory connectionFactory) : ID
         using var connection = await connectionFactory.CreateConnectionAsync();
         return await connection.QueryAsync<DailyTaskLog>(
             "usp_DailyTaskLogs_GetForDate",
-            new { Date = date.Date },
+            new { Date = date.Date, IsDeleted = false },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -72,5 +72,23 @@ public class DailyTaskLogRepository(IDbConnectionFactory connectionFactory) : ID
             "usp_DailyTaskLogs_GetComplianceReportData",
             new { StartDate = startDate.Date, EndDate = endDate.Date, ShiftId = shiftId, Status = status },
             commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<bool> SoftDeleteAsync(long logId)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        var affected = await connection.ExecuteAsync(
+            "UPDATE DailyTaskLogs SET IsDeleted = 1 WHERE LogID = @LogID",
+            new { LogID = logId });
+        return affected > 0;
+    }
+
+    public async Task<bool> RestoreAsync(long logId)
+    {
+        using var connection = await connectionFactory.CreateConnectionAsync();
+        var affected = await connection.ExecuteAsync(
+            "UPDATE DailyTaskLogs SET IsDeleted = 0 WHERE LogID = @LogID",
+            new { LogID = logId });
+        return affected > 0;
     }
 }

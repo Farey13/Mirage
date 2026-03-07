@@ -6,6 +6,7 @@ CREATE TABLE [dbo].[Tasks](
     [ScheduleValue] [nvarchar](50) NULL,
     [IsActive] [bit] NOT NULL DEFAULT 1,
     [ShiftID] [int] NULL,
+    [IsDeleted] [bit] NOT NULL DEFAULT 0,
     CONSTRAINT [PK_Tasks] PRIMARY KEY CLUSTERED ([TaskID] ASC),
     CONSTRAINT [FK_Tasks_Shifts] FOREIGN KEY ([ShiftID]) REFERENCES [dbo].[Shifts]([ShiftID])
 )

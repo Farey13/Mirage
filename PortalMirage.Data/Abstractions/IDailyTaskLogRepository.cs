@@ -14,5 +14,7 @@ public interface IDailyTaskLogRepository
     Task<DailyTaskLog?> ExtendDeadlineAsync(long logId, DateTime newDeadline, string reason, int adminUserId);
     Task<DailyTaskLog?> OverrideLockAsync(long logId, DateTime overrideUntil, string reason, int adminUserId);
     Task<IEnumerable<DailyTaskLogDto>> GetComplianceReportDataAsync(DateTime startDate, DateTime endDate, int? shiftId, string? status);
-    Task<int> GetPendingCountForDateAsync(DateTime date); // ADD THIS LINE
+    Task<int> GetPendingCountForDateAsync(DateTime date);
+    Task<bool> SoftDeleteAsync(long logId);
+    Task<bool> RestoreAsync(long logId);
 }
