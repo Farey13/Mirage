@@ -75,12 +75,41 @@ public class DailyTaskLogService : IDailyTaskLogService
 
         await LockExpiredTasks(date);
 
+        // Get existing logs for today
         var existingLogs = (await _dailyTaskLogRepository.GetForDateAsync(date)).ToList();
 
-        if (!existingLogs.Any())
+        // Get all active master tasks
+        var allMasterTasks = await _taskRepository.GetAllAsync();
+
+        // Filter to tasks scheduled for today (active and not deleted)
+        var tasksScheduledForToday = allMasterTasks
+            .Where(t => t.IsActive && !t.IsDeleted)
+            .Where(t => IsTaskScheduledForToday(t, date))
+            .ToList();
+
+        // Find missing tasks
+        var existingTaskIds = existingLogs.Select(l => l.TaskID).ToHashSet();
+        var missingTasks = tasksScheduledForToday
+            .Where(t => !existingTaskIds.Contains(t.TaskID))
+            .ToList();
+
+        // Create logs for missing tasks
+        if (missingTasks.Any())
         {
-            _logger.LogInformation("No task logs found for {Date}, creating daily logs", date);
-            existingLogs = await CreateDailyLogsForDate(date);
+            _logger.LogInformation("Found {Count} new tasks. Generating missing logs.", missingTasks.Count);
+            
+            foreach (var task in missingTasks)
+            {
+                var newLog = new DailyTaskLog
+                {
+                    TaskID = task.TaskID,
+                    LogDate = date.Date,
+                    Status = TaskStatuses.Pending
+                };
+                
+                var createdLog = await _dailyTaskLogRepository.CreateAsync(newLog);
+                existingLogs.Add(createdLog);
+            }
         }
 
         return await MapToTaskLogDetailDtos(existingLogs);
@@ -190,29 +219,6 @@ public class DailyTaskLogService : IDailyTaskLogService
     }
 
     #region Private Methods
-    private async Task<List<DailyTaskLog>> CreateDailyLogsForDate(DateTime date)
-    {
-        var logs = new List<DailyTaskLog>();
-        var allScheduledTasks = await _taskRepository.GetAllAsync();
-        var tasksForToday = allScheduledTasks.Where(task => IsTaskScheduledForToday(task, date)).ToList();
-
-        _logger.LogInformation("Creating daily logs for {Count} tasks scheduled for {Date}", tasksForToday.Count, date);
-
-        foreach (var task in tasksForToday)
-        {
-            var newLog = new DailyTaskLog
-            {
-                TaskID = task.TaskID,
-                LogDate = date.Date,
-                Status = TaskStatuses.Pending
-            };
-            var createdLog = await _dailyTaskLogRepository.CreateAsync(newLog);
-            logs.Add(createdLog);
-        }
-
-        return logs;
-    }
-
     private async System.Threading.Tasks.Task LockExpiredTasks(DateTime forDate)
     {
         if (forDate.Date > _timeProvider.Today) return;
