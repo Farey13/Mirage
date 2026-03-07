@@ -1,10 +1,12 @@
 CREATE PROCEDURE [dbo].[usp_DailyTaskLogs_GetForDate]
-    @Date DATE
+    @Date DATE,
+    @IsDeleted BIT = 0
 AS
 BEGIN
     
     SELECT LogID, TaskID, LogDate, Status, CompletedByUserID, CompletedDateTime, Comments, 
-           LockOverrideUntil, LockOverrideReason, LockOverrideByUserID
+           LockOverrideUntil, LockOverrideReason, LockOverrideByUserID, IsDeleted
     FROM [dbo].[DailyTaskLogs]
-    WHERE LogDate = @Date;
+    WHERE LogDate = @Date 
+      AND IsDeleted = @IsDeleted;
 END

@@ -374,6 +374,35 @@ public partial class DailyTaskLogViewModel : ObservableObject
         catch { }
         return 0;
     }
+
+    [RelayCommand]
+    private async Task RestoreTask(long logId)
+    {
+        if (!IsAdmin)
+        {
+            MessageBox.Show("Only administrators can restore tasks.", "Access Denied", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            var token = _authService.GetToken();
+            if (string.IsNullOrEmpty(token)) return;
+
+            await _apiClient.RestoreDailyTaskAsync(token, logId);
+            MessageBox.Show("Task restored successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            await LoadTasks();
+        }
+        catch (Exception ex)
+        {
+            string errorMessage = ex.Message;
+            if (ex is Refit.ApiException apiEx)
+            {
+                errorMessage = $"Server Error ({apiEx.StatusCode}):\n{apiEx.Content}";
+            }
+            MessageBox.Show($"Restore Failed: {errorMessage}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
 }
 
 public class TaskLogItem : ObservableObject

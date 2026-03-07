@@ -9,6 +9,7 @@ CREATE TABLE [dbo].[DailyTaskLogs](
     [LockOverrideUntil] [datetime2](7) NULL,
     [LockOverrideReason] [nvarchar](max) NULL,
     [LockOverrideByUserID] [int] NULL,
+    [IsDeleted] [bit] NOT NULL DEFAULT 0,
     CONSTRAINT [PK_DailyTaskLogs] PRIMARY KEY CLUSTERED ([LogID] ASC),
     CONSTRAINT [FK_DailyTaskLogs_Tasks] FOREIGN KEY ([TaskID]) REFERENCES [dbo].[Tasks]([TaskID]) ON DELETE CASCADE,
     CONSTRAINT [FK_DailyTaskLogs_Users] FOREIGN KEY ([CompletedByUserID]) REFERENCES [dbo].[Users]([UserID])
@@ -17,3 +18,7 @@ CREATE TABLE [dbo].[DailyTaskLogs](
 GO
 
 CREATE NONCLUSTERED INDEX [IX_DailyTaskLogs_LogDate] ON [dbo].[DailyTaskLogs]([LogDate] ASC)
+
+GO
+
+CREATE NONCLUSTERED INDEX [IX_DailyTaskLogs_IsDeleted_Date] ON [dbo].[DailyTaskLogs]([LogDate], [IsDeleted])

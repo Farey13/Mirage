@@ -85,5 +85,73 @@ namespace PortalMirage.Api.Controllers
                 return StatusCode(500, $"CRITICAL FAILURE: {ex.Message} \n\n Stack Trace: {ex.StackTrace}");
             }
         }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteTask(long id)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                              ?? User.FindFirstValue("sub")
+                              ?? User.FindFirstValue("id");
+
+                if (!int.TryParse(userIdClaim, out int userId) || userId <= 0)
+                {
+                    return BadRequest("Server Error: User ID could not be identified from Token.");
+                }
+
+                logger.LogInformation("Soft deleting task log {TaskLogId} by user {UserId}", id, userId);
+
+                var success = await dailyTaskLogService.SoftDeleteTaskAsync(id, userId);
+
+                if (!success)
+                {
+                    logger.LogWarning("Task log not found for soft delete: {TaskLogId}", id);
+                    return NotFound($"Task log with ID {id} not found.");
+                }
+
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error soft deleting task log {TaskLogId}", id);
+                return StatusCode(500, $"CRITICAL FAILURE: {ex.Message}");
+            }
+        }
+
+        [HttpPut("{id}/restore")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> RestoreTask(long id)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                              ?? User.FindFirstValue("sub")
+                              ?? User.FindFirstValue("id");
+
+                if (!int.TryParse(userIdClaim, out int userId) || userId <= 0)
+                {
+                    return BadRequest("Server Error: User ID could not be identified from Token.");
+                }
+
+                logger.LogInformation("Restoring task log {TaskLogId} by user {UserId}", id, userId);
+
+                var success = await dailyTaskLogService.RestoreTaskAsync(id, userId);
+
+                if (!success)
+                {
+                    logger.LogWarning("Task log not found for restore: {TaskLogId}", id);
+                    return NotFound($"Task log with ID {id} not found or not deleted.");
+                }
+
+                return Ok(new { Message = "Task restored successfully." });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error restoring task log {TaskLogId}", id);
+                return StatusCode(500, $"CRITICAL FAILURE: {ex.Message}");
+            }
+        }
     }
 }

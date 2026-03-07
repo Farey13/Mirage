@@ -118,6 +118,12 @@ public interface IPortalMirageApi
     [Put("/api/dailytasklogs/{id}/extend")]
     System.Threading.Tasks.Task<DailyTaskLog> ExtendTaskDeadlineAsync([Authorize("Bearer")] string token, long id, [Body] ExtendTaskDeadlineRequest request);
 
+    [Delete("/api/dailytasklogs/{id}")]
+    System.Threading.Tasks.Task DeleteDailyTaskAsync([Header("Authorization")] string token, long id);
+
+    [Put("/api/dailytasklogs/{id}/restore")]
+    System.Threading.Tasks.Task RestoreDailyTaskAsync([Header("Authorization")] string token, long id);
+
     [Get("/api/dailytasklog/{date}")]
     System.Threading.Tasks.Task<List<TaskLogDetailDto>> GetDailyTaskLogsAsync([Header("Authorization")] string token, DateTime date);
 
@@ -192,8 +198,17 @@ public interface IPortalMirageApi
     [Post("/api/tasks")]
     System.Threading.Tasks.Task<TaskModel> CreateTaskAsync([Header("Authorization")] string token, [Body] TaskModel task);
 
+    [Put("/api/tasks/{id}")]
+    System.Threading.Tasks.Task<TaskModel> UpdateTaskAsync([Header("Authorization")] string token, int id, [Body] TaskModel task);
+
     [Delete("/api/tasks/{id}")]
     Task DeactivateTaskAsync([Header("Authorization")] string token, int id);
+
+    [Put("/api/tasks/{id}/softdelete")]
+    System.Threading.Tasks.Task SoftDeleteTaskAsync([Header("Authorization")] string token, int id);
+
+    [Put("/api/tasks/{id}/restore")]
+    System.Threading.Tasks.Task RestoreTaskAsync([Header("Authorization")] string token, int id);
 
     // === Reports ===
     [Get("/api/reports/machine-breakdowns")] // ADD THIS

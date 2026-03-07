@@ -26,7 +26,7 @@ public partial class TaskManagementViewModel : ObservableObject
         "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
     };
 
-    // Form Properties
+    // Form Properties for Add
     [ObservableProperty]
     private string _newTaskName = string.Empty;
 
@@ -37,7 +37,29 @@ public partial class TaskManagementViewModel : ObservableObject
     private string _selectedScheduleType = "Daily";
 
     [ObservableProperty]
-    private string? _scheduleValue; // Stores "Monday" or "15" (day of month)
+    private string? _scheduleValue;
+
+    // Edit Panel Properties
+    [ObservableProperty]
+    private TaskModel? _selectedTask;
+
+    [ObservableProperty]
+    private bool _isEditMode;
+
+    [ObservableProperty]
+    private string _editTaskName = string.Empty;
+
+    [ObservableProperty]
+    private ShiftResponse? _editSelectedShift;
+
+    [ObservableProperty]
+    private string _editScheduleType = "Daily";
+
+    [ObservableProperty]
+    private string? _editScheduleValue;
+
+    [ObservableProperty]
+    private bool _editIsActive = true;
 
     public TaskManagementViewModel(IPortalMirageApi apiClient, IAuthService authService)
     {
@@ -147,5 +169,161 @@ public partial class TaskManagementViewModel : ObservableObject
         {
             MessageBox.Show($"Failed to create task: {ex.Message}");
         }
+    }
+
+    [RelayCommand]
+    private void SelectTask(TaskModel task)
+    {
+        if (task == null) return;
+
+        SelectedTask = task;
+        EditTaskName = task.TaskName;
+        EditScheduleType = task.ScheduleType;
+        EditScheduleValue = task.ScheduleValue;
+        EditIsActive = task.IsActive;
+
+        // Find the matching shift
+        EditSelectedShift = Shifts.FirstOrDefault(s => s.ShiftID == task.ShiftID);
+
+        IsEditMode = true;
+    }
+
+    [RelayCommand]
+    private async Task SaveTaskUpdate()
+    {
+        if (SelectedTask == null) return;
+
+        if (string.IsNullOrWhiteSpace(EditTaskName))
+        {
+            MessageBox.Show("Task Name is required.");
+            return;
+        }
+
+        if (EditSelectedShift == null)
+        {
+            MessageBox.Show("Please select a Shift.");
+            return;
+        }
+
+        var token = _authService.GetToken();
+        if (string.IsNullOrEmpty(token)) return;
+
+        try
+        {
+            var updatedTask = new TaskModel
+            {
+                TaskID = SelectedTask.TaskID,
+                TaskName = EditTaskName,
+                ShiftID = EditSelectedShift.ShiftID,
+                ScheduleType = EditScheduleType,
+                ScheduleValue = EditScheduleValue,
+                IsActive = EditIsActive
+            };
+
+            await _apiClient.UpdateTaskAsync(token, updatedTask.TaskID, updatedTask);
+
+            await LoadDataAsync();
+            MessageBox.Show("Task updated successfully!");
+
+            // Clear edit mode
+            ClearEditMode();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to update task: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private async Task SoftDeleteTask()
+    {
+        if (SelectedTask == null) return;
+
+        var confirm = MessageBox.Show(
+            $"Are you sure you want to soft delete '{SelectedTask.TaskName}'?\nThis action can be undone by restoring the task.",
+            "Confirm Soft Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
+        var token = _authService.GetToken();
+        if (string.IsNullOrEmpty(token)) return;
+
+        try
+        {
+            await _apiClient.SoftDeleteTaskAsync(token, SelectedTask.TaskID);
+            await LoadDataAsync();
+            MessageBox.Show("Task soft deleted successfully!");
+            ClearEditMode();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to soft delete task: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private async Task RestoreTask(TaskModel task)
+    {
+        if (task == null) return;
+
+        var token = _authService.GetToken();
+        if (string.IsNullOrEmpty(token)) return;
+
+        try
+        {
+            await _apiClient.RestoreTaskAsync(token, task.TaskID);
+            await LoadDataAsync();
+            MessageBox.Show("Task restored successfully!");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to restore task: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private async Task ToggleActive(TaskModel task)
+    {
+        if (task == null) return;
+
+        var token = _authService.GetToken();
+        if (string.IsNullOrEmpty(token)) return;
+
+        try
+        {
+            var updatedTask = new TaskModel
+            {
+                TaskID = task.TaskID,
+                TaskName = task.TaskName,
+                ShiftID = task.ShiftID,
+                ScheduleType = task.ScheduleType,
+                ScheduleValue = task.ScheduleValue,
+                IsActive = !task.IsActive
+            };
+
+            await _apiClient.UpdateTaskAsync(token, updatedTask.TaskID, updatedTask);
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to toggle task status: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private void CancelEdit()
+    {
+        ClearEditMode();
+    }
+
+    private void ClearEditMode()
+    {
+        SelectedTask = null;
+        IsEditMode = false;
+        EditTaskName = string.Empty;
+        EditSelectedShift = null;
+        EditScheduleType = "Daily";
+        EditScheduleValue = null;
+        EditIsActive = true;
     }
 }

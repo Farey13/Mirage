@@ -9,4 +9,5 @@ public record TaskModel
     public required string ScheduleType { get; set; }
     public string? ScheduleValue { get; set; }
     public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; } = false;
 }

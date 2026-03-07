@@ -54,6 +54,8 @@ public class DailyTaskLogService : IDailyTaskLogService
         public const string MarkAsNA = "MarkAsNA";
         public const string OverrideLock = "OverrideLock";
         public const string AutoLock = "AutoLock";
+        public const string SoftDelete = "SoftDelete";
+        public const string Restore = "Restore";
     }
 
     public static class ScheduleTypes
@@ -352,6 +354,44 @@ public class DailyTaskLogService : IDailyTaskLogService
     {
         var validStatuses = new[] { TaskStatuses.Pending, TaskStatuses.Complete, TaskStatuses.Incomplete, TaskStatuses.NotApplicable };
         return validStatuses.Contains(status);
+    }
+
+    public async Task<bool> SoftDeleteTaskAsync(long logId, int userId)
+    {
+        _logger.LogInformation("Soft deleting task log {LogId} by user {UserId}", logId, userId);
+
+        var success = await _dailyTaskLogRepository.SoftDeleteAsync(logId);
+        if (success)
+        {
+            await _auditLogService.LogAsync(
+                userId: userId,
+                actionType: AuditActions.SoftDelete,
+                moduleName: nameof(DailyTaskLog),
+                recordId: logId.ToString(),
+                newValue: "Task log soft deleted");
+            
+            _logger.LogInformation("Task log {LogId} soft deleted successfully", logId);
+        }
+        return success;
+    }
+
+    public async Task<bool> RestoreTaskAsync(long logId, int userId)
+    {
+        _logger.LogInformation("Restoring task log {LogId} by user {UserId}", logId, userId);
+
+        var success = await _dailyTaskLogRepository.RestoreAsync(logId);
+        if (success)
+        {
+            await _auditLogService.LogAsync(
+                userId: userId,
+                actionType: AuditActions.Restore,
+                moduleName: nameof(DailyTaskLog),
+                recordId: logId.ToString(),
+                newValue: "Task log restored from soft delete");
+            
+            _logger.LogInformation("Task log {LogId} restored successfully", logId);
+        }
+        return success;
     }
     #endregion
 }

@@ -12,4 +12,5 @@ public record DailyTaskLog
     public DateTime? LockOverrideUntil { get; set; }
     public string? LockOverrideReason { get; set; }
     public int? LockOverrideByUserID { get; set; }
+    public bool IsDeleted { get; set; } = false;
 }
