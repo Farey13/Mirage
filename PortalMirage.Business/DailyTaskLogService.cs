@@ -69,7 +69,7 @@ public class DailyTaskLogService : IDailyTaskLogService
     public async Task<IEnumerable<TaskLogDetailDto>> GetTasksForDateAsync(DateTime date)
     {
         _logger.LogInformation("Fetching tasks for date: {Date}", date);
-        
+
         if (date.Date > _timeProvider.Today)
             throw new ArgumentException("Cannot get tasks for future dates", nameof(date));
 
@@ -97,7 +97,7 @@ public class DailyTaskLogService : IDailyTaskLogService
         if (missingTasks.Any())
         {
             _logger.LogInformation("Found {Count} new tasks. Generating missing logs.", missingTasks.Count);
-            
+
             foreach (var task in missingTasks)
             {
                 var newLog = new DailyTaskLog
@@ -106,7 +106,7 @@ public class DailyTaskLogService : IDailyTaskLogService
                     LogDate = date.Date,
                     Status = TaskStatuses.Pending
                 };
-                
+
                 var createdLog = await _dailyTaskLogRepository.CreateAsync(newLog);
                 existingLogs.Add(createdLog);
             }
@@ -118,7 +118,7 @@ public class DailyTaskLogService : IDailyTaskLogService
     public async Task<TaskLogDetailDto?> UpdateTaskStatusAsync(long logId, string status, int userId, string? comment = null)
     {
         _logger.LogInformation("Updating task log {LogId} status to {Status} by user {UserId}", logId, status, userId);
-        
+
         if (!IsValidStatus(status))
             throw new ArgumentException($"Invalid status: {status}", nameof(status));
 
@@ -146,9 +146,9 @@ public class DailyTaskLogService : IDailyTaskLogService
 
     public async Task<DailyTaskLog?> ExtendTaskDeadlineAsync(long logId, DateTime newDeadline, string reason, int adminUserId)
     {
-        _logger.LogInformation("Extending deadline for task log {LogId} to {NewDeadline} by admin {AdminUserId}", 
+        _logger.LogInformation("Extending deadline for task log {LogId} to {NewDeadline} by admin {AdminUserId}",
             logId, newDeadline, adminUserId);
-        
+
         if (newDeadline <= _timeProvider.Now)
             throw new ArgumentException("New deadline must be in the future", nameof(newDeadline));
 
@@ -164,7 +164,7 @@ public class DailyTaskLogService : IDailyTaskLogService
                 nameof(DailyTaskLog),
                 logId.ToString(),
                 newValue: $"Deadline extended to {newDeadline:yyyy-MM-dd HH:mm} for reason: {reason}");
-            
+
             _logger.LogInformation("Task log {LogId} deadline extended to {NewDeadline}", logId, newDeadline);
         }
         return extendedLog;
@@ -176,7 +176,7 @@ public class DailyTaskLogService : IDailyTaskLogService
             throw new ArgumentException("Reason is required", nameof(reason));
 
         _logger.LogInformation("Marking task log {LogId} as not applicable by user {UserId}", logId, userId);
-        
+
         var updatedLog = await _dailyTaskLogRepository.UpdateStatusAsync(logId, TaskStatuses.NotApplicable, userId, reason);
         if (updatedLog is not null)
         {
@@ -186,7 +186,7 @@ public class DailyTaskLogService : IDailyTaskLogService
                 nameof(DailyTaskLog),
                 logId.ToString(),
                 newValue: $"Marked as Not Applicable: {reason}");
-            
+
             _logger.LogInformation("Task log {LogId} marked as not applicable", logId);
         }
         return updatedLog;
@@ -200,9 +200,9 @@ public class DailyTaskLogService : IDailyTaskLogService
         if (string.IsNullOrWhiteSpace(reason))
             throw new ArgumentException("Reason is required", nameof(reason));
 
-        _logger.LogInformation("Overriding lock for task log {LogId} until {OverrideUntil} by admin {AdminUserId}", 
+        _logger.LogInformation("Overriding lock for task log {LogId} until {OverrideUntil} by admin {AdminUserId}",
             logId, overrideUntil, adminUserId);
-        
+
         var updatedLog = await _dailyTaskLogRepository.OverrideLockAsync(logId, overrideUntil, reason, adminUserId);
         if (updatedLog is not null)
         {
@@ -212,7 +212,7 @@ public class DailyTaskLogService : IDailyTaskLogService
                 nameof(DailyTaskLog),
                 logId.ToString(),
                 newValue: $"Lock override until {overrideUntil:yyyy-MM-dd HH:mm} for reason: {reason}");
-            
+
             _logger.LogInformation("Task log {LogId} lock overridden until {OverrideUntil}", logId, overrideUntil);
         }
         return updatedLog;
@@ -254,12 +254,12 @@ public class DailyTaskLogService : IDailyTaskLogService
                     "Automatically locked due to expired deadline");
 
                 await _auditLogService.LogAsync(
-                    null,
+                    0,
                     AuditActions.AutoLock,
                     nameof(DailyTaskLog),
                     log.LogID.ToString(),
                     newValue: $"Automatically locked at {_timeProvider.Now:yyyy-MM-dd HH:mm} - deadline was {lockTime:yyyy-MM-dd HH:mm}");
-                
+
                 _logger.LogInformation("Task log {LogID} automatically locked due to expired deadline", log.LogID);
             }
         }
@@ -302,15 +302,10 @@ public class DailyTaskLogService : IDailyTaskLogService
 
         var shifts = (await _shiftRepository.GetAllAsync()).ToDictionary(s => s.ShiftID);
         string categoryName = "Uncategorized";
-        DateTime? lockUntil = null;
-        DateTime? shiftStartTime = null;
 
         if (task != null && task.ShiftID.HasValue && shifts.TryGetValue(task.ShiftID.Value, out var shift))
         {
             categoryName = shift.ShiftName;
-            var shiftEndTimeOnDate = log.LogDate.Date + shift.EndTime.ToTimeSpan();
-            lockUntil = shiftEndTimeOnDate.AddHours(shift.GracePeriodHours);
-            shiftStartTime = log.LogDate.Date + shift.StartTime.ToTimeSpan();
         }
 
         return new TaskLogDetailDto
@@ -323,9 +318,7 @@ public class DailyTaskLogService : IDailyTaskLogService
             CompletedByUserID = log.CompletedByUserID,
             CompletedByUsername = user?.FullName ?? "Unknown User",
             Comments = log.Comments,
-            LockOverrideUntil = log.LockOverrideUntil,
-            LockUntil = lockUntil,
-            ShiftStartTime = shiftStartTime
+            LockOverrideUntil = log.LockOverrideUntil
         };
     }
 
@@ -339,15 +332,9 @@ public class DailyTaskLogService : IDailyTaskLogService
         var user = log.CompletedByUserID.HasValue && users.TryGetValue(log.CompletedByUserID.Value, out var u) ? u : null;
 
         string categoryName = "Uncategorized";
-        DateTime? lockUntil = null;
-        DateTime? shiftStartTime = null;
-
         if (task != null && task.ShiftID.HasValue && shifts.TryGetValue(task.ShiftID.Value, out var shift))
         {
             categoryName = shift.ShiftName;
-            var shiftEndTimeOnDate = log.LogDate.Date + shift.EndTime.ToTimeSpan();
-            lockUntil = shiftEndTimeOnDate.AddHours(shift.GracePeriodHours);
-            shiftStartTime = log.LogDate.Date + shift.StartTime.ToTimeSpan();
         }
 
         return new TaskLogDetailDto
@@ -360,9 +347,7 @@ public class DailyTaskLogService : IDailyTaskLogService
             CompletedByUserID = log.CompletedByUserID,
             CompletedByUsername = user?.FullName ?? "Unknown User",
             Comments = log.Comments,
-            LockOverrideUntil = log.LockOverrideUntil,
-            LockUntil = lockUntil,
-            ShiftStartTime = shiftStartTime
+            LockOverrideUntil = log.LockOverrideUntil
         };
     }
 
@@ -390,7 +375,7 @@ public class DailyTaskLogService : IDailyTaskLogService
                 moduleName: nameof(DailyTaskLog),
                 recordId: logId.ToString(),
                 newValue: "Task log soft deleted");
-            
+
             _logger.LogInformation("Task log {LogId} soft deleted successfully", logId);
         }
         return success;
@@ -409,7 +394,7 @@ public class DailyTaskLogService : IDailyTaskLogService
                 moduleName: nameof(DailyTaskLog),
                 recordId: logId.ToString(),
                 newValue: "Task log restored from soft delete");
-            
+
             _logger.LogInformation("Task log {LogId} restored successfully", logId);
         }
         return success;

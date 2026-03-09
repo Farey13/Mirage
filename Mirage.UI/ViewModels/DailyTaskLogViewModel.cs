@@ -436,11 +436,11 @@ public class TaskLogItem : ObservableObject
     {
         get
         {
+            bool isPastDate = _logDate.Date < DateTime.Today;
             bool hasOverride = Dto.LockOverrideUntil.HasValue && Dto.LockOverrideUntil.Value > DateTime.Now;
 
+            if (isPastDate && !hasOverride) return true;
             if (Dto.Status == "Incomplete" || Dto.Status == "Not Available") return true;
-            if (Dto.LockUntil.HasValue && DateTime.Now > Dto.LockUntil.Value && !hasOverride) return true;
-            if (Dto.ShiftStartTime.HasValue && DateTime.Now < Dto.ShiftStartTime.Value && !hasOverride) return true;
 
             return false;
         }
