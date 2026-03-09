@@ -12,4 +12,6 @@ public record TaskLogDetailDto
     public string? CompletedByUsername { get; set; }
     public string? Comments { get; set; }
     public DateTime? LockOverrideUntil { get; set; }
+    public DateTime? LockUntil { get; set; }
+    public DateTime? ShiftStartTime { get; set; }
 }

@@ -254,7 +254,7 @@ public class DailyTaskLogService : IDailyTaskLogService
                     "Automatically locked due to expired deadline");
 
                 await _auditLogService.LogAsync(
-                    0,
+                    null,
                     AuditActions.AutoLock,
                     nameof(DailyTaskLog),
                     log.LogID.ToString(),
@@ -302,10 +302,15 @@ public class DailyTaskLogService : IDailyTaskLogService
 
         var shifts = (await _shiftRepository.GetAllAsync()).ToDictionary(s => s.ShiftID);
         string categoryName = "Uncategorized";
+        DateTime? lockUntil = null;
+        DateTime? shiftStartTime = null;
 
         if (task != null && task.ShiftID.HasValue && shifts.TryGetValue(task.ShiftID.Value, out var shift))
         {
             categoryName = shift.ShiftName;
+            var shiftEndTimeOnDate = log.LogDate.Date + shift.EndTime.ToTimeSpan();
+            lockUntil = shiftEndTimeOnDate.AddHours(shift.GracePeriodHours);
+            shiftStartTime = log.LogDate.Date + shift.StartTime.ToTimeSpan();
         }
 
         return new TaskLogDetailDto
@@ -318,7 +323,9 @@ public class DailyTaskLogService : IDailyTaskLogService
             CompletedByUserID = log.CompletedByUserID,
             CompletedByUsername = user?.FullName ?? "Unknown User",
             Comments = log.Comments,
-            LockOverrideUntil = log.LockOverrideUntil
+            LockOverrideUntil = log.LockOverrideUntil,
+            LockUntil = lockUntil,
+            ShiftStartTime = shiftStartTime
         };
     }
 
@@ -332,9 +339,15 @@ public class DailyTaskLogService : IDailyTaskLogService
         var user = log.CompletedByUserID.HasValue && users.TryGetValue(log.CompletedByUserID.Value, out var u) ? u : null;
 
         string categoryName = "Uncategorized";
+        DateTime? lockUntil = null;
+        DateTime? shiftStartTime = null;
+
         if (task != null && task.ShiftID.HasValue && shifts.TryGetValue(task.ShiftID.Value, out var shift))
         {
             categoryName = shift.ShiftName;
+            var shiftEndTimeOnDate = log.LogDate.Date + shift.EndTime.ToTimeSpan();
+            lockUntil = shiftEndTimeOnDate.AddHours(shift.GracePeriodHours);
+            shiftStartTime = log.LogDate.Date + shift.StartTime.ToTimeSpan();
         }
 
         return new TaskLogDetailDto
@@ -347,7 +360,9 @@ public class DailyTaskLogService : IDailyTaskLogService
             CompletedByUserID = log.CompletedByUserID,
             CompletedByUsername = user?.FullName ?? "Unknown User",
             Comments = log.Comments,
-            LockOverrideUntil = log.LockOverrideUntil
+            LockOverrideUntil = log.LockOverrideUntil,
+            LockUntil = lockUntil,
+            ShiftStartTime = shiftStartTime
         };
     }
 
