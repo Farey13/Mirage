@@ -59,7 +59,6 @@ public partial class DailyTaskLogViewModel : ObservableObject
     {
         _apiClient = apiClient;
         _authService = authService;
-        LoadInitialTasks();
     }
 
     private async void LoadInitialTasks() => await LoadTasks();
